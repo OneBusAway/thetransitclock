@@ -11,10 +11,12 @@ TheTransitClock (formerly Transitime) is a Java real-time transit prediction and
 Built from the repository root as a Maven multi-module project.
 
 - Build everything without tests: `mvn install -DskipTests`
-- Build with unit tests: `mvn install`
+- Run all unit tests across the reactor: `mvn verify` (**not** `mvn test` — see below)
 - Run a single module's tests: `mvn -pl transitclock test`
 - Run a single test class: `mvn -pl transitclock test -Dtest=TestAPIKeyManager`
 - Integration tests live in the `transitclockIntegration` module and are **excluded by default** via the `skip-integration-tests` profile. Enable with: `mvn install -P include-integration-tests`
+
+`mvn test` on the full reactor fails: `transitclockQuickStart` binds `maven-dependency-plugin:copy` to `generate-resources` to pull the `transitclockApi` WAR into its resources, but the `test` phase never packages that WAR (MDEP-187: "Artifact has not been packaged yet"). Use `mvn verify` / `mvn package` / `mvn install` to exercise all tests, or scope to one module with `-pl`, or skip QuickStart: `mvn test -pl '!transitclockQuickStart'`.
 - Shaded executable JARs are emitted into `transitclock/target/` (e.g. `Core.jar`, `GtfsFileProcessor.jar`, `SchemaGenerator.jar`, `CreateWebAgency.jar`, `CreateAPIKey.jar`, `RmiQuery.jar`, `UpdateTravelTimes.jar`, `ScheduleGenerator.jar`) — each is a maven-shade execution in `transitclock/pom.xml`.
 
 There is no lint step configured in the build.
