@@ -23,11 +23,14 @@ import org.transitclock.db.structs.AvlReport.AssignmentType;
  * these tests drive real AVL reports through the real matcher + vehicle-state
  * machine.
  *
- * <p>The 5A fixture has calendars for service_ids 8, 13, 14, 15, 16, 22 with
- * calendar_dates.txt entries scattered from 2003–2016. The historical sample
- * AVL data (not loaded here) came from 2016-05-05; that date has service, so
- * we anchor Core's clock to roughly that time-of-day on a date where we know
- * at least some service_id is active.
+ * <p>The 5A fixture (under {@code transitclockIntegration/src/test/resources/gtfs/5A})
+ * is a mid-2010s WMATA snapshot. Its calendars are stale by today's clock, so
+ * {@link CoreHarness} rewrites {@code calendar.txt} end_dates at staging
+ * time; runtime service-id lookups then key off Core's simulated clock, which
+ * tests pin to a date in the original fixture's {@code calendar_dates.txt}
+ * range (see the {@code HAPPY_PATH_*} constants below for the specific date
+ * and block used by the matching test). If the fixture is ever refreshed,
+ * those constants are the places to update.
  *
  * <p>Why a single behavior test class with one harness boot: the harness boot
  * costs ~1.5s and gives us per-JVM isolation (Surefire {@code reuseForks=false}

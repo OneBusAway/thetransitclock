@@ -54,11 +54,11 @@ public class EncryptionTest {
 	@Test
 	public void decryptOfTamperedCiphertextThrows() {
 		String encrypted = Encryption.encrypt("original");
-		// Flip a character in the middle of the ciphertext to corrupt it.
-		char[] chars = encrypted.toCharArray();
-		int mid = chars.length / 2;
-		chars[mid] = (chars[mid] == 'A') ? 'B' : 'A';
-		String tampered = new String(chars);
+		// Truncate the trailing bytes of the ciphertext rather than flipping
+		// a single character. A char flip could land on a base64 padding
+		// char and produce a still-decryptable value for some schemes;
+		// truncation always destroys the ciphertext integrity.
+		String tampered = encrypted.substring(0, Math.max(1, encrypted.length() - 4));
 
 		try {
 			Encryption.decrypt(tampered);

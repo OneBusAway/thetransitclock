@@ -161,9 +161,21 @@ public class TripTest {
 		Trip offsetTrip = new Trip(base, offset);
 
 		assertFalse(offsetTrip.isNoSchedule());
+		assertTrue("frequency copy with exact_times=true must flag exactTimesHeadway",
+				offsetTrip.isExactTimesHeadway());
 		// Start/end are shifted by the offset.
 		assertEquals(Integer.valueOf(0 + offset), offsetTrip.getStartTime());
 		assertEquals(Integer.valueOf(300 + offset), offsetTrip.getEndTime());
+		// Every schedule time is shifted by the same offset. Without this
+		// assertion, a regression that leaves schedule times at the base
+		// (unshifted) values would pass the start/end checks above.
+		assertEquals(2, offsetTrip.getScheduleTimes().size());
+		assertEquals("departure time shifts with offset",
+				Integer.valueOf(0 + offset),
+				offsetTrip.getScheduleTimes().get(0).getDepartureTime());
+		assertEquals("arrival time shifts with offset",
+				Integer.valueOf(300 + offset),
+				offsetTrip.getScheduleTimes().get(1).getArrivalTime());
 		// Block id is mutated to be unique per-copy.
 		assertFalse("block id must be disambiguated",
 				offsetTrip.getBlockId().equals(base.getBlockId()));

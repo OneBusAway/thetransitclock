@@ -39,11 +39,19 @@ public class TripPatternKeyTest {
 
 	@Test
 	public void constructorRejectsNullStopPathsList() {
+		// The constructor throws a plain RuntimeException with an explicit
+		// message — assert on the message fragment so a later refactor that
+		// swaps to a stricter type (NullPointerException, IllegalArgumentException)
+		// or drops the explicit check to rely on an implicit dereference NPE
+		// is caught and considered here.
 		try {
 			new TripPatternKey("shape1", null);
 			fail("Expected RuntimeException for null stopPaths");
 		} catch (RuntimeException expected) {
-			// expected
+			assertNotNull("RuntimeException must carry a diagnostic message",
+					expected.getMessage());
+			assertTrue("message should mention stopPaths: " + expected.getMessage(),
+					expected.getMessage().contains("stopPaths"));
 		}
 	}
 
