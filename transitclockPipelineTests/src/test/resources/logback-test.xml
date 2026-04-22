@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Quiets the noisy Core/GTFS/Hibernate startup logs so pipeline-test
+  output stays scannable. Override per-test with -Dlogger.level if you
+  need to see what Core is doing.
+-->
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Noisy packages during Core boot. -->
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.transitclock.db.hibernate" level="WARN"/>
+    <logger name="com.mchange" level="WARN"/>
+    <logger name="net.sf.ehcache" level="WARN"/>
+    <!-- Keep GTFS import chatty while we're building out the harness so
+         filter warnings (e.g. "service not valid in the future") surface. -->
+    <logger name="org.transitclock.gtfs" level="INFO"/>
+
+    <!-- Pipeline-test classes themselves keep INFO so their progress shows. -->
+    <logger name="org.transitclock.pipelinetests" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

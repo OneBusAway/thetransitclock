@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>TheTransitClock</groupId>
+    <version>2.0.0-SNAPSHOT</version>
+    <artifactId>transitclockPipelineTests</artifactId>
+
+    <!--
+      Pipeline tests: per-class behavior tests that boot a real Core against
+      a small in-memory HSQL database loaded with the 5A WMATA GTFS dataset.
+      Lighter-weight than transitclockIntegration (which runs full AVL-CSV
+      traces end-to-end), but heavier than the pure unit tests in
+      transitclock/src/test. Opt-in via the include-pipeline-tests profile
+      in the root pom.
+    -->
+
+    <dependencies>
+        <dependency>
+            <groupId>TheTransitClock</groupId>
+            <artifactId>transitclockCore</artifactId>
+            <version>2.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <!--
+          We intentionally do NOT depend on transitclockIntegration. That
+          module is excluded from the default build, so depending on it
+          would force this module to only build under -P include-integration-tests.
+          Instead, CoreHarness reads the 5A GTFS dataset from
+          ../transitclockIntegration/src/test/resources/gtfs/5A via a
+          relative filesystem path (valid since both modules live in the
+          same git checkout), and re-implements the small Core boot
+          sequence from PlaybackModule#setupGtfs directly.
+        -->
+
+        <dependency>
+            <groupId>org.hsqldb</groupId>
+            <artifactId>hsqldb</artifactId>
+            <version>2.2.4</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.1.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.24.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.19.1</version>
+                <configuration>
+                    <!--
+                      reuseForks=false: each test class gets a fresh JVM.
+                      Core is a static singleton, so per-class fork isolation
+                      is the simplest way to guarantee clean state without
+                      hand-rolled singleton resets.
+                    -->
+                    <argLine>-Dtransitclock.logging.dir="/tmp"</argLine>
+                    <reuseForks>false</reuseForks>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

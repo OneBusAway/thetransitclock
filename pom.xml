@@ -62,5 +62,11 @@
  		<module>coverage-report</module>
             </modules>
         </profile>
+        <profile>
+            <id>include-pipeline-tests</id>
+            <modules>
+                <module>transitclockPipelineTests</module>
+            </modules>
+        </profile>
     </profiles>
 </project>
