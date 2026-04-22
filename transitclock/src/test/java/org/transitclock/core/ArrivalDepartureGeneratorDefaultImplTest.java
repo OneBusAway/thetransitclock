@@ -2,6 +2,8 @@ package org.transitclock.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -22,11 +24,8 @@ public class ArrivalDepartureGeneratorDefaultImplTest {
 
 		new ArrivalDepartureGeneratorDefaultImpl().generate(vs);
 
-		// The method returns early; nothing else on the mock should have been
-		// touched. isPredictable() will show in interactions, so we just
-		// re-assert the guard held by checking getMatch() was never consulted.
-		// Using a looser check here since Mockito's strict mode isn't enabled.
-		assertThat(vs.isPredictable()).isFalse();
+		verify(vs).isPredictable();
+		verify(vs, never()).getMatch();
 	}
 
 	@Test
@@ -35,20 +34,25 @@ public class ArrivalDepartureGeneratorDefaultImplTest {
 		when(vs.isPredictable()).thenReturn(true);
 		when(vs.getMatch()).thenReturn(null);
 
-		// Should not throw, should not reach any downstream processing.
 		new ArrivalDepartureGeneratorDefaultImpl().generate(vs);
+
+		verify(vs).isPredictable();
+		verify(vs).getMatch();
+		verify(vs, never()).getPreviousMatch();
 	}
 
 	@Test
 	public void generate_doesNotTouchTrivialCollaboratorsWhenUnpredictable() {
 		VehicleState vs = mock(VehicleState.class);
 		when(vs.isPredictable()).thenReturn(false);
-		SpatialMatch match = mock(SpatialMatch.class);
+		TemporalMatch match = mock(TemporalMatch.class);
+		when(vs.getMatch()).thenReturn(match);
 
 		new ArrivalDepartureGeneratorDefaultImpl().generate(vs);
 
-		// Since the method short-circuits, it should never have asked for a
-		// match or a previous match.
+		verify(vs).isPredictable();
+		// Guard short-circuited before ever reading match off the state.
+		verify(vs, never()).getMatch();
 		verifyNoInteractions(match);
 	}
 }

@@ -152,8 +152,13 @@ public class SpatialMatchTest {
 	@Test
 	public void atStop_layoverStopAlwaysCountsAsAtStop() {
 		// Layover flag forces atStop regardless of how far from the stop we are.
+		// Position the match at the midpoint of the segment — outside both
+		// beforeStopDistance (50m from end) and afterStopDistance (50m from
+		// start) — so the only thing that can drive isAtStop to true is the
+		// layover flag itself.
 		Block block = buildSimpleBlock(2, new boolean[] {true, false});
-		SpatialMatch match = matchAt(block, 0, 5.0); // almost at the start
+		VectorWithHeading seg = block.getStopPath(0, 0).getSegmentVector(0);
+		SpatialMatch match = matchAt(block, 0, seg.length() / 2.0);
 
 		assertThat(match.isAtStop()).isTrue();
 		assertThat(match.atEndOfPathStop()).isTrue();

@@ -26,8 +26,11 @@ public class FrequencyKalmanPredictionGeneratorImplTest {
 	@Test
 	public void maxPredictionsTimeSecs_usesInheritedDefault() {
 		// Not overridden in any of the intermediate layers, so the 45-min
-		// default from PredictionGeneratorDefaultImpl still applies.
-		assertThat(PredictionGeneratorDefaultImpl.getMaxPredictionsTimeSecs())
+		// default from PredictionGeneratorDefaultImpl still applies. Assert
+		// through the Kalman class so that if a future change adds a static
+		// override on Kalman (or any intermediate layer), this test breaks
+		// instead of silently continuing to read the base-class value.
+		assertThat(KalmanPredictionGeneratorImpl.getMaxPredictionsTimeSecs())
 				.isEqualTo(45 * 60);
 	}
 }
