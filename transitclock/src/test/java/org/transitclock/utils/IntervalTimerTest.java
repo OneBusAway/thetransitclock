@@ -60,13 +60,12 @@ public class IntervalTimerTest {
 	}
 
 	@Test
-	public void elapsedMsecStrHasThreeDecimalDigits() {
+	public void elapsedMsecStrParsesAsNonNegativeNumber() {
 		IntervalTimer timer = new IntervalTimer();
 		String str = timer.elapsedMsecStr();
-		// Format is "#.###" — value with up to three decimal digits, optional
-		// leading digits. Integer-valued output is just "0" (no trailing zeros)
-		// because DecimalFormat trims them. So only assert the output parses as
-		// a non-negative number.
+		// Format is "#.###" but DecimalFormat trims trailing zeros, so we
+		// can't assert "three decimal digits" literally. The meaningful
+		// contract is that the output is a well-formed non-negative number.
 		double value = Double.parseDouble(str);
 		assertTrue("elapsedMsecStr parses to a non-negative number", value >= 0);
 	}

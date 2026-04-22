@@ -113,16 +113,6 @@ public class CoreHarness extends ExternalResource {
 		return new CoreHarness(WMATA_5A_GTFS_DIR, c -> {});
 	}
 
-	/**
-	 * Escape hatch for callers who want to boot against a non-default GTFS
-	 * directory (useful for reproducing bug reports with a specific agency's
-	 * data). The path is resolved relative to the module basedir, matching
-	 * Surefire's working directory.
-	 */
-	public static CoreHarness withGtfs(String relativeOrAbsoluteGtfsDir) {
-		return new CoreHarness(relativeOrAbsoluteGtfsDir, c -> {});
-	}
-
 	@Override
 	protected void before() throws Throwable {
 		logger.info("Booting Core for pipeline tests (gtfs={})", gtfsDirectory);
@@ -223,7 +213,16 @@ public class CoreHarness extends ExternalResource {
 
 		try (Stream<Path> files = Files.list(source)) {
 			for (Path file : files.collect(Collectors.toList())) {
-				if (!Files.isRegularFile(file)) continue;
+				if (!Files.isRegularFile(file)) {
+					// Silent skipping would quietly drop data. WMATA 5A is
+					// flat, but an agency's GTFS dir with a subdirectory or
+					// symlink would otherwise be imported with missing files
+					// and surface the problem as confusing "X not found"
+					// errors far from here.
+					throw new IOException("Unexpected non-regular entry in GTFS source dir: "
+							+ file.toAbsolutePath()
+							+ " (CoreHarness expects a flat directory of .txt files)");
+				}
 				Path dest = staged.resolve(file.getFileName());
 				if (file.getFileName().toString().equals("calendar.txt")) {
 					rewriteCalendarWithFutureEndDates(file, dest);
@@ -236,10 +235,15 @@ public class CoreHarness extends ExternalResource {
 	}
 
 	/**
-	 * Reads {@code calendar.txt}, replaces end_date (column 10) with a
-	 * far-future date, and writes to {@code dest}. The GTFS spec defines
-	 * calendar.txt columns as: service_id, monday..sunday, start_date,
-	 * end_date — always in that order with an end_date at index 9 (0-based).
+	 * Reads {@code calendar.txt}, replaces end_date (column 10, index 9
+	 * 0-based) with a far-future date, and writes to {@code dest}.
+	 *
+	 * <p>GTFS does not require a fixed column order — feeds identify columns
+	 * by header name — but every WMATA test fixture checked in under
+	 * {@code transitclockIntegration} uses the canonical column order
+	 * (service_id, monday..sunday, start_date, end_date). This rewriter
+	 * relies on that canonical order and would need a header-aware parser
+	 * if a fixture with a different ordering is ever introduced.
 	 */
 	static void rewriteCalendarWithFutureEndDates(Path source, Path dest)
 			throws IOException {

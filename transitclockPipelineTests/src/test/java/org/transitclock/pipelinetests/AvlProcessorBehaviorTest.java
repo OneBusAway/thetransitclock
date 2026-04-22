@@ -75,13 +75,53 @@ public class AvlProcessorBehaviorTest {
 	private static final double FAR_OFF_ROUTE_LAT = 47.6062;
 	private static final double FAR_OFF_ROUTE_LON = -122.3321;
 
+	// --- Known-good happy-path match fixture ---
+	// Trip 868588900 on block SE-08 (service 8) departs stop 14253
+	// (Dulles Airport Main Terminal, 38.953562,-77.447485) at 11:55:00
+	// local time heading east to L'Enfant Plaza.
+	// 2016-06-20 was a Monday with service 8 active (not in calendar_dates
+	// exclusions). Setting Core's clock to 11:50 EDT on that date puts us
+	// 5 minutes before the scheduled departure at the first stop.
+	private static final String HAPPY_PATH_BLOCK_ID = "SE-08";
+	private static final double HAPPY_PATH_LAT = 38.953562;
+	private static final double HAPPY_PATH_LON = -77.447485;
+	// 2016-06-20 11:50:00 America/New_York (EDT = UTC-4) → 15:50:00 UTC.
+	private static final long HAPPY_PATH_EPOCH_MS = 1466437800000L;
+
 	@Before
 	public void advanceClockForThisTest() {
 		// Each test gets a brand-new, strictly-greater epoch so that
 		// AvlProcessor's "only store newer" guard in setLastAvlReport
 		// doesn't reject this test's report because a prior test left
 		// a future timestamp behind.
-		CORE.setNow(nextTime.getAndAdd(60_000L));
+		advanceClockBy(60_000L);
+	}
+
+	/**
+	 * Advances the harness clock by {@code deltaMs} and returns the new epoch.
+	 * All clock advances within tests must go through this helper (or the
+	 * {@code @Before} hook) so the shared {@link #nextTime} counter stays in
+	 * sync with Core's clock. Calling {@code CORE.setNow} directly with an
+	 * arbitrary epoch would let a later test's {@code @Before} advance into
+	 * the past relative to the last mid-test jump, silently re-triggering
+	 * the {@code setLastAvlReport} "only store newer" drop.
+	 */
+	private long advanceClockBy(long deltaMs) {
+		long next = nextTime.addAndGet(deltaMs);
+		CORE.setNow(next);
+		return next;
+	}
+
+	/**
+	 * Jumps the harness clock to a specific epoch (for tests that need a
+	 * real-world date, e.g. a known active service day). Updates
+	 * {@link #nextTime} to the larger of its current value and the jump
+	 * target, so subsequent tests' {@code @Before} advances never rewind
+	 * the clock.
+	 */
+	private void jumpClockTo(long epochMs) {
+		CORE.setNow(epochMs);
+		nextTime.updateAndGet(cur -> Math.max(cur, epochMs));
 	}
 
 	private static AvlReport avlReport(String vehicleId, double lat, double lon) {
@@ -126,6 +166,12 @@ public class AvlProcessorBehaviorTest {
 		assertThat(state.isPredictable())
 				.as("off-route unassigned vehicle must not be predictable")
 				.isFalse();
+		// Distinguish "spatial match failed" from "short-circuited before
+		// ever attempting to match" — the former is what this test asserts;
+		// the latter would indicate a different kind of regression.
+		assertThat(state.getMatch())
+				.as("off-route unassigned vehicle must have no TemporalMatch")
+				.isNull();
 		// The AVL report is cached on the state regardless of predictability.
 		assertThat(state.getAvlReport().getVehicleId()).isEqualTo("v-offroute");
 	}
@@ -155,10 +201,10 @@ public class AvlProcessorBehaviorTest {
 		AvlProcessor.getInstance().processAvlReport(first);
 		VehicleState afterFirst = VehicleStateManager.getInstance().getVehicleState("v-sequence");
 
-		// Advance the harness clock to a strictly later time and send a
-		// second report. Same vehicle id.
-		long secondTime = CORE.clock().get() + 30_000L;
-		CORE.setNow(secondTime);
+		// Advance the harness clock to a strictly later time via the shared
+		// counter — advanceClockBy keeps nextTime in sync with Core's clock
+		// so a later test's @Before hook can't accidentally jump backward.
+		long secondTime = advanceClockBy(30_000L);
 		AvlReport second = avlReport("v-sequence",
 				NEAR_ROUTE_LAT + 0.0001, NEAR_ROUTE_LON + 0.0001);
 		AvlProcessor.getInstance().processAvlReport(second);
@@ -173,17 +219,31 @@ public class AvlProcessorBehaviorTest {
 	}
 
 	@Test
-	public void processAvlReportDoesNotThrowForTypicalNonMatchingReport() {
-		// The integration-like contract: processing should never propagate
-		// exceptions to the caller, regardless of whether a match is found.
-		// This catches the common "forgot to guard a null" regressions.
-		AvlReport report = avlReport("v-smoke", NEAR_ROUTE_LAT, NEAR_ROUTE_LON);
-		try {
-			AvlProcessor.getInstance().processAvlReport(report);
-		} catch (RuntimeException e) {
-			logger.error("processAvlReport threw unexpectedly", e);
-			throw new AssertionError(
-					"processAvlReport should swallow matching errors, but threw: " + e, e);
-		}
+	public void reportAtFirstStopOfActiveBlockProducesPredictableVehicle() {
+		// Happy path: vehicle reports at the known first stop of a real
+		// block on a date when that block's service runs, with the block
+		// id as an explicit assignment. Expect the vehicle to become
+		// predictable (spatial + temporal match succeeded).
+		//
+		// This is the single test in this suite that exercises the full
+		// predictable branch of AvlProcessor#lowLevelProcessAvlReport. If
+		// it starts failing, the matching pipeline has regressed and the
+		// rest of the suite — all of which asserts !isPredictable — would
+		// silently approve broken code.
+		jumpClockTo(HAPPY_PATH_EPOCH_MS);
+		AvlReport report = avlReport("v-happy", HAPPY_PATH_LAT, HAPPY_PATH_LON);
+		report.setAssignment(HAPPY_PATH_BLOCK_ID, AssignmentType.BLOCK_ID);
+
+		AvlProcessor.getInstance().processAvlReport(report);
+
+		VehicleState state = VehicleStateManager.getInstance().getVehicleState("v-happy");
+		assertThat(state).isNotNull();
+		assertThat(state.isPredictable())
+				.as("vehicle at first stop of active block SE-08 should be predictable")
+				.isTrue();
+		assertThat(state.getMatch())
+				.as("predictable vehicle must have a concrete TemporalMatch")
+				.isNotNull();
+		assertThat(state.getAssignmentId()).isEqualTo(HAPPY_PATH_BLOCK_ID);
 	}
 }
