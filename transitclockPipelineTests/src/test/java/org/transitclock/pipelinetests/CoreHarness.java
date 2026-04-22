@@ -83,8 +83,22 @@ public class CoreHarness extends ExternalResource {
 	private static final String CORE_CONFIG_FILE =
 			"src/test/resources/transitclockConfigHsql.xml";
 
+	/** JVM system properties the harness sets at boot and restores at teardown. */
+	private static final String[] MANAGED_SYSTEM_PROPERTIES = {
+			"transitclock.configFiles",
+			"transitclock.core.agencyId",
+	};
+
 	private final String gtfsDirectory;
 	private final Consumer<Core> afterBootHook;
+
+	/**
+	 * Values these properties held before the harness modified them, so
+	 * {@link #after()} can restore them. Kept separate per-property because
+	 * a null value means the property was not set at all (and must be cleared
+	 * on teardown, not set back to the string "null").
+	 */
+	private final java.util.Map<String, String> priorSystemProperties = new java.util.HashMap<>();
 
 	private CoreHarness(String gtfsDirectory, Consumer<Core> afterBootHook) {
 		this.gtfsDirectory = gtfsDirectory;
@@ -114,7 +128,24 @@ public class CoreHarness extends ExternalResource {
 		logger.info("Booting Core for pipeline tests (gtfs={})", gtfsDirectory);
 		long start = System.currentTimeMillis();
 
-		// These three properties are what Core looks at during createCore().
+		// If a prior test class in the same JVM left Core booted, it will
+		// leak its DbConfig into ours. The pipeline-tests module runs with
+		// surefire's reuseForks=false so each class gets a fresh JVM, but if
+		// that setting ever drifts this check turns "mysterious test failures"
+		// into an explicit refusal.
+		if (Core.isCoreApplication()) {
+			throw new IllegalStateException(
+					"Core.getInstance() is already set before CoreHarness.before(). "
+							+ "This suggests another test class ran in the same JVM. "
+							+ "Ensure surefire's reuseForks=false for this module.");
+		}
+
+		// Capture prior values so after() can restore whatever was there
+		// (usually nothing) when the harness is torn down.
+		for (String key : MANAGED_SYSTEM_PROPERTIES) {
+			priorSystemProperties.put(key, System.getProperty(key));
+		}
+		// These properties are what Core looks at during createCore().
 		System.setProperty("transitclock.configFiles", CORE_CONFIG_FILE);
 		System.setProperty("transitclock.core.agencyId", AGENCY_ID);
 
@@ -148,6 +179,23 @@ public class CoreHarness extends ExternalResource {
 				System.currentTimeMillis() - start,
 				core.getDbConfig().getRoutes().size(),
 				core.getDbConfig().getBlocks().size());
+	}
+
+	@Override
+	protected void after() {
+		// Restore the JVM system properties we changed. Under reuseForks=false
+		// this is belt-and-suspenders (the JVM dies next), but a misconfigured
+		// fork setting would otherwise leak configFiles/agencyId into a
+		// sibling test class and cause surprising failures.
+		for (String key : MANAGED_SYSTEM_PROPERTIES) {
+			String prior = priorSystemProperties.get(key);
+			if (prior == null) {
+				System.clearProperty(key);
+			} else {
+				System.setProperty(key, prior);
+			}
+		}
+		priorSystemProperties.clear();
 	}
 
 	/**
@@ -193,7 +241,7 @@ public class CoreHarness extends ExternalResource {
 	 * calendar.txt columns as: service_id, monday..sunday, start_date,
 	 * end_date — always in that order with an end_date at index 9 (0-based).
 	 */
-	private static void rewriteCalendarWithFutureEndDates(Path source, Path dest)
+	static void rewriteCalendarWithFutureEndDates(Path source, Path dest)
 			throws IOException {
 		// 20500101 chosen to comfortably outlive any reasonable test run.
 		// If Y2K50 becomes a concern, we'll have bigger problems.
@@ -211,14 +259,17 @@ public class CoreHarness extends ExternalResource {
 				continue;
 			}
 			String[] parts = line.split(",", -1);
-			if (parts.length >= 10) {
-				parts[9] = futureEndDate;
-				out.add(String.join(",", parts));
-			} else {
-				// Malformed — pass through rather than drop, so errors surface
-				// as test failures at import time rather than silent shape changes.
-				out.add(line);
+			if (parts.length < 10) {
+				// A malformed row here would quietly defeat the rewrite — the
+				// row's stale end_date would ship unchanged and Gtfs import
+				// would filter its trips out. Fail loudly so the contract
+				// maintains itself.
+				throw new IOException("Malformed calendar.txt at line " + (i + 1)
+						+ ": expected 10 columns, got " + parts.length
+						+ ". Line content: " + line);
 			}
+			parts[9] = futureEndDate;
+			out.add(String.join(",", parts));
 		}
 		Files.write(dest, out);
 	}

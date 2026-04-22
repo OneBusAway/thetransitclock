@@ -51,7 +51,7 @@ public class MapKeyTest {
 	}
 
 	@Test
-	public void twoArgAndThreeArgKeysAreNotEqualEvenWhenLeadingFieldsMatch() {
+	public void twoArgAndThreeArgKeysAreEqualWhenTrailingSlotsAreNull() {
 		MapKey two = new MapKey("a", "b");
 		MapKey three = new MapKey("a", "b", null);
 		// Both fill the remaining slots with null, so they should compare equal.
