@@ -16,6 +16,7 @@
     <module>transitclockQuickStart</module>
     <module>transitclockTraccarClient</module>
     <module>transitclockBarefootClient</module>
+    <module>coverage-report</module>
   </modules>
     <build>
         <plugins>
@@ -58,6 +59,7 @@
  		<module>transitclockQuickStart</module>
  		<module>transitclockTraccarClient</module>
  		<module>transitclockBarefootClient</module>
+ 		<module>coverage-report</module>
             </modules>
         </profile>
     </profiles>
