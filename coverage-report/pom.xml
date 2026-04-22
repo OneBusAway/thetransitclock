@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>TheTransitClock</groupId>
+		<artifactId>transitclock</artifactId>
+		<version>2.0.0-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>coverage-report</artifactId>
+	<packaging>pom</packaging>
+	<name>coverage-report</name>
+	<description>
+		Aggregates JaCoCo coverage across modules into a single report at
+		target/site/jacoco-aggregate/index.html. Must build last in reactor
+		order; the dependencies below enforce that.
+	</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>TheTransitClock</groupId>
+			<artifactId>transitclockCore</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>TheTransitClock</groupId>
+			<artifactId>transitclockBarefootClient</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>TheTransitClock</groupId>
+			<artifactId>transitclockTraccarClient</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<executions>
+					<!-- This module has no sources/tests of its own, so suppress
+					     the per-module prepare-agent and report executions that
+					     it inherits from the root pom. -->
+					<execution>
+						<id>prepare-agent</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>report-aggregate</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report-aggregate</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

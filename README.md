@@ -29,5 +29,13 @@ The transitimeWebapp in turn is a web application which uses the transitTimeAPI 
 
 The transitimeQuickStart can be built with mvn install and ran using java -jar transitimeQuickStart it is currently a work in progress but the gui elements can be seen.
 
+<b>Code coverage</b>
+
+JaCoCo generates coverage reports as part of the Maven `verify` phase.
+
+- Per-module HTML reports: `<module>/target/site/jacoco/index.html`
+- Aggregate report across Core + thin clients: `coverage-report/target/site/jacoco-aggregate/index.html`
+- Regenerate just the aggregate (fastest): `mvn verify -pl coverage-report -am`
+
 [![Build Status](https://zenodo.org/badge/DOI/10.5281/zenodo.3550975.svg)](https://zenodo.org/record/3550975#.XdgmVedKjOQ)
 

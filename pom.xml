@@ -16,7 +16,32 @@
     <module>transitclockQuickStart</module>
     <module>transitclockTraccarClient</module>
     <module>transitclockBarefootClient</module>
+    <module>coverage-report</module>
   </modules>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
     <profiles>
         <profile>
             <id>skip-integration-tests</id>
@@ -34,6 +59,7 @@
  		<module>transitclockQuickStart</module>
  		<module>transitclockTraccarClient</module>
  		<module>transitclockBarefootClient</module>
+ 		<module>coverage-report</module>
             </modules>
         </profile>
     </profiles>
