@@ -21,9 +21,19 @@ Built from the repository root as a Maven multi-module project.
 
 There is no lint step configured in the build.
 
+## Code coverage
+
+JaCoCo 0.8.12 is wired at the root `pom.xml`. It inherits into any module that declares `<parent>`, which today means `transitclock`, `transitclockQuickStart`, `transitclockBarefootClient`, and `transitclockTraccarClient`. `transitclockApi` and `transitclockWebapp` don't declare `<parent>`, so they currently produce no coverage data.
+
+- Per-module HTML reports land at `<module>/target/site/jacoco/index.html` after `mvn verify`.
+- Aggregate report (merges Core + both thin clients) lands at `coverage-report/target/site/jacoco-aggregate/index.html`. The `coverage-report` module's only job is to run `jacoco:report-aggregate`; it has no sources of its own.
+- Quickest way to regenerate just the aggregate: `mvn verify -pl coverage-report -am`.
+- `transitclockQuickStart` has JaCoCo explicitly skipped — it bundles `api.war`/`web.war` into `target/classes` as resources, and JaCoCo's analyzer chokes on multi-release JARs inside those WARs ("Can't add different class with same name"). QuickStart is a launcher, not logic worth measuring.
+- No coverage threshold / build-break rule is configured. `jacoco:check` with a minimum goal would be the place to add one.
+
 ## Module layout
 
-Six Maven modules under the root aggregator `pom.xml`:
+Seven Maven modules under the root aggregator `pom.xml`:
 
 - **transitclock** — core engine. Artifact id `transitclockCore`. Contains domain model, AVL ingestion, matching, prediction generation, Hibernate entities, config, modules, IPC servers, and all executable `main` classes under `org.transitclock.applications`.
 - **transitclockApi** — JAX-RS REST API WAR. Calls into a running Core process via RMI (see `org.transitclock.ipc`); does **not** talk to the DB directly for live vehicle/prediction data.
@@ -31,6 +41,7 @@ Six Maven modules under the root aggregator `pom.xml`:
 - **transitclockQuickStart** — standalone `java -jar` launcher bundling Core+API+Webapp for local experimentation.
 - **transitclockTraccarClient**, **transitclockBarefootClient** — thin clients for Traccar GPS devices and the Barefoot map-matching server. Depended on by `transitclock`.
 - **transitclockIntegration** — end-to-end / prediction-accuracy tests; only built under the `include-integration-tests` profile.
+- **coverage-report** — `packaging=pom` aggregator whose sole purpose is producing a JaCoCo aggregate report. No sources; inherits the root jacoco plugin and runs `report-aggregate` at `verify`.
 
 ## Runtime architecture
 
