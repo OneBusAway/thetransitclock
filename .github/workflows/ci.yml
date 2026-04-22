@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main, master]
+  pull_request:
+    branches: [develop, main, master]
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      # `mvn verify` is the project-sanctioned invocation per CLAUDE.md:
+      # `mvn test` fails on the full reactor because QuickStart binds the API
+      # WAR copy to generate-resources, which only runs by package time (MDEP-187).
+      # `verify` both packages and runs tests across every module.
+      # Integration tests stay excluded by the default skip-integration-tests profile.
+      - name: Build and run unit tests
+        run: mvn -B -ntp verify
+
+      - name: Upload JaCoCo aggregate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-aggregate-report
+          path: coverage-report/target/site/jacoco-aggregate/
+          if-no-files-found: ignore
+
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: '**/target/surefire-reports/'
+          if-no-files-found: ignore
