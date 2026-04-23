@@ -38,7 +38,9 @@
 		</ehcache:expiry>
 		<ehcache:resources>
 			<ehcache:heap unit="entries">63000</ehcache:heap>
-			<ehcache:disk persistent="true" unit="GB">5</ehcache:disk>
+			<!-- Not persistent in tests: hermetic runs shouldn't read cache
+			     state carried over from a previous invocation. -->
+			<ehcache:disk unit="GB">5</ehcache:disk>
 		</ehcache:resources>
 		<ehcache:disk-store-settings thread-pool="pool-disk"
 			writer-concurrency="1" />
@@ -52,7 +54,7 @@
 		</ehcache:expiry>
 		<ehcache:resources>
 			<ehcache:heap unit="entries">15000</ehcache:heap>
-			<ehcache:disk persistent="true" unit="GB">10</ehcache:disk>
+			<ehcache:disk unit="GB">10</ehcache:disk>
 		</ehcache:resources>
 		<ehcache:disk-store-settings thread-pool="pool-disk"
 			writer-concurrency="1" />
@@ -66,7 +68,7 @@
 		</ehcache:expiry>
 		<ehcache:resources>
 			<ehcache:heap unit="entries">100000</ehcache:heap>
-			<ehcache:disk persistent="true" unit="GB">1</ehcache:disk>
+			<ehcache:disk unit="GB">1</ehcache:disk>
 		</ehcache:resources>
 	</ehcache:cache>
 

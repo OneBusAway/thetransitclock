@@ -124,9 +124,10 @@ public class PredictionGeneratorBehaviorTest {
 		// Every prediction should be at or after the AVL report time. A
 		// prediction in the past would mean PredictionGenerator produced a
 		// stale ETA, which is a user-visible defect (UI would show "arriving"
-		// forever).
+		// forever). isNotEmpty() guards against an empty-list vacuous pass.
 		assertThat(state.getPredictions())
 				.as("predictions should not be in the past relative to the AVL report")
+				.isNotEmpty()
 				.allSatisfy(p -> assertThat(p.getPredictionTime())
 						.isGreaterThanOrEqualTo(avlTime));
 	}
@@ -142,12 +143,15 @@ public class PredictionGeneratorBehaviorTest {
 		// block SE-08.
 		assertThat(state.getPredictions())
 				.as("all predictions must come from the assigned block")
+				.isNotEmpty()
 				.allSatisfy(p -> assertThat(p.getBlockId()).isEqualTo(BLOCK_ID));
 		assertThat(state.getPredictions())
 				.as("all predictions must carry our route's short name")
+				.isNotEmpty()
 				.allSatisfy(p -> assertThat(p.getRouteShortName()).isEqualTo(ROUTE_SHORT_NAME));
 		// The vehicle id is copied onto each prediction for downstream IPC.
 		assertThat(state.getPredictions())
+				.isNotEmpty()
 				.allSatisfy(p -> assertThat(p.getVehicleId()).isEqualTo("v-preds-meta"));
 	}
 
@@ -175,14 +179,20 @@ public class PredictionGeneratorBehaviorTest {
 	}
 
 	@Test
-	public void bothArrivalAndDeparturePredictionsArePresentForMidTripStops() {
+	public void bothArrivalAndDeparturePredictionsArePresentOnActiveTrip() {
 		pushHappyPathReport("v-preds-arrdep");
 
 		VehicleState state = VehicleStateManager.getInstance().getVehicleState("v-preds-arrdep");
-		// PredictionGenerator emits both an arrival and a departure prediction
-		// for each non-terminal stop. Missing one type would mean the UI
+		// PredictionGenerator emits an arrival prediction for stops the
+		// vehicle will arrive at, and a departure prediction at stops where
+		// there's a scheduled dwell (notably the first stop of the trip).
+		// Missing either variant on the entire active trip would mean the UI
 		// shows only "arriving" but not "departing" (or vice versa) — a
-		// silent capability regression rather than a crash.
+		// silent capability regression rather than a crash. We assert at
+		// trip scope rather than per-stop because the per-stop emission
+		// mix depends on which stops have scheduled departure times in
+		// the GTFS, which is a different invariant than this test is
+		// checking.
 		boolean anyArrival = state.getPredictions().stream()
 				.filter(p -> TRIP_ID.equals(p.getTripId()))
 				.anyMatch(IpcPrediction::isArrival);
