@@ -15,29 +15,20 @@ import org.transitclock.db.structs.AvlReport.AssignmentType;
 
 /**
  * Behavior tests that exercise {@link org.transitclock.core.RealTimeSchedAdhProcessor}
- * (reached via {@code TemporalMatcher}) by reporting the same fixture at
- * different wall-clock offsets from the schedule and asserting the sign and
- * approximate magnitude of the resulting {@link TemporalDifference}.
+ * by reporting the first-stop fixture at different wall-clock offsets from the
+ * schedule and asserting the sign and approximate magnitude of the resulting
+ * {@link TemporalDifference}.
  *
- * <p>{@link MatchingBehaviorTest} only asserts that
- * {@code state.getRealTimeSchedAdh()} is non-null. A regression where the
- * processor always returned zero, the wrong sign, or a value scaled by a
- * different unit would pass that check while silently breaking the UI's
- * "early / on-time / late" indicators and API filters.
+ * <p>Fixture: trip 868588900 on block SE-08, first stop 14253 scheduled for
+ * departure at 11:55:00 EDT (= epoch ms 1466438100000).
  *
- * <p>Fixture: trip 868588900 on block SE-08, first stop 14253 scheduled
- * for departure at 11:55:00 EDT (= 15:55:00 UTC = epoch ms 1466438100000).
- *
- * <p>{@link TemporalDifference} convention: positive is "ahead of schedule"
- * (early), negative is "behind schedule" (late). See TemporalDifference.java.
- *
- * <p>These tests are intentionally confined to the ORIGIN-stop axis (0 ms
- * and positive offsets). Testing "early at mid-trip" would require either
- * a multi-AVL warm-up or a relaxed {@code allowableEarlySeconds} config,
- * and testing magnitude scaling across two different vehicles on the same
- * block collides with {@code exclusiveBlockAssignments=true}. Both of
- * those are worth covering eventually, but they warrant their own test
- * class with appropriate setup.
+ * <p>{@link TemporalDifference} convention: positive means ahead of schedule
+ * (early), negative means behind schedule (late). A vehicle waiting at its
+ * ORIGIN stop before scheduled departure is treated as on-time (adherence
+ * ≈ 0), not early — these tests cover the origin-stop / late / on-time axis
+ * only. Mid-trip-early scenarios collide with {@code allowableEarlySeconds=180}
+ * without a multi-AVL warm-up; multi-vehicle magnitude comparison collides
+ * with {@code exclusiveBlockAssignments=true}.
  */
 public class ScheduleAdherenceBehaviorTest {
 
@@ -48,37 +39,26 @@ public class ScheduleAdherenceBehaviorTest {
 	private static final double FIRST_STOP_LAT = 38.953562;
 	private static final double FIRST_STOP_LON = -77.447485;
 
-	/** 2016-06-20 11:55:00 America/New_York (EDT) → 15:55:00 UTC.
-	 *  This is the scheduled departure time of trip 868588900 from its
-	 *  first stop. Tests offset from here to construct "on-time" and
-	 *  "late" scenarios. */
+	/** 2016-06-20 11:55:00 America/New_York (EDT) → 15:55:00 UTC. Scheduled
+	 *  departure time of trip 868588900 from its first stop. */
 	private static final long SCHEDULED_DEPARTURE_EPOCH_MS = 1466438100000L;
 
 	private static final long TWO_MIN_MS = 2L * 60_000L;
 	private static final long FIVE_MIN_MS = 5L * 60_000L;
 
-	/** Slack for "close to zero" and "close to expected magnitude" checks.
-	 *  AvlProcessor's scheduled-time lookup rounds and the projected
-	 *  position on the path can differ by several seconds from the
-	 *  published stop coordinates, so strict equality would flake. 90
-	 *  seconds is tight enough that early / on-time / late remain
-	 *  clearly distinguishable. */
+	/** Slack for "close to" assertions. AvlProcessor's scheduled-time lookup
+	 *  rounds, and the projected position on the path can differ by several
+	 *  seconds from the published stop coordinates, so strict equality flakes. */
 	private static final long SLACK_MS = 90_000L;
 
-	/** Keeps AVL timestamps strictly distinct across tests in this class.
-	 *  The test itself controls the actual schedule offset; this counter
-	 *  just prevents two tests from using an identical timestamp. */
 	private static final AtomicLong distinctness = new AtomicLong(0);
-
-	private static AvlReport avlReport(String vehicleId, double lat, double lon, long timeMs) {
-		return new AvlReport(vehicleId, timeMs, lat, lon,
-				Float.NaN, Float.NaN, "test");
-	}
 
 	private static VehicleState reportAtOriginWithOffset(String vehicleId, long offsetMs) {
 		long t = SCHEDULED_DEPARTURE_EPOCH_MS + offsetMs + distinctness.getAndIncrement();
 		CORE.setNow(t);
-		AvlReport report = avlReport(vehicleId, FIRST_STOP_LAT, FIRST_STOP_LON, t);
+		AvlReport report = new AvlReport(
+				vehicleId, t, FIRST_STOP_LAT, FIRST_STOP_LON,
+				Float.NaN, Float.NaN, "test");
 		report.setAssignment(BLOCK_ID, AssignmentType.BLOCK_ID);
 		AvlProcessor.getInstance().processAvlReport(report);
 		return VehicleStateManager.getInstance().getVehicleState(vehicleId);
@@ -88,8 +68,6 @@ public class ScheduleAdherenceBehaviorTest {
 
 	@Test
 	public void onTimeVehicleAtOriginReportsNearZeroAdherence() {
-		// Report at scheduled departure time. Adherence should be well
-		// within slack of zero.
 		VehicleState state = reportAtOriginWithOffset("v-sched-ontime", 0L);
 		assertThat(state.isPredictable()).as("precondition: vehicle must match").isTrue();
 
@@ -103,10 +81,6 @@ public class ScheduleAdherenceBehaviorTest {
 
 	@Test
 	public void mildlyLateVehicleAtOriginReportsNegativeAdherence() {
-		// 2 minutes late, still at origin. Adherence should be negative
-		// and its magnitude larger than our zero-slack — small enough
-		// that the next test can reasonably assert the larger-delay
-		// case produces a more-negative value.
 		VehicleState state = reportAtOriginWithOffset("v-sched-late-2", TWO_MIN_MS);
 		assertThat(state.isPredictable()).as("precondition: vehicle must match").isTrue();
 
@@ -123,10 +97,6 @@ public class ScheduleAdherenceBehaviorTest {
 
 	@Test
 	public void lateAdherenceApproximatesDelayMagnitude() {
-		// Strongest assertion in the class: a 5-minute delay at the
-		// origin should produce an adherence near -5 minutes
-		// (-300000 ms), not some unrelated metric derived from path
-		// distance only. ±SLACK_MS absorbs projection slop.
 		VehicleState state = reportAtOriginWithOffset("v-sched-late-5", FIVE_MIN_MS);
 		assertThat(state.isPredictable()).as("precondition: vehicle must match").isTrue();
 
