@@ -140,6 +140,39 @@ public class AvlProcessorBehaviorTest {
 		return report;
 	}
 
+	/**
+	 * Computes an anchor epoch within the known-good SE-08 service window
+	 * that is strictly greater than any timestamp prior tests already used,
+	 * then pins Core's clock to it. Returns the anchor.
+	 *
+	 * <p>Tests that need a predictable vehicle must use this (not
+	 * {@link #jumpClockTo}) because:
+	 * <ul>
+	 *   <li>multiple happy-path tests in the same JVM would otherwise all
+	 *       set the clock to the exact same {@code HAPPY_PATH_EPOCH_MS};
+	 *       the second test's AVL report would fail {@code setLastAvlReport}'s
+	 *       "only store newer" guard and be silently dropped.</li>
+	 *   <li>the 100-ms per-test nudge stays well inside the 5-minute
+	 *       scheduled-departure window at stop 14253, so the spatial +
+	 *       temporal match still succeeds.</li>
+	 * </ul>
+	 */
+	private long pinClockToHappyPathAnchor() {
+		long anchor = nextTime.updateAndGet(
+				cur -> Math.max(cur, HAPPY_PATH_EPOCH_MS) + 100L);
+		CORE.setNow(anchor);
+		return anchor;
+	}
+
+	private static AvlReport reportAtFirstStop(String vehicleId, long epochMs,
+			String assignmentId, AssignmentType assignmentType) {
+		AvlReport report = new AvlReport(vehicleId, epochMs,
+				HAPPY_PATH_LAT, HAPPY_PATH_LON,
+				Float.NaN, Float.NaN, "test");
+		report.setAssignment(assignmentId, assignmentType);
+		return report;
+	}
+
 	// ---------- Tests ----------
 
 	@Test
@@ -233,9 +266,9 @@ public class AvlProcessorBehaviorTest {
 		// it starts failing, the matching pipeline has regressed and the
 		// rest of the suite — all of which asserts !isPredictable — would
 		// silently approve broken code.
-		jumpClockTo(HAPPY_PATH_EPOCH_MS);
-		AvlReport report = avlReport("v-happy", HAPPY_PATH_LAT, HAPPY_PATH_LON);
-		report.setAssignment(HAPPY_PATH_BLOCK_ID, AssignmentType.BLOCK_ID);
+		long when = pinClockToHappyPathAnchor();
+		AvlReport report = reportAtFirstStop("v-happy", when,
+				HAPPY_PATH_BLOCK_ID, AssignmentType.BLOCK_ID);
 
 		AvlProcessor.getInstance().processAvlReport(report);
 
@@ -248,5 +281,125 @@ public class AvlProcessorBehaviorTest {
 				.as("predictable vehicle must have a concrete TemporalMatch")
 				.isNotNull();
 		assertThat(state.getAssignmentId()).isEqualTo(HAPPY_PATH_BLOCK_ID);
+	}
+
+	// Trip 868588900 belongs to block SE-08. A TRIP_ID assignment should
+	// resolve (via BlockAssigner) to the same block and produce a
+	// predictable vehicle, exercising the TRIP_ID branch of the assignment
+	// lookup that the existing BLOCK_ID happy path does not touch.
+	@Test
+	public void reportWithTripIdAssignmentProducesPredictableVehicle() {
+		long when = pinClockToHappyPathAnchor();
+		AvlReport report = reportAtFirstStop("v-happy-tid", when,
+				"868588900", AssignmentType.TRIP_ID);
+
+		AvlProcessor.getInstance().processAvlReport(report);
+
+		VehicleState state = VehicleStateManager.getInstance().getVehicleState("v-happy-tid");
+		assertThat(state).isNotNull();
+		assertThat(state.isPredictable())
+				.as("vehicle with TRIP_ID assignment on an active block should be predictable")
+				.isTrue();
+		assertThat(state.getMatch())
+				.as("TRIP_ID-predictable vehicle must have a concrete TemporalMatch")
+				.isNotNull();
+		// The assignment-id on the state carries through as the block id
+		// once BlockAssigner resolves the trip, not the raw TRIP_ID.
+		assertThat(state.getAssignmentId()).isEqualTo(HAPPY_PATH_BLOCK_ID);
+	}
+
+	// cacheAvlReportWithoutProcessing is a public side-door used to keep
+	// map animation smooth when AVL arrives faster than the matcher can
+	// keep up: it updates the cached VehicleState's AvlReport but skips
+	// all matching. An unpredictable vehicle stays unpredictable; a
+	// predictable vehicle keeps its prior match unchanged.
+	@Test
+	public void cacheAvlReportWithoutProcessingUpdatesStateButDoesNotMatch() {
+		long when = advanceClockBy(1_000L);
+		AvlReport report = avlReport("v-cache-only", NEAR_ROUTE_LAT, NEAR_ROUTE_LON);
+
+		AvlProcessor.getInstance().cacheAvlReportWithoutProcessing(report);
+
+		VehicleState state = VehicleStateManager.getInstance().getVehicleState("v-cache-only");
+		assertThat(state).isNotNull();
+		assertThat(state.getAvlReport())
+				.as("cached report should be attached to the vehicle state")
+				.isNotNull();
+		assertThat(state.getAvlReport().getVehicleId()).isEqualTo("v-cache-only");
+		assertThat(state.getAvlReport().getTime()).isEqualTo(when);
+		assertThat(state.isPredictable())
+				.as("cacheAvlReportWithoutProcessing must never attempt matching")
+				.isFalse();
+		assertThat(state.getMatch())
+				.as("no match should be produced when skipping processing")
+				.isNull();
+	}
+
+	// makeVehicleUnpredictable must clear the TemporalMatch and flip
+	// isPredictable back to false for a previously-predictable vehicle.
+	// This is the public unwind path the TimeoutHandler and auto-reassign
+	// flows rely on — a regression here would silently keep stale matches
+	// alive on the wire.
+	@Test
+	public void makeVehicleUnpredictableClearsMatchOnPredictableVehicle() {
+		long when = pinClockToHappyPathAnchor();
+		AvlReport report = reportAtFirstStop("v-unwind", when,
+				HAPPY_PATH_BLOCK_ID, AssignmentType.BLOCK_ID);
+		AvlProcessor.getInstance().processAvlReport(report);
+		VehicleState beforeUnwind =
+				VehicleStateManager.getInstance().getVehicleState("v-unwind");
+		assertThat(beforeUnwind.isPredictable())
+				.as("setup assumption: happy path must produce a predictable vehicle")
+				.isTrue();
+
+		AvlProcessor.getInstance().makeVehicleUnpredictable(
+				"v-unwind",
+				"behavior-test-triggered unwind",
+				org.transitclock.db.structs.VehicleEvent.ASSIGNMENT_CHANGED);
+
+		VehicleState afterUnwind =
+				VehicleStateManager.getInstance().getVehicleState("v-unwind");
+		assertThat(afterUnwind)
+				.as("VehicleStateManager should still yield the same state object")
+				.isSameAs(beforeUnwind);
+		assertThat(afterUnwind.isPredictable())
+				.as("vehicle must be unpredictable after makeVehicleUnpredictable")
+				.isFalse();
+		assertThat(afterUnwind.getMatch())
+				.as("match must be cleared after makeVehicleUnpredictable")
+				.isNull();
+	}
+
+	// Schedule-based-predictions AVL reports are synthetic — they exist
+	// to produce predictions for runs with no real vehicle assigned. They
+	// must NOT update lastRegularReportProcessed, because that timestamp
+	// drives the "AVL feed is up" monitoring check.
+	@Test
+	public void schedBasedPredsReportDoesNotUpdateLastRegularReport() {
+		// Establish a baseline: push a regular report through, capture the
+		// resulting lastAvlReportTime.
+		long baselineEpoch = advanceClockBy(1_000L);
+		AvlReport baseline = avlReport("v-regular", NEAR_ROUTE_LAT, NEAR_ROUTE_LON);
+		AvlProcessor.getInstance().processAvlReport(baseline);
+		long baselineLast = AvlProcessor.getInstance().lastAvlReportTime();
+		assertThat(baselineLast)
+				.as("regular report should update lastAvlReportTime")
+				.isEqualTo(baselineEpoch);
+
+		// Now send a schedule-based-preds report at a strictly later time.
+		// If setLastAvlReport wrongly accepted it, lastAvlReportTime would
+		// jump forward to this test's clock; the contract says it must not.
+		long schedEpoch = advanceClockBy(30_000L);
+		AvlReport schedBased = new AvlReport("v-schedbased",
+				schedEpoch,
+				NEAR_ROUTE_LAT, NEAR_ROUTE_LON,
+				Float.NaN, Float.NaN, "test");
+		schedBased.setAssignment(HAPPY_PATH_BLOCK_ID,
+				AssignmentType.BLOCK_FOR_SCHED_BASED_PREDS);
+		AvlProcessor.getInstance().processAvlReport(schedBased);
+
+		assertThat(AvlProcessor.getInstance().lastAvlReportTime())
+				.as("schedule-based-preds report must not advance the regular-AVL clock")
+				.isEqualTo(baselineLast);
 	}
 }
