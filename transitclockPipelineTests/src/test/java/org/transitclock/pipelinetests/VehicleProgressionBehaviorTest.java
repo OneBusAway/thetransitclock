@@ -63,9 +63,9 @@ public class VehicleProgressionBehaviorTest {
 				Float.NaN, Float.NaN, "test");
 	}
 
-	/** Result of advancing a vehicle through three scheduled stops: the
-	 *  stopPathIndex and tripId observed after each report. */
 	private static final class ProgressionSnapshot {
+		/** -1 marks a null match on that iteration; all valid stopPathIndex
+		 *  values are non-negative. */
 		final List<Integer> stopPathIndices;
 		final List<String> tripIds;
 
@@ -79,8 +79,8 @@ public class VehicleProgressionBehaviorTest {
 		List<Integer> indices = new ArrayList<>();
 		List<String> trips = new ArrayList<>();
 
-		// +1ms between tests; distinct vehicle ids keep per-vehicle state
-		// isolated, and the Core clock is set by setNow() each iteration.
+		// +1 ms spacing so distinct tests get distinct baselines. Each test
+		// uses its own vehicleId so actual isolation comes from that.
 		long baseline = nextTime.getAndAdd(1);
 		long[] timestamps = new long[] {
 				baseline,                        // 11:50 EDT
@@ -106,6 +106,17 @@ public class VehicleProgressionBehaviorTest {
 			trips.add(match == null || match.getTrip() == null ? null : match.getTrip().getId());
 		}
 
+		// Downstream tests inspect records keyed by vehicleId but don't
+		// always re-examine the snapshot. Fail loudly here if any report
+		// failed to match — otherwise the downstream failure would show as
+		// "expected >= 2 AD records, got 0" without hinting at the cause.
+		assertThat(indices)
+				.as("every AVL report should have produced a match (sentinel -1 means null)")
+				.doesNotContain(-1);
+		assertThat(trips)
+				.as("every report should carry a non-null trip id")
+				.doesNotContainNull();
+
 		return new ProgressionSnapshot(indices, trips);
 	}
 
@@ -130,9 +141,10 @@ public class VehicleProgressionBehaviorTest {
 		assertThat(stateFor("v-prog-pred").isPredictable())
 				.as("vehicle should remain predictable through the trip")
 				.isTrue();
-		assertThat(snap.stopPathIndices)
-				.as("every AVL report should produce a non-null match (-1 sentinel means null)")
-				.allSatisfy(idx -> assertThat(idx).isNotEqualTo(-1));
+		// The helper already asserts that no iteration produced a -1
+		// sentinel. This test exists to document that the *final*
+		// VehicleState also reports predictable — separate invariant.
+		assertThat(snap.stopPathIndices).hasSize(3);
 	}
 
 	@Test
@@ -160,6 +172,7 @@ public class VehicleProgressionBehaviorTest {
 
 		assertThat(snap.tripIds)
 				.as("every report should resolve to trip %s", TRIP_ID)
+				.hasSize(3)
 				.allSatisfy(tripId -> assertThat(tripId).isEqualTo(TRIP_ID));
 	}
 

@@ -20,10 +20,9 @@ import org.transitclock.db.structs.AvlReport.AssignmentType;
 /**
  * Behavior tests that verify pipeline output reaches the database via
  * {@link org.transitclock.db.hibernate.DataDbLogger} — the async batched
- * writer that feeds the actual DB tables. Complements
- * {@link ArrivalDepartureBehaviorTest}, which covers the ehcache path only.
+ * writer that feeds the actual DB tables.
  *
- * <p>DataDbLogger has no public flush. Tests poll the DB with a bounded
+ * <p>DataDbLogger has no public flush, so tests poll the DB with a bounded
  * timeout — see {@link #waitForDbRows}.
  */
 public class DbPersistenceBehaviorTest {
@@ -63,6 +62,8 @@ public class DbPersistenceBehaviorTest {
 		AvlProcessor.getInstance().processAvlReport(first);
 
 		long t2 = t1 + 8L * 60_000L;
+		// Bump the shared counter past t2 so no later test's getAndAdd
+		// hands back a baseline that's already inside this test's span.
 		nextTime.updateAndGet(cur -> Math.max(cur, t2 + 1));
 		CORE.setNow(t2);
 		AvlReport second = avlReport(vehicleId, STOP_NEXT_LAT, STOP_NEXT_LON, t2);
@@ -90,7 +91,8 @@ public class DbPersistenceBehaviorTest {
 
 	/** Polls {@code fetcher} until at least {@code minRows} are returned or
 	 *  the timeout elapses. Returns the final list (possibly short — callers
-	 *  assert on size). */
+	 *  assert on size). Throws AssertionError if the poll is interrupted
+	 *  rather than returning a short list silently. */
 	private static <T> List<T> waitForDbRows(Supplier<List<T>> fetcher, int minRows) {
 		long deadline = System.currentTimeMillis() + DB_FLUSH_TIMEOUT_MS;
 		List<T> rows = fetcher.get();
@@ -99,7 +101,9 @@ public class DbPersistenceBehaviorTest {
 				Thread.sleep(DB_POLL_INTERVAL_MS);
 			} catch (InterruptedException ie) {
 				Thread.currentThread().interrupt();
-				break;
+				throw new AssertionError(
+						"waitForDbRows interrupted before reaching minRows=" + minRows
+								+ " (last observed size=" + rows.size() + ")", ie);
 			}
 			rows = fetcher.get();
 		}
