@@ -29,6 +29,24 @@ The transitimeWebapp in turn is a web application which uses the transitTimeAPI 
 
 The transitimeQuickStart can be built with mvn install and ran using java -jar transitimeQuickStart it is currently a work in progress but the gui elements can be seen.
 
+<b>Running tests</b>
+
+- Default unit tests across all modules: `mvn verify` (not `mvn test` — see CLAUDE.md for why).
+- Single module: `mvn -pl transitclock test`
+- Single class: `mvn -pl transitclock test -Dtest=TestAPIKeyManager`
+
+Two additional test suites are opt-in via Maven profiles and excluded from the default build:
+
+- **Pipeline tests** (`transitclockPipelineTests`) — boot a real Core against an in-memory HSQL database populated with a small WMATA GTFS fixture, then exercise matcher / generator behavior end-to-end. Run with:
+  ```
+  mvn -pl transitclockPipelineTests -am -P include-pipeline-tests test
+  ```
+  First run takes ~30s while `transitclockCore` compiles; subsequent runs are ~3s. CI runs this on every PR as a separate step after the unit-test build.
+- **Integration tests** (`transitclockIntegration`) — full AVL-CSV replay runs, heavier than pipeline tests. Run with:
+  ```
+  mvn install -P include-integration-tests
+  ```
+
 <b>Code coverage</b>
 
 JaCoCo generates coverage reports as part of the Maven `verify` phase.

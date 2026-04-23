@@ -15,6 +15,7 @@ Built from the repository root as a Maven multi-module project.
 - Run a single module's tests: `mvn -pl transitclock test`
 - Run a single test class: `mvn -pl transitclock test -Dtest=TestAPIKeyManager`
 - Integration tests live in the `transitclockIntegration` module and are **excluded by default** via the `skip-integration-tests` profile. Enable with: `mvn install -P include-integration-tests`
+- Pipeline tests live in the `transitclockPipelineTests` module and are **excluded by default** — opt-in via the `include-pipeline-tests` profile. They boot a real Core against an in-memory HSQL database populated with a small WMATA GTFS fixture and exercise matcher/generator behavior end-to-end (lighter than the full AVL-trace runs in `transitclockIntegration`). Enable with: `mvn -pl transitclockPipelineTests -am -P include-pipeline-tests test`. CI runs this as a separate step after `mvn verify`.
 
 `mvn test` on the full reactor fails: `transitclockQuickStart` binds `maven-dependency-plugin:copy` to `generate-resources` to pull the `transitclockApi` WAR into its resources, but the `test` phase never packages that WAR (MDEP-187: "Artifact has not been packaged yet"). Use `mvn verify` / `mvn package` / `mvn install` to exercise all tests, or scope to one module with `-pl`, or skip QuickStart: `mvn test -pl '!transitclockQuickStart'`.
 - Shaded executable JARs are emitted into `transitclock/target/` (e.g. `Core.jar`, `GtfsFileProcessor.jar`, `SchemaGenerator.jar`, `CreateWebAgency.jar`, `CreateAPIKey.jar`, `RmiQuery.jar`, `UpdateTravelTimes.jar`, `ScheduleGenerator.jar`) — each is a maven-shade execution in `transitclock/pom.xml`.
@@ -33,7 +34,7 @@ JaCoCo 0.8.12 is wired at the root `pom.xml`. It inherits into any module that d
 
 ## Module layout
 
-Seven Maven modules under the root aggregator `pom.xml`:
+Nine Maven modules under the root aggregator `pom.xml`:
 
 - **transitclock** — core engine. Artifact id `transitclockCore`. Contains domain model, AVL ingestion, matching, prediction generation, Hibernate entities, config, modules, IPC servers, and all executable `main` classes under `org.transitclock.applications`.
 - **transitclockApi** — JAX-RS REST API WAR. Calls into a running Core process via RMI (see `org.transitclock.ipc`); does **not** talk to the DB directly for live vehicle/prediction data.
@@ -41,6 +42,7 @@ Seven Maven modules under the root aggregator `pom.xml`:
 - **transitclockQuickStart** — standalone `java -jar` launcher bundling Core+API+Webapp for local experimentation.
 - **transitclockTraccarClient**, **transitclockBarefootClient** — thin clients for Traccar GPS devices and the Barefoot map-matching server. Depended on by `transitclock`.
 - **transitclockIntegration** — end-to-end / prediction-accuracy tests; only built under the `include-integration-tests` profile.
+- **transitclockPipelineTests** — real-Core behavior tests for the prediction pipeline (`AvlProcessor`, and eventually the other matcher/generator classes). Boots a real Core against in-memory HSQL with a small WMATA GTFS fixture via `CoreHarness` (a JUnit `@ClassRule`). Only built under the `include-pipeline-tests` profile.
 - **coverage-report** — `packaging=pom` aggregator whose sole purpose is producing a JaCoCo aggregate report. No sources; inherits the root jacoco plugin and runs `report-aggregate` at `verify`.
 
 ## Runtime architecture

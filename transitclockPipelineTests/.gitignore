@@ -7,9 +7,6 @@
 *.jar
 *.war
 *.ear
-*.log
+/target/
 /bin/
 /.settings/
-.DS_Store
-
-settings.local.json
