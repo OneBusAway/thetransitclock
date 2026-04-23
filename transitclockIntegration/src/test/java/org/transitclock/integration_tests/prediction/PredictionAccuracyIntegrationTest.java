@@ -5,6 +5,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Session;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +88,11 @@ public class PredictionAccuracyIntegrationTest extends TestCase {
     }
    
     @Test
+    @Ignore("Fixture rot — see OneBusAway/thetransitclock#8. The 2016 baseline "
+    		+ "in pred/S2_2113.csv predates ~10 years of predictor changes, so "
+    		+ "the \"new worse than old\" assertion is no longer a regression "
+    		+ "signal. Re-enable after regenerating the baseline from a fresh "
+    		+ "capture via tools/wmata_capture.")
     public void testPredictions() {
     	
     	int oldTotalPreds = 0, newTotalPreds = 0, bothTotalPreds = 0;

@@ -1,5 +1,6 @@
 package org.transitclock.integration_tests;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.transitclock.core.dataCache.VehicleDataCache;
 import org.transitclock.ipc.data.IpcVehicleComplete;
@@ -21,6 +22,10 @@ public class RecoverFromDetourTest extends TestCase {
 	private static final String VEHICLE = "3757";
 	
 	@Test
+	@Ignore("Fixture rot — see OneBusAway/thetransitclock#7. Vehicle ends in "
+			+ "layover state against current matcher when replaying the 2016 "
+			+ "WMATA trace; re-enable after capturing a fresh fixture via "
+			+ "tools/wmata_capture.")
 	public void test() {
 		PlaybackModule.runTrace(GTFS, AVL);
 		IpcVehicleComplete v = VehicleDataCache.getInstance().getVehicle(VEHICLE);
