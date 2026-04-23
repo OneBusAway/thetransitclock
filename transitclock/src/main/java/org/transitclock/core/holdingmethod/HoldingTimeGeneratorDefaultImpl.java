@@ -659,7 +659,18 @@ public class HoldingTimeGeneratorDefaultImpl implements HoldingTimeGenerator {
 
 		ArrayList<ControlStop> controlStops=new ArrayList<ControlStop>();
 
-		for(String stopEntry: controlStopList.getValue())
+		// StringListConfigValue.getValue() returns null when the param is
+		// unset. An operator who enables the default generator via
+		// transitclock.core.holdingTimeGeneratorClass but forgets to set
+		// transitclock.holding.controlStops would otherwise NPE inside
+		// isControlStop on the first real arrival. Treat "unset" as "no
+		// control stops" — the feature is correctly a no-op in that case.
+		List<String> configured = controlStopList.getValue();
+		if (configured == null) {
+			return controlStops;
+		}
+
+		for(String stopEntry: configured)
 		{
 			controlStops.add(new ControlStop(stopEntry));
 		}
