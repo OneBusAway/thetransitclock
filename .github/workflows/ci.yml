@@ -30,6 +30,14 @@ jobs:
       - name: Build and run unit tests
         run: mvn -B -ntp verify
 
+      # Pipeline tests live in the transitclockPipelineTests module and are
+      # opt-in via the include-pipeline-tests profile. They boot a real Core
+      # against an in-memory HSQL database populated with a small WMATA GTFS
+      # fixture and exercise matcher/generator behavior end-to-end. Separate
+      # step so failures are attributed distinctly from unit-test failures.
+      - name: Run pipeline tests
+        run: mvn -B -ntp -pl transitclockPipelineTests -am -P include-pipeline-tests test
+
       - name: Upload JaCoCo aggregate report
         if: always()
         uses: actions/upload-artifact@v4
