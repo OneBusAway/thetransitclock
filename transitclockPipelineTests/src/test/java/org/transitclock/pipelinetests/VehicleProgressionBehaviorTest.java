@@ -53,8 +53,12 @@ public class VehicleProgressionBehaviorTest {
 	private static final double STOP_3_LAT = 38.896633;
 	private static final double STOP_3_LON = -77.071622;
 
-	/** 2016-06-20 11:50:00 America/New_York (EDT = UTC-4) → 15:50:00 UTC. */
-	private static final long AVL_AT_STOP_1_EPOCH_MS = 1466437800000L;
+	/** 2016-06-20 11:55:00 America/New_York (EDT = UTC-4) → 15:55:00 UTC.
+	 *  This is the scheduled departure of stop 1 — anchoring the first
+	 *  report here (rather than a few minutes earlier) keeps progression
+	 *  assertions independent of the origin-early "waiting at stop"
+	 *  policy. */
+	private static final long AVL_AT_STOP_1_EPOCH_MS = 1466438100000L;
 
 	private static final AtomicLong nextTime = new AtomicLong(AVL_AT_STOP_1_EPOCH_MS);
 
@@ -83,9 +87,9 @@ public class VehicleProgressionBehaviorTest {
 		// uses its own vehicleId so actual isolation comes from that.
 		long baseline = nextTime.getAndAdd(1);
 		long[] timestamps = new long[] {
-				baseline,                        // 11:50 EDT
-				baseline + 13L * 60_000L,        // 12:03 EDT (scheduled arrival at stop 2)
-				baseline + 40L * 60_000L         // 12:30 EDT (scheduled arrival at stop 3, rounded)
+				baseline,                                 // 11:55:00 EDT (scheduled departure of stop 1)
+				baseline + 8L * 60_000L,                  // 12:03:00 EDT (scheduled arrival at stop 2)
+				baseline + 34L * 60_000L + 57_000L        // 12:29:57 EDT (scheduled arrival at stop 3)
 		};
 		double[][] locations = new double[][] {
 				{ STOP_1_LAT, STOP_1_LON },
