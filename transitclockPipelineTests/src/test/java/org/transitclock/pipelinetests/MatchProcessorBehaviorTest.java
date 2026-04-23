@@ -22,22 +22,10 @@ import org.transitclock.db.structs.Prediction;
 import org.transitclock.ipc.data.IpcPrediction;
 
 /**
- * Behavior tests for {@link MatchProcessor} against the real WMATA 5A fixture.
- *
- * <p>MatchProcessor had zero unit or behavior coverage before this file —
- * its behavior was only exercised incidentally through {@code AvlProcessor}.
- * Explicit tests here lock in the contract of its single public entry point,
- * {@link MatchProcessor#generateResultsOfMatch(VehicleState)}:
- * <ul>
- *   <li>unpredictable vehicles short-circuit (no writes, no state mutation)</li>
- *   <li>predictable vehicles produce a non-empty predictions list on the state</li>
- *   <li>{@code Prediction} rows reach the DB via the async {@code DataDbLogger}</li>
- * </ul>
- *
- * <p>{@code AvlProcessor#processAvlReport} already calls
- * {@code generateResultsOfMatch} internally on a successful match, so a direct
- * test has to clear any pre-existing predictions off the state before invoking
- * MatchProcessor again. See {@link #happyMatchState(String)} for the setup.
+ * Behavior tests for {@link MatchProcessor#generateResultsOfMatch(VehicleState)}
+ * against the real WMATA 5A fixture. MatchProcessor had no direct coverage
+ * before this file — its behavior was exercised only incidentally through
+ * {@code AvlProcessor}.
  */
 public class MatchProcessorBehaviorTest {
 
@@ -50,23 +38,15 @@ public class MatchProcessorBehaviorTest {
 	/** 2016-06-20 11:50:00 America/New_York — mirrors AvlProcessorBehaviorTest. */
 	private static final long HAPPY_PATH_EPOCH_MS = 1466437800000L;
 
-	/** Counter used to keep AVL timestamps strictly monotonic across tests
-	 *  so that {@code AvlProcessor#setLastAvlReport}'s "only store newer"
-	 *  guard never silently rejects a test's setup report. */
+	/** Keeps AVL timestamps strictly monotonic across tests so that
+	 *  {@code AvlProcessor#setLastAvlReport}'s "only store newer" guard
+	 *  never silently rejects a test's setup report. */
 	private static final AtomicLong nextTime = new AtomicLong(HAPPY_PATH_EPOCH_MS);
 
 	private static final long DB_FLUSH_TIMEOUT_MS = 10_000L;
 	private static final long DB_POLL_INTERVAL_MS = 100L;
 
-	/**
-	 * Drives a BLOCK_ID-assigned AVL report at the first stop of {@code SE-08}
-	 * through {@link AvlProcessor} and returns the resulting
-	 * {@link VehicleState}. On the happy path that state is predictable and
-	 * has a {@code TemporalMatch} we can feed back into MatchProcessor.
-	 */
 	private static VehicleState happyMatchState(String vehicleId) {
-		// Every call advances the shared clock so back-to-back tests using
-		// happyMatchState never trip the "only store newer" guard.
 		long when = nextTime.updateAndGet(cur -> Math.max(cur, HAPPY_PATH_EPOCH_MS) + 1_000L);
 		CORE.setNow(when);
 
@@ -126,9 +106,6 @@ public class MatchProcessorBehaviorTest {
 
 	@Test
 	public void generateResultsOfMatch_unpredictableVehicleIsNoOp() {
-		// A brand-new VehicleState has predictable=false and no match. The
-		// public contract says MatchProcessor must early-return without
-		// mutating the state or emitting predictions/headways/matches.
 		VehicleState state = new VehicleState("v-mp-unpred");
 		assertThat(state.isPredictable())
 				.as("setup assumption: new VehicleState is unpredictable")
@@ -142,15 +119,15 @@ public class MatchProcessorBehaviorTest {
 		assertThat(state.getHeadway())
 				.as("unpredictable vehicle must not have a headway set")
 				.isNull();
+		assertThat(queryPredictionsForVehicle("v-mp-unpred"))
+				.as("unpredictable vehicle must not queue Prediction rows to the DB")
+				.isEmpty();
 	}
 
 	@Test
 	public void generateResultsOfMatch_predictableVehiclePopulatesPredictions() {
-		// AvlProcessor already calls generateResultsOfMatch once as part of
-		// processing — so the state arrives here with predictions already
-		// filled in. Clear them first so the assertion below proves that the
-		// explicit MatchProcessor call (not the earlier internal one) is what
-		// produced the new list.
+		// AvlProcessor already invoked generateResultsOfMatch during setup; clear
+		// the list so the next assertion proves this call repopulated it.
 		VehicleState state = happyMatchState("v-mp-populates");
 		state.setPredictions(null);
 
@@ -168,10 +145,7 @@ public class MatchProcessorBehaviorTest {
 
 	@Test
 	public void generateResultsOfMatch_predictableVehicleQueuesPredictionsToDb() {
-		// The async DbLogger persists Prediction rows whose
-		// (predictionTime - avlTime) fits inside the configured window.
-		// Even one persisted row proves the Core.getInstance().getDbLogger()
-		// branch inside MatchProcessor.processPredictions was taken.
+		// Proves the async DbLogger path in processPredictions ran.
 		VehicleState state = happyMatchState("v-mp-dbrows");
 		state.setPredictions(null);
 

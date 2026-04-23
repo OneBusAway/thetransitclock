@@ -115,18 +115,6 @@ public class AvlProcessorBehaviorTest {
 		return next;
 	}
 
-	/**
-	 * Jumps the harness clock to a specific epoch (for tests that need a
-	 * real-world date, e.g. a known active service day). Updates
-	 * {@link #nextTime} to the larger of its current value and the jump
-	 * target, so subsequent tests' {@code @Before} advances never rewind
-	 * the clock.
-	 */
-	private void jumpClockTo(long epochMs) {
-		CORE.setNow(epochMs);
-		nextTime.updateAndGet(cur -> Math.max(cur, epochMs));
-	}
-
 	private static AvlReport avlReport(String vehicleId, double lat, double lon) {
 		// Use CORE.clock() so the report's time advances with setNow(). Tests
 		// that want a time offset from "now" can construct their own Date.
@@ -141,21 +129,12 @@ public class AvlProcessorBehaviorTest {
 	}
 
 	/**
-	 * Computes an anchor epoch within the known-good SE-08 service window
-	 * that is strictly greater than any timestamp prior tests already used,
-	 * then pins Core's clock to it. Returns the anchor.
-	 *
-	 * <p>Tests that need a predictable vehicle must use this (not
-	 * {@link #jumpClockTo}) because:
-	 * <ul>
-	 *   <li>multiple happy-path tests in the same JVM would otherwise all
-	 *       set the clock to the exact same {@code HAPPY_PATH_EPOCH_MS};
-	 *       the second test's AVL report would fail {@code setLastAvlReport}'s
-	 *       "only store newer" guard and be silently dropped.</li>
-	 *   <li>the 100-ms per-test nudge stays well inside the 5-minute
-	 *       scheduled-departure window at stop 14253, so the spatial +
-	 *       temporal match still succeeds.</li>
-	 * </ul>
+	 * Pins Core's clock to an epoch within the known-good SE-08 service window
+	 * that is strictly greater than any timestamp prior tests already used.
+	 * Multiple happy-path tests in the same JVM would otherwise all pin the
+	 * same {@code HAPPY_PATH_EPOCH_MS}; the second test's AVL report would fail
+	 * {@code setLastAvlReport}'s "only store newer" guard and be silently
+	 * dropped.
 	 */
 	private long pinClockToHappyPathAnchor() {
 		long anchor = nextTime.updateAndGet(
@@ -283,10 +262,6 @@ public class AvlProcessorBehaviorTest {
 		assertThat(state.getAssignmentId()).isEqualTo(HAPPY_PATH_BLOCK_ID);
 	}
 
-	// Trip 868588900 belongs to block SE-08. A TRIP_ID assignment should
-	// resolve (via BlockAssigner) to the same block and produce a
-	// predictable vehicle, exercising the TRIP_ID branch of the assignment
-	// lookup that the existing BLOCK_ID happy path does not touch.
 	@Test
 	public void reportWithTripIdAssignmentProducesPredictableVehicle() {
 		long when = pinClockToHappyPathAnchor();
@@ -308,11 +283,6 @@ public class AvlProcessorBehaviorTest {
 		assertThat(state.getAssignmentId()).isEqualTo(HAPPY_PATH_BLOCK_ID);
 	}
 
-	// cacheAvlReportWithoutProcessing is a public side-door used to keep
-	// map animation smooth when AVL arrives faster than the matcher can
-	// keep up: it updates the cached VehicleState's AvlReport but skips
-	// all matching. An unpredictable vehicle stays unpredictable; a
-	// predictable vehicle keeps its prior match unchanged.
 	@Test
 	public void cacheAvlReportWithoutProcessingUpdatesStateButDoesNotMatch() {
 		long when = advanceClockBy(1_000L);
@@ -335,11 +305,6 @@ public class AvlProcessorBehaviorTest {
 				.isNull();
 	}
 
-	// makeVehicleUnpredictable must clear the TemporalMatch and flip
-	// isPredictable back to false for a previously-predictable vehicle.
-	// This is the public unwind path the TimeoutHandler and auto-reassign
-	// flows rely on — a regression here would silently keep stale matches
-	// alive on the wire.
 	@Test
 	public void makeVehicleUnpredictableClearsMatchOnPredictableVehicle() {
 		long when = pinClockToHappyPathAnchor();
@@ -376,8 +341,6 @@ public class AvlProcessorBehaviorTest {
 	// drives the "AVL feed is up" monitoring check.
 	@Test
 	public void schedBasedPredsReportDoesNotUpdateLastRegularReport() {
-		// Establish a baseline: push a regular report through, capture the
-		// resulting lastAvlReportTime.
 		long baselineEpoch = advanceClockBy(1_000L);
 		AvlReport baseline = avlReport("v-regular", NEAR_ROUTE_LAT, NEAR_ROUTE_LON);
 		AvlProcessor.getInstance().processAvlReport(baseline);
@@ -386,9 +349,6 @@ public class AvlProcessorBehaviorTest {
 				.as("regular report should update lastAvlReportTime")
 				.isEqualTo(baselineEpoch);
 
-		// Now send a schedule-based-preds report at a strictly later time.
-		// If setLastAvlReport wrongly accepted it, lastAvlReportTime would
-		// jump forward to this test's clock; the contract says it must not.
 		long schedEpoch = advanceClockBy(30_000L);
 		AvlReport schedBased = new AvlReport("v-schedbased",
 				schedEpoch,
