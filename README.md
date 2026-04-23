@@ -1,15 +1,23 @@
-core [![Build Status](https://travis-ci.org/TheTransitClock/transitime.svg?branch=develop)](https://travis-ci.org/TheTransitClock/transitime)
+TheTransitClock
 ====
 
-The complete core Java software for the Transitime real-time transit information project. The goal is to use any type of real-time GPS data to generate useful public transportation information. The system is for both letting passengers know the status of their vehicles and helping agencies more effectively manage their systems. By providing a complete open-source system, agencies can have a cost effective system and have full ownership of it. 
+This is a fork of TheTransitClock, a [GTFS-RT Trip Updates](https://gtfs.org/documentation/realtime/feed-entities/trip-updates/) generation engine used by public transit agencies around the world, including in Minneapolis, MN where [the software was found to outperform proprietary alternatives](http://berrebi.net/wp-content/uploads/2020/01/trbws07_FileUploads_2020-AM-Presentations_3470_pdf_13557_P20-20421_2020-01-14-09-24-54.pdf).
 
-<b>Build</b>
+[TheTransitClock](https://thetransitclock.github.io) was developed by Sean Óg Crudden and Simon J. Berrebi, Ph.D., itself a fork of [Swiftly Transitime](https://transitime.github.io/core/).
 
-The software is made up of three modules which can each be built with maven. See BUILD.md
+## About this Repo
+
+The complete core Java software for the Transitime real-time transit information project. The purpose of the software is to use any type of real-time GPS data to generate useful public transportation information, namely a GTFS-RT Trip Updates feed.
+
+The system is for both letting passengers know the status of their vehicles and helping agencies more effectively manage their systems. By providing a complete open-source system, agencies can have a cost effective system and have full ownership of it. 
+
+## Build
+
+The software is made up of three modules which can each be built with maven. See [BUILD.md](./BUILD.md).
 
 The core functionality is in the transitime project. The REST api is in transitimeApi and the user Web applicaton is in transitimeWebapp.
 
-<b>Setup</b>
+## Setup
 
 The main module is transitTime. This has several standalone programs in the org.transitime.applications package.
 
@@ -29,11 +37,13 @@ The transitimeWebapp in turn is a web application which uses the transitTimeAPI 
 
 The transitimeQuickStart can be built with mvn install and ran using java -jar transitimeQuickStart it is currently a work in progress but the gui elements can be seen.
 
-<b>Running tests</b>
+## Running tests
 
-- Default unit tests across all modules: `mvn verify` (not `mvn test` — see CLAUDE.md for why).
+- Default unit tests across all modules: `mvn verify` (not `mvn test` — see below).
 - Single module: `mvn -pl transitclock test`
 - Single class: `mvn -pl transitclock test -Dtest=TestAPIKeyManager`
+
+`mvn test` on the full reactor fails because `transitclockQuickStart` binds `maven-dependency-plugin:copy` to `generate-resources` to pull the `transitclockApi` WAR into its resources, but the `test` phase never packages that WAR (MDEP-187: "Artifact has not been packaged yet"). Use `mvn verify` / `mvn package` / `mvn install` to exercise all tests, or scope to a single module with `-pl`, or skip QuickStart with `mvn test -pl '!transitclockQuickStart'`.
 
 Two additional test suites are opt-in via Maven profiles and excluded from the default build:
 
@@ -47,13 +57,10 @@ Two additional test suites are opt-in via Maven profiles and excluded from the d
   mvn install -P include-integration-tests
   ```
 
-<b>Code coverage</b>
+### Code coverage
 
 JaCoCo generates coverage reports as part of the Maven `verify` phase.
 
 - Per-module HTML reports: `<module>/target/site/jacoco/index.html`
 - Aggregate report across Core + thin clients: `coverage-report/target/site/jacoco-aggregate/index.html`
 - Regenerate just the aggregate (fastest): `mvn verify -pl coverage-report -am`
-
-[![Build Status](https://zenodo.org/badge/DOI/10.5281/zenodo.3550975.svg)](https://zenodo.org/record/3550975#.XdgmVedKjOQ)
-

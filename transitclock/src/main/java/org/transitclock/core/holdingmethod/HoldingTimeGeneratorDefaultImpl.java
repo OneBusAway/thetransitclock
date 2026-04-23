@@ -67,6 +67,19 @@ public class HoldingTimeGeneratorDefaultImpl implements HoldingTimeGenerator {
 	protected static IntegerConfigValue  plannedHeadwayMsec = new IntegerConfigValue("transitclock.holding.plannedHeadwayMsec", 60*1000*9, "Planned Headway");
 	protected static StringListConfigValue controlStopList = new StringListConfigValue("transitclock.holding.controlStops", null, "This is a list of stops to generate holding times for.");
 
+	public HoldingTimeGeneratorDefaultImpl() {
+		// Operator opted into this generator via transitclock.core.holdingTimeGeneratorClass
+		// but left controlStops unset; the feature will produce no holding times until
+		// transitclock.holding.controlStops is configured. Surfaced once here because the
+		// per-event callers (isControlStop, handleDeparture) would flood the logs.
+		if (controlStopList.getValue() == null) {
+			logger.warn(
+					"HoldingTimeGeneratorDefaultImpl is active but transitclock.holding.controlStops is unset — "
+							+ "no holding times will be produced. Configure a stop-id list, or clear "
+							+ "transitclock.core.holdingTimeGeneratorClass to silence this warning.");
+		}
+	}
+
 	public HoldingTime generateHoldingTime(VehicleState vehicleState, IpcArrivalDeparture event) {
 
 		PredictionDataCache predictionCache = PredictionDataCache.getInstance();
@@ -659,7 +672,16 @@ public class HoldingTimeGeneratorDefaultImpl implements HoldingTimeGenerator {
 
 		ArrayList<ControlStop> controlStops=new ArrayList<ControlStop>();
 
-		for(String stopEntry: controlStopList.getValue())
+		// Treat an unset controlStops list as "no control stops configured" — the
+		// feature is a no-op in that case. Without this guard, every caller of
+		// getControlPointStops (isControlStop, handleDeparture, generateHoldingTime)
+		// would NPE iterating a null list.
+		List<String> configured = controlStopList.getValue();
+		if (configured == null) {
+			return controlStops;
+		}
+
+		for(String stopEntry: configured)
 		{
 			controlStops.add(new ControlStop(stopEntry));
 		}
@@ -669,16 +691,16 @@ public class HoldingTimeGeneratorDefaultImpl implements HoldingTimeGenerator {
 
 	private Long[] predictionsToLongArray(List<IpcPrediction> predictions)
 	{
-		Long[] list=new Long[predictions.size()];
-
-		if(predictions!=null)
+		if(predictions==null)
 		{
-			int i=0;
-			for(IpcPrediction prediction:predictions)
-			{
-				list[i]=new Long(prediction.getPredictionTime());
-				i++;
-			}
+			return new Long[0];
+		}
+		Long[] list=new Long[predictions.size()];
+		int i=0;
+		for(IpcPrediction prediction:predictions)
+		{
+			list[i]=new Long(prediction.getPredictionTime());
+			i++;
 		}
 		return list;
 	}
@@ -698,14 +720,11 @@ public class HoldingTimeGeneratorDefaultImpl implements HoldingTimeGenerator {
 	private boolean isControlStop(String stopId)
 	{
 		ControlStop controlStop=new ControlStop( null, stopId);
-		if(getControlPointStops()!=null)
+		for(ControlStop controlStopInList:getControlPointStops())
 		{
-			for(ControlStop controlStopInList:getControlPointStops())
+			if(controlStopInList.getStopId().equals(controlStop.getStopId()))
 			{
-				if(controlStopInList.getStopId().equals(controlStop.getStopId()))
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 		return false;
