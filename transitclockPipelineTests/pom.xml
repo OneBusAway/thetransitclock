@@ -4,8 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>TheTransitClock</groupId>
-    <version>2.0.0-SNAPSHOT</version>
+    <parent>
+        <groupId>TheTransitClock</groupId>
+        <artifactId>transitclock</artifactId>
+        <version>2.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
     <artifactId>transitclockPipelineTests</artifactId>
 
     <!--
@@ -54,13 +58,16 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.11</version>
+            <!-- Matches transitclockCore's junit version. 4.13.1+ fixes
+                 CVE-2020-15250 (world-readable TemporaryFolder files). -->
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.24.2</version>
+            <!-- Matches transitclockCore's assertj-core version. -->
+            <version>3.26.3</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -78,7 +85,11 @@
                       is the simplest way to guarantee clean state without
                       hand-rolled singleton resets.
                     -->
-                    <argLine>-Dtransitclock.logging.dir="/tmp"</argLine>
+                    <!-- @{argLine} preserves the javaagent line that
+                         jacoco:prepare-agent sets on the surefire argLine
+                         property — without it, jacoco's agent is silently
+                         dropped and the module reports no coverage. -->
+                    <argLine>@{argLine} -Dtransitclock.logging.dir="/tmp"</argLine>
                     <reuseForks>false</reuseForks>
                 </configuration>
             </plugin>

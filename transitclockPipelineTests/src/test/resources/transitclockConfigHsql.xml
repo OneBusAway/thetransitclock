@@ -26,7 +26,7 @@
     </avl>
 
     <find>
-        <!--  Used to match the last stop of a vehicle to a time. Comments in VechiclesServer. Times are in milliseconds -->
+        <!--  Used to match the last stop of a vehicle to a time. Comments in VehiclesServer. Times are in milliseconds -->
         <dwelltime>30000</dwelltime>
         <fuzzytime>180000</fuzzytime>
     </find>

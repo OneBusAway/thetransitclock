@@ -114,16 +114,27 @@ public final class TransitFixtures {
 		List<Trip> tripList = Arrays.asList(trips);
 		int startTime = Integer.MAX_VALUE;
 		int endTime = Integer.MIN_VALUE;
+		boolean hasStart = false;
+		boolean hasEnd = false;
 		for (Trip t : tripList) {
-			if (t.getStartTime() != null && t.getStartTime() < startTime)
+			if (t.getStartTime() != null && t.getStartTime() < startTime) {
 				startTime = t.getStartTime();
-			if (t.getEndTime() != null && t.getEndTime() > endTime)
+				hasStart = true;
+			}
+			if (t.getEndTime() != null && t.getEndTime() > endTime) {
 				endTime = t.getEndTime();
+				hasEnd = true;
+			}
 		}
-		// If no trip has a schedule, fall back to zero-length block at time 0.
-		if (startTime == Integer.MAX_VALUE) {
+		// Normalize missing bounds: if a trip contributed only a start or only
+		// an end, mirror the known bound; if nothing contributed, use 0/0.
+		if (!hasStart && !hasEnd) {
 			startTime = 0;
 			endTime = 0;
+		} else if (!hasStart) {
+			startTime = endTime;
+		} else if (!hasEnd) {
+			endTime = startTime;
 		}
 		return new Block(DEFAULT_CONFIG_REV, blockId, serviceId,
 				startTime, endTime, tripList);

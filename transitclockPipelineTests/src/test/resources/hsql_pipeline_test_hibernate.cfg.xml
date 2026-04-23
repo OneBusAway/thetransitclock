@@ -77,10 +77,10 @@
         uncomment this part and set the db parameters here. -->
 
    <property name="hibernate.connection.url">
-       jdbc:hsqldb:mem://localhost/xdb
+       jdbc:hsqldb:mem:xdb
    </property>
    <property name="hibernate.ro.connection.url">
-   	   jdbc:hsqldb:mem://localhost/xdb
+   	   jdbc:hsqldb:mem:xdb
    </property>
    <property name="hibernate.connection.username">
       SA

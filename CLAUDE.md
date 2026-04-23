@@ -34,7 +34,7 @@ JaCoCo 0.8.12 is wired at the root `pom.xml`. It inherits into any module that d
 
 ## Module layout
 
-Eight Maven modules under the root aggregator `pom.xml`:
+Nine Maven modules under the root aggregator `pom.xml`:
 
 - **transitclock** — core engine. Artifact id `transitclockCore`. Contains domain model, AVL ingestion, matching, prediction generation, Hibernate entities, config, modules, IPC servers, and all executable `main` classes under `org.transitclock.applications`.
 - **transitclockApi** — JAX-RS REST API WAR. Calls into a running Core process via RMI (see `org.transitclock.ipc`); does **not** talk to the DB directly for live vehicle/prediction data.
