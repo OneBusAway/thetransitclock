@@ -89,46 +89,49 @@ uv run capture.py \
 
 ## Promoting captures to fixtures
 
-Once a capture looks good:
+See `integration-tests.md` at the repo root for the full end-to-end
+plan. The short version:
 
-1. Replace the module's GTFS:
+1. **Subset the GTFS.** The unpacked feed under `output/<run>/gtfs/` is
+   the whole WMATA system (~220 MB). Existing fixture dirs are
+   single-route subsets (a few MB each). Use `subset_gtfs.py` to slice:
    ```sh
-   rm -rf transitclockIntegration/src/test/resources/gtfs/S2
-   cp -R tools/wmata_capture/output/<run>/gtfs transitclockIntegration/src/test/resources/gtfs/S2
+   uv run subset_gtfs.py \
+       --input output/<run>/gtfs \
+       --output output/<run>/gtfs-subsets/<ROUTE> \
+       --route <ROUTE>
    ```
-   Adjust the target subdir name to the route the test uses.
-2. Replace the AVL CSV:
+2. **Swap fixtures** into `transitclockIntegration/src/test/resources/`:
    ```sh
-   cp tools/wmata_capture/output/<run>/avl/S2_<vehicleId>.csv \
-      transitclockIntegration/src/test/resources/avl/S2_<vehicleId>.csv
+   rm -rf transitclockIntegration/src/test/resources/gtfs/<OLD>
+   cp -R output/<run>/gtfs-subsets/<ROUTE> \
+         transitclockIntegration/src/test/resources/gtfs/<ROUTE>
+
+   rm transitclockIntegration/src/test/resources/avl/<OLD>_<vehicleId>.csv
+   cp output/<run>/avl/<ROUTE>_<vehicleId>.csv \
+      transitclockIntegration/src/test/resources/avl/<ROUTE>_<vehicleId>.csv
    ```
-   Rename to match the test's hard-coded constant
-   (e.g. `S2_2113.csv`).
-3. **Regenerate the prediction baseline** (`pred/*.csv`). This is not
-   produced by this capture tool — it's the *output* of running the
-   current predictor against the new AVL. To rebuild:
-   - Temporarily remove the `@Ignore` from
-     `PredictionAccuracyIntegrationTest`.
-   - Run the test; dump the `new`-side predictions (see the test's
-     `setUp` — `session.createCriteria(Prediction.class).list()`) to a
-     CSV with the same columns as the existing
-     `pred/S2_2113.csv`.
-   - Save that CSV as the new baseline.
-   - Leave the `@Ignore` removed — un-ignoring the test permanently is
-     the whole point of the refresh. Don't re-add `@Ignore` after
-     generating the baseline.
-4. Commit the new fixtures + baseline in one PR; reference issues
-   OneBusAway/thetransitclock#7 and #8 in the description.
+3. **Update the test's path constants** to the new route / vehicle.
+4. **For the detour test**, pick a trace containing a real off-route
+   excursion. Use `find_detour_candidates.py` to rank vehicles by
+   detour-likeness against the route shape — fattest trace doesn't
+   mean most detour-y:
+   ```sh
+   uv run find_detour_candidates.py \
+       --gtfs output/<run>/gtfs-subsets/<ROUTE> \
+       --avl-dir output/<run>/avl \
+       --route-prefix <ROUTE>
+   ```
+5. **Prediction accuracy baseline (`pred/*.csv`)**: *currently blocked*.
+   The obvious approach is to dump `session.createCriteria(Prediction
+   .class).list()` after `PlaybackModule.runTrace`, but that module is
+   non-deterministic across JVMs (prediction counts vary by >20%
+   run-to-run). A frozen CSV baseline therefore isn't a valid
+   regression signal. See `integration-tests.md` for the two proposed
+   re-enablement paths.
 
 ## Known caveats
 
-- **`block_id` in WMATA GTFS is not always populated.** The script falls
-  back to `assignmentType=TRIP_ID` when the GTFS-RT feed reports a
-  `trip_id` that has no corresponding `block_id` in `trips.txt`.
-  `BatchCsvAvlFeedModule` + `BlockAssigner` handle both types, but some
-  transitclock behavior paths depend on block assignment specifically —
-  prefer capturing a route/period where `trips.txt` does carry block_ids
-  (check via `awk -F, '{print $<block-col>}' trips.txt | sort -u | head`).
 - **The GTFS-RT feed repeats observations.** The script de-duplicates on
   `(vehicle_id, feed-reported timestamp)` within a single run, so a
   30-second poll interval against a feed that only updates every 60s
@@ -142,10 +145,19 @@ Once a capture looks good:
 - **Outages happen.** WMATA's API can return 5xx and can stall for
   minutes. The script retries with a bounded exponential backoff (up to
   ~2 minutes between attempts) rather than dying.
+- **Route IDs changed.** WMATA's "Better Bus Network" redesign
+  (effective June 2025) renamed every route to a `<zone-letter><number>`
+  scheme (A\*, C\*, D\*, F\*, M\*, P\*). The 2016-era S2 / 3T / 5A
+  short names no longer exist. Check `routes.txt` in a fresh capture
+  before assuming any historical route still runs.
 
 ## Files
 
-- `capture.py` — the script (PEP 723, single file).
+- `capture.py` — the capture script (PEP 723, single file).
+- `subset_gtfs.py` — slice a full GTFS feed to one route with referential
+  closure (routes → trips → stop_times → stops → shapes → calendar).
+- `find_detour_candidates.py` — rank captured AVL traces by detour-
+  likeness against a route's GTFS shape.
 - `.env.example` — template for `WMATA_API_KEY`. Real `.env` is
   gitignored.
 - `output/` — default capture destination. Gitignored.
