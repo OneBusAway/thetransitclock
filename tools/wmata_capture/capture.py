@@ -306,12 +306,40 @@ def record_vehicle(
 # --------------------------------------------------------------------------
 
 
+def _load_env_file(path: Path) -> None:
+    """Minimal .env loader so users don't need `set -a; source .env` shell gymnastics.
+
+    KEY=VALUE per line. Comments (#) and blanks are ignored. Surrounding
+    single or double quotes are stripped. Does NOT overwrite keys already
+    present in os.environ, so an explicit `export WMATA_API_KEY=...` still
+    wins over the file.
+    """
+    if not path.is_file():
+        return
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 def run_capture(args: argparse.Namespace) -> int:
+    # Auto-load .env from the script's own directory (tools/wmata_capture/.env).
+    # Users can also export WMATA_API_KEY directly — that takes precedence.
+    _load_env_file(Path(__file__).resolve().parent / ".env")
+
     api_key = os.environ.get("WMATA_API_KEY", "").strip()
     if not api_key:
         print(
-            "WMATA_API_KEY is not set. Export it or copy .env.example to .env "
-            "and source it. Never pass the key on the command line.",
+            "WMATA_API_KEY is not set. Put it in tools/wmata_capture/.env "
+            "(copy .env.example) or export it in your shell. Never pass it "
+            "on the command line.",
             file=sys.stderr,
         )
         return 2
