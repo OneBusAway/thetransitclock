@@ -76,20 +76,26 @@ Post-capture utilities now live in `tools/wmata_capture/`:
 ## Current state of the integration module
 
 Four tests under `transitclockIntegration/src/test/java/org/transitclock/integration_tests/`
-consume WMATA fixtures. Two currently pass, two are `@Ignore`d:
+consume WMATA fixtures. Post-refresh: three pass, one stays `@Ignore`d pending a
+deterministic-replay or tolerance-based fix:
 
 | Test | Route / vehicle fixture | Status | Issue |
 |---|---|---|---|
-| `prediction/PredictionAccuracyIntegrationTest` | `S2_2113` (avl **+** pred baseline) | `@Ignore` | #8 |
-| `RecoverFromDetourTest` | `3T_3757` | `@Ignore` | #7 |
+| `prediction/PredictionAccuracyIntegrationTest` | `D40_5506` (avl; pred baseline blocked) | `@Ignore` — non-determinism, see Step 4b | #8 |
+| `RecoverFromDetourTest` | `A40_3151` | passes | #7 (closed by this refresh) |
 | `GenerateEffectiveScheduleDifferenceTest` | `5A_8062` | passes | — |
 | `EffectiveScheduleDifferenceDuringLayoverTest` | `5A_8062` | passes | — |
 
 Fixture layout:
 
-- `transitclockIntegration/src/test/resources/gtfs/{S2,3T,5A}/` — unpacked static GTFS per route
-- `transitclockIntegration/src/test/resources/avl/{S2_2113,3T_3757,5A_8062}.csv` — AVL traces
-- `transitclockIntegration/src/test/resources/pred/S2_2113.csv` — **predictor output baseline** (only the accuracy test uses this)
+- `transitclockIntegration/src/test/resources/gtfs/{A40,D20,D40,5A}/` — unpacked
+  static GTFS per route. `D20` is a spare (no test consumes it yet) kept from
+  the same capture window.
+- `transitclockIntegration/src/test/resources/avl/{A40_3151,D20_7198,D40_5506,5A_8062}.csv`
+  — AVL traces.
+- `transitclockIntegration/src/test/resources/pred/` — **predictor output
+  baseline** for the accuracy test. Currently empty; a `D40_5506.csv` baseline
+  will land here once Step 4b is unblocked.
 
 The tests all call `PlaybackModule.runTrace(GTFS, AVL)`, which boots a
 real Core against an in-memory database, replays the AVL CSV, and lets
@@ -134,7 +140,7 @@ Prereqs: `WMATA_API_KEY` in `tools/wmata_capture/.env` (already present
 as of this writing — the capture script auto-loads it).
 
 ```sh
-cd /Users/aaron/repos/onebusaway/transitime/tools/wmata_capture
+cd tools/wmata_capture
 
 nohup uv run capture.py \
     --output-dir ./output/fixtures-$(date +%Y%m%d) \
@@ -224,13 +230,16 @@ per route directory) is fine and matches the current layout.
 Java files to edit (these are the exact occurrences as of this writing):
 
 - `transitclockIntegration/src/test/java/org/transitclock/integration_tests/prediction/PredictionAccuracyIntegrationTest.java`
-  - `GTFS = "src/test/resources/gtfs/S2"` → new path
-  - `AVL = "src/test/resources/avl/S2_2113.csv"` → new path
+  - `GTFS = "src/test/resources/gtfs/S2"` → new path (done in this refresh: `gtfs/D40`)
+  - `AVL = "src/test/resources/avl/S2_2113.csv"` → new path (done: `avl/D40_5506.csv`)
   - `PREDICTIONS_CSV = "src/test/resources/pred/S2_2113.csv"` → new path
-  - `@Ignore(...)` — remove
+    (not yet pointed at a real baseline — see Step 4b)
+  - `@Ignore(...)` — **keep** until the non-determinism blocker is resolved
+    (see "Progress so far" / "Re-enabling testPredictions"). Removing it now
+    reintroduces run-to-run flakes, not a regression signal.
 - `transitclockIntegration/src/test/java/org/transitclock/integration_tests/RecoverFromDetourTest.java`
-  - `GTFS`, `AVL`, `VEHICLE` → new values
-  - `@Ignore(...)` — remove
+  - `GTFS`, `AVL`, `VEHICLE` → new values (done: `A40`, `A40_3151.csv`, `3151`)
+  - `@Ignore(...)` — remove (done: the test is live and passing)
 
 Do **not** touch the two `5A` tests unless you're intentionally
 expanding scope — they currently pass and changing their fixtures means
@@ -238,8 +247,16 @@ re-validating their assertions.
 
 ### Regenerating `pred/*.csv` (prediction accuracy baseline)
 
+> **Blocked as of this refresh.** Replaying the same AVL trace in separate
+> JVMs produces different prediction counts run-to-run (see "Progress so
+> far" Step 4b), so a frozen CSV baseline can't serve as a regression
+> signal yet. Either resolve the non-determinism or move the test to
+> tolerance-based assertions before following the steps below. Until
+> then, leave `@Ignore` on `PredictionAccuracyIntegrationTest`.
+
 The baseline is the *output* of the current predictor replayed against
-the new AVL trace. It's not produced by the capture tool. Process:
+the new AVL trace. It's not produced by the capture tool. Process once
+Step 4b is unblocked:
 
 1. With `@Ignore` removed on `PredictionAccuracyIntegrationTest` and
    the new fixtures in place, run the test once:
@@ -250,15 +267,15 @@ the new AVL trace. It's not produced by the capture tool. Process:
    ```
 2. The test's `setUp()` fetches `List<Prediction>` from Hibernate
    (`PredictionAccuracyIntegrationTest.java:80`). Dump those rows to a
-   CSV with the **exact same header** as the current `pred/S2_2113.csv`:
-   ```
+   CSV with the **exact same header** as the old `pred/S2_2113.csv`:
+   ```csv
    id,affectedByWaitStop,avlTime,configRev,creationTime,gtfsStopSeq,isArrival,predictionTime,routeId,schedBasedPred,stopId,tripId,vehicleId
    ```
    Easiest approach: add a one-shot `@Before`/`@After` hook (or a
    scratch `@Test` that you delete afterwards) that writes the CSV
    before the assertions run. The existing test code already binds to
    the same `Prediction` entity — reuse its fields.
-3. Save the CSV as `transitclockIntegration/src/test/resources/pred/D40_<vehicle>.csv`
+3. Save the CSV as `transitclockIntegration/src/test/resources/pred/D40_5506.csv`
    and point `PREDICTIONS_CSV` at it.
 4. Re-run the test. It compares *new* predictions against the *baseline
    you just generated*, so on first pass it should be close to a
@@ -267,7 +284,8 @@ the new AVL trace. It's not produced by the capture tool. Process:
    then mean "the predictor must not regress against this captured
    baseline in future." That's the regression-signal the fixture refresh
    is restoring.
-5. **Leave `@Ignore` off.** Re-adding it defeats the whole refresh.
+5. **Leave `@Ignore` off** once the baseline is stable. Re-adding it
+   defeats the refresh.
 
 ## Step 5 — Validate
 

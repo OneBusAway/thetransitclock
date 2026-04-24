@@ -133,11 +133,14 @@ def main() -> int:
             results.append(res)
 
     # detour candidates: had a bracketed off-route run, ended back on route
-    results.sort(key=lambda r: (r["longest_bracketed_off_run"], r["max_dist_m"]), reverse=True)
+    candidates = [r for r in results if r["longest_bracketed_off_run"] > 0 and r["ends_on_route"]]
+    candidates.sort(key=lambda r: (r["longest_bracketed_off_run"], r["max_dist_m"]), reverse=True)
 
     print(f"{'vehicle':<12} {'rows':>5} {'max_m':>8} {'med_m':>7} {'off%':>6} {'longest_off_run':>16} {'ends_on':>8}")
     print("-" * 70)
-    for r in results[: args.top]:
+    if not candidates:
+        print("(no traces with a bracketed off-route run that returned on-route)")
+    for r in candidates[: args.top]:
         print(
             f"{r['vehicle']:<12} {r['rows']:>5} {r['max_dist_m']:>8.0f} "
             f"{r['median_dist_m']:>7.0f} {r['off_pct']:>5.1f}% "
