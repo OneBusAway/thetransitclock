@@ -89,8 +89,7 @@ uv run capture.py \
 
 ## Promoting captures to fixtures
 
-See `integration-tests.md` at the repo root for the full end-to-end
-plan. The short version:
+See `docs/integration-tests.md` for the full end-to-end plan. The short version:
 
 1. **Subset the GTFS.** The unpacked feed under `output/<run>/gtfs/` is
    the whole WMATA system (~220 MB). Existing fixture dirs are
@@ -127,8 +126,8 @@ plan. The short version:
    .class).list()` after `PlaybackModule.runTrace`, but that module is
    non-deterministic across JVMs (prediction counts vary by >20%
    run-to-run). A frozen CSV baseline therefore isn't a valid
-   regression signal. See `integration-tests.md` for the two proposed
-   re-enablement paths.
+   regression signal. See `docs/integration-tests.md` for the two
+   proposed re-enablement paths.
 
 ## Known caveats
 

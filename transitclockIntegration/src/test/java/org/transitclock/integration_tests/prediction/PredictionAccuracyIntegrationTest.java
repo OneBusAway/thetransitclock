@@ -100,7 +100,7 @@ public class PredictionAccuracyIntegrationTest {
     		+ "(captured 2026-04-23 via tools/wmata_capture), but re-enabling the "
     		+ "test requires either making the predictor deterministic or "
     		+ "rewriting these assertions as statistical-tolerance checks. See "
-    		+ "integration-tests.md for the full investigation.")
+    		+ "docs/integration-tests.md for the full investigation.")
     public void testPredictions() {
     	
     	int oldTotalPreds = 0, newTotalPreds = 0, bothTotalPreds = 0;
