@@ -38,6 +38,13 @@ jobs:
       - name: Run pipeline tests
         run: mvn -B -ntp -pl transitclockPipelineTests -am -P include-pipeline-tests test
 
+      # Integration tests live in transitclockIntegration and are the
+      # heaviest tier — full AVL-CSV replays through a booted Core. Opt-in
+      # via include-integration-tests. Kept as its own step so a failure
+      # here is attributed distinctly from the unit and pipeline tiers.
+      - name: Run integration tests
+        run: mvn -B -ntp -pl transitclockIntegration -am -P include-integration-tests test
+
       - name: Upload JaCoCo aggregate report
         if: always()
         uses: actions/upload-artifact@v4

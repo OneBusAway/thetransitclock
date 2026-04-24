@@ -1,7 +1,15 @@
 package org.transitclock.playback;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.hibernate.Query;
 import org.hibernate.Session;
@@ -45,6 +53,8 @@ public class PlaybackModule {
 	private static final int defaultWaitTimeAtStopMsec = 10 * Time.MS_PER_SEC;
 	private static final double maxSpeedKph = 97.0;
 	private static final double maxTravelTimeSegmentLength = 200.0;
+	private static final double maxDistanceBetweenStops = 6000.0;
+	private static final boolean disableSpecialLoopBackToBeginningCase = false;
 
 	private static Session session;
 	
@@ -210,12 +220,88 @@ public class PlaybackModule {
 	// Adapted from GtfsFileProcessor. May need to add setTimezone in the future,
 	// but actually maybe it doesn't matter for playback.
 	private static void setupGtfs(String gtfsDirectoryName) {
+		// The WMATA fixtures checked in under src/test/resources/gtfs have
+		// calendar.txt end_dates from 2018, and GtfsData.isCalendarActiveInTheFuture
+		// filters using real System.currentTimeMillis (not Core's clock).
+		// Without staging, every service_id gets filtered out and GtfsData
+		// calls System.exit(-1) deep in processing, killing the surefire fork.
+		// Copy the GTFS to a temp dir with rewritten end_dates so the check passes.
+		String stagedGtfsDir;
+		try {
+			stagedGtfsDir = stageGtfsWithFutureCalendarEndDates(gtfsDirectoryName).toString();
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to stage GTFS with future calendar end dates from "
+					+ gtfsDirectoryName, e);
+		}
+
 		TitleFormatter titleFormatter = new TitleFormatter(null, true);
 		boolean shouldStoreNewRevs = true, shouldDeleteRevs = false;
-		GtfsData gtfsData = new GtfsData(1, null, null, shouldStoreNewRevs, shouldDeleteRevs, AgencyConfig.getAgencyId(), gtfsDirectoryName, null, 
+		GtfsData gtfsData = new GtfsData(1, null, null, shouldStoreNewRevs, shouldDeleteRevs, AgencyConfig.getAgencyId(), stagedGtfsDir, null,
 				pathOffsetDistance,  maxStopToPathDistance, maxDistanceForEliminatingVertices,
-				defaultWaitTimeAtStopMsec, maxSpeedKph, maxTravelTimeSegmentLength, false, titleFormatter);
+				defaultWaitTimeAtStopMsec, maxSpeedKph, maxTravelTimeSegmentLength, false, titleFormatter,
+				maxDistanceBetweenStops, disableSpecialLoopBackToBeginningCase);
 		gtfsData.processData();
+	}
+
+	private static Path stageGtfsWithFutureCalendarEndDates(String sourceDir) throws IOException {
+		Path source = Path.of(sourceDir);
+		if (!Files.isDirectory(source)) {
+			throw new IOException("GTFS source directory not found: " + source.toAbsolutePath());
+		}
+		Path staged = Files.createTempDirectory("playback-gtfs-");
+		// File.deleteOnExit() only removes empty directories, so staged dirs
+		// with copied GTFS files would leak across runs. Recursive cleanup on
+		// JVM shutdown instead.
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> deleteRecursivelyQuietly(staged)));
+		try (Stream<Path> files = Files.list(source)) {
+			for (Path file : files.collect(Collectors.toList())) {
+				if (!Files.isRegularFile(file)) continue;
+				Path dest = staged.resolve(file.getFileName());
+				if (file.getFileName().toString().equals("calendar.txt")) {
+					rewriteCalendarWithFutureEndDates(file, dest);
+				} else {
+					Files.copy(file, dest, StandardCopyOption.REPLACE_EXISTING);
+				}
+			}
+		}
+		return staged;
+	}
+
+	private static void deleteRecursivelyQuietly(Path root) {
+		if (!Files.exists(root)) return;
+		try (Stream<Path> walk = Files.walk(root)) {
+			walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+				try {
+					Files.deleteIfExists(p);
+				} catch (IOException ignored) {
+				}
+			});
+		} catch (IOException ignored) {
+		}
+	}
+
+	private static void rewriteCalendarWithFutureEndDates(Path source, Path dest) throws IOException {
+		final String futureEndDate = "20500101";
+		List<String> lines = Files.readAllLines(source);
+		List<String> out = new ArrayList<>(lines.size());
+		if (!lines.isEmpty()) {
+			out.add(lines.get(0));
+		}
+		for (int i = 1; i < lines.size(); i++) {
+			String line = lines.get(i);
+			if (line.isEmpty()) {
+				out.add(line);
+				continue;
+			}
+			String[] parts = line.split(",", -1);
+			if (parts.length < 10) {
+				throw new IOException("Malformed calendar.txt at line " + (i + 1)
+						+ ": expected 10 columns, got " + parts.length);
+			}
+			parts[9] = futureEndDate;
+			out.add(String.join(",", parts));
+		}
+		Files.write(dest, out);
 	}
 	
 	private static void updateTravelTimes() {

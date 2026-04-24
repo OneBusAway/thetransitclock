@@ -60,7 +60,13 @@
      <property name="hibernate.order_inserts">true</property>
      <property name="hibernate.order_updates">true</property>
      <property name="hibernate.connection.autocommit">true</property>
-     <property name="hibernate.hbm2ddl.auto">create</property>
+     <!-- "update" instead of "create" so GTFS data loaded during
+          setupGtfs survives the SessionFactory rebuild that Core's
+          constructor triggers via clearSessionFactory(). With "create",
+          the subsequent factory rebuild drops every table and every
+          calendar/trip/block we just imported, leaving the runtime
+          BlockAssigner with serviceIds=[] and no vehicles matchable. -->
+     <property name="hibernate.hbm2ddl.auto">update</property>
 
  
    <!-- Configure db settings. Currently commented out because this

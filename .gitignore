@@ -13,3 +13,9 @@
 .DS_Store
 
 settings.local.json
+
+# WMATA capture output — live API data, not fixture-ready, not for VCS
+/tools/wmata_capture/output/
+/tools/wmata_capture/.env
+
+__pycache__/
