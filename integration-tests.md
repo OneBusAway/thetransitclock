@@ -25,14 +25,47 @@ Related:
 - **Step 3 promotion — DONE.** Subsetted GTFS + chosen AVL traces landed under
   `transitclockIntegration/src/test/resources/{gtfs,avl}/`. Old S2 and 3T
   fixtures removed. 5A fixtures left in place (their tests still pass).
-- **Step 4 test edits — PARTIAL.** `RecoverFromDetourTest` is un-ignored and
-  points at `A40_3115`. `PredictionAccuracyIntegrationTest` has its path
-  constants updated but remains `@Ignore`d until the pred baseline is
-  regenerated (see Step 4b below).
-- **Step 4b pred baseline — PENDING.** `pred/D40_5506.csv` has not been
-  generated yet. Without it `testPredictions` divides by zero on the old-
-  error aggregate and asserts `NaN <= NaN` (false). Do this next.
-- **Step 5 validate — PENDING.**
+- **Step 4 test edits — DONE.** `RecoverFromDetourTest` is un-ignored and
+  points at `A40_3151`, passing. `PredictionAccuracyIntegrationTest` has
+  its path constants updated but remains `@Ignore`d — the blocker turned
+  out to be deeper than fixture rot (see Step 4b).
+- **Step 4b pred baseline — BLOCKED (non-determinism).** Attempted to
+  generate `pred/D40_5506.csv` by adding a one-shot dumper that calls
+  `session.createCriteria(Prediction.class).list()` after `PlaybackModule
+  .runTrace`. The dump succeeds, but replaying the same AVL trace in a
+  *separate* JVM produces **different prediction counts on every run**
+  (observed 2155, 2696, and 2118 across three runs; AD counts also
+  varied by >2x). A frozen CSV baseline therefore cannot serve as a
+  regression signal — the `newTotalError <= oldTotalError` and
+  `oldTotalPreds <= newTotalPreds` assertions fail on run-to-run
+  variance, not on predictor regression. Most likely source is unsorted
+  collection iteration order in the predictor pipeline carrying over
+  into which predictions get generated / persisted, but that's
+  speculation — a real fix needs a deterministic replay.
+- **Step 5 validate — DONE (for non-ignored tests).** `mvn -P
+  include-integration-tests test` on the module passes: 3 tests green
+  (detour + two 5A), 1 skipped (testPredictions). Matches the pre-
+  refresh test count with one test now genuinely live instead of pinned
+  to stale 2016 data.
+
+## Re-enabling testPredictions
+
+Two plausible paths for future work:
+
+1. **Make the predictor deterministic.** Find the source(s) of
+   non-determinism — likely `HashMap` iteration order, or thread
+   scheduling in `AvlProcessor` / prediction generation — and replace
+   with deterministic equivalents (`LinkedHashMap`, single-thread
+   replay mode). Then a CSV baseline works as originally intended.
+2. **Rewrite the assertions to be tolerance-based.** Instead of exact
+   CSV comparison, assert on properties that should be stable even
+   across non-deterministic runs — e.g. "mean absolute prediction error
+   over all observed stops is below X seconds" or "90th-percentile
+   error is below Y seconds." No baseline CSV needed. Loses regression
+   detection against prior predictor versions but gains stability.
+
+Option 2 is the smaller change. Option 1 is the more honest fix and
+would also help other tests that replay traces.
 
 Post-capture utilities now live in `tools/wmata_capture/`:
 - `subset_gtfs.py` — slice the full feed to one route with referential closure

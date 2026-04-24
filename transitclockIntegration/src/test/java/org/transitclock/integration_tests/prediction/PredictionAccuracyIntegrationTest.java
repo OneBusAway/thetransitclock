@@ -90,11 +90,17 @@ public class PredictionAccuracyIntegrationTest {
     }
    
     @Test
-    @Ignore("Baseline pending — see integration-tests.md. Fixtures have been "
-    		+ "refreshed to D40_5506 (captured 2026-04-23 via tools/wmata_capture), "
-    		+ "but pred/D40_5506.csv has not yet been generated. Re-enable after "
-    		+ "dumping the current predictor's output for this trace into that "
-    		+ "CSV — that becomes the regression baseline.")
+    @Ignore("Disabled — PlaybackModule.runTrace is non-deterministic. Replaying "
+    		+ "the same D40_5506 trace across separate JVMs produces prediction "
+    		+ "counts that vary by >20% (observed 2155, 2696, and 2118 across "
+    		+ "three runs) and AD counts that vary by >2x. A frozen CSV baseline "
+    		+ "therefore can't serve as a regression signal — the assertion "
+    		+ "newTotalError <= oldTotalError fails due to run-to-run variance, "
+    		+ "not predictor regression. Fixtures have been refreshed to D40_5506 "
+    		+ "(captured 2026-04-23 via tools/wmata_capture), but re-enabling the "
+    		+ "test requires either making the predictor deterministic or "
+    		+ "rewriting these assertions as statistical-tolerance checks. See "
+    		+ "integration-tests.md for the full investigation.")
     public void testPredictions() {
     	
     	int oldTotalPreds = 0, newTotalPreds = 0, bothTotalPreds = 0;
