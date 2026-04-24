@@ -1,5 +1,4 @@
-TheTransitClock
-====
+# TheTransitClock
 
 This is a fork of TheTransitClock, a [GTFS-RT Trip Updates](https://gtfs.org/documentation/realtime/feed-entities/trip-updates/) generation engine used by public transit agencies around the world, including in Minneapolis, MN where [the software was found to outperform proprietary alternatives](http://berrebi.net/wp-content/uploads/2020/01/trbws07_FileUploads_2020-AM-Presentations_3470_pdf_13557_P20-20421_2020-01-14-09-24-54.pdf).
 

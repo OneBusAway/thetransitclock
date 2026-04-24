@@ -38,9 +38,9 @@ public class PredictionAccuracyIntegrationTest {
 
     private static final Logger logger = LoggerFactory.getLogger(PredictionAccuracyIntegrationTest.class);
 
-    private static final String GTFS = "src/test/resources/gtfs/S2";
-	private static final String AVL = "src/test/resources/avl/S2_2113.csv";
-    private static final String PREDICTIONS_CSV = "src/test/resources/pred/S2_2113.csv";
+    private static final String GTFS = "src/test/resources/gtfs/D40";
+	private static final String AVL = "src/test/resources/avl/D40_5506.csv";
+    private static final String PREDICTIONS_CSV = "src/test/resources/pred/D40_5506.csv";
 
     Collection<CombinedPredictionAccuracy> combinedPredictionAccuracy;
 
@@ -90,11 +90,17 @@ public class PredictionAccuracyIntegrationTest {
     }
    
     @Test
-    @Ignore("Fixture rot — see OneBusAway/thetransitclock#8. The 2016 baseline "
-    		+ "in pred/S2_2113.csv predates ~10 years of predictor changes, so "
-    		+ "the \"new worse than old\" assertion is no longer a regression "
-    		+ "signal. Re-enable after regenerating the baseline from a fresh "
-    		+ "capture via tools/wmata_capture.")
+    @Ignore("Disabled — PlaybackModule.runTrace is non-deterministic. Replaying "
+    		+ "the same D40_5506 trace across separate JVMs produces prediction "
+    		+ "counts that vary by >20% (observed 2155, 2696, and 2118 across "
+    		+ "three runs) and AD counts that vary by >2x. A frozen CSV baseline "
+    		+ "therefore can't serve as a regression signal — the assertion "
+    		+ "newTotalError <= oldTotalError fails due to run-to-run variance, "
+    		+ "not predictor regression. Fixtures have been refreshed to D40_5506 "
+    		+ "(captured 2026-04-23 via tools/wmata_capture), but re-enabling the "
+    		+ "test requires either making the predictor deterministic or "
+    		+ "rewriting these assertions as statistical-tolerance checks. See "
+    		+ "docs/integration-tests.md for the full investigation.")
     public void testPredictions() {
     	
     	int oldTotalPreds = 0, newTotalPreds = 0, bothTotalPreds = 0;
