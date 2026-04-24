@@ -114,7 +114,9 @@ Once a capture looks good:
      CSV with the same columns as the existing
      `pred/S2_2113.csv`.
    - Save that CSV as the new baseline.
-   - Restore `@Ignore` removal into a real code change, not a test run.
+   - Leave the `@Ignore` removed — un-ignoring the test permanently is
+     the whole point of the refresh. Don't re-add `@Ignore` after
+     generating the baseline.
 4. Commit the new fixtures + baseline in one PR; reference issues
    OneBusAway/thetransitclock#7 and #8 in the description.
 

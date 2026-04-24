@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -248,7 +249,10 @@ public class PlaybackModule {
 			throw new IOException("GTFS source directory not found: " + source.toAbsolutePath());
 		}
 		Path staged = Files.createTempDirectory("playback-gtfs-");
-		staged.toFile().deleteOnExit();
+		// File.deleteOnExit() only removes empty directories, so staged dirs
+		// with copied GTFS files would leak across runs. Recursive cleanup on
+		// JVM shutdown instead.
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> deleteRecursivelyQuietly(staged)));
 		try (Stream<Path> files = Files.list(source)) {
 			for (Path file : files.collect(Collectors.toList())) {
 				if (!Files.isRegularFile(file)) continue;
@@ -261,6 +265,19 @@ public class PlaybackModule {
 			}
 		}
 		return staged;
+	}
+
+	private static void deleteRecursivelyQuietly(Path root) {
+		if (!Files.exists(root)) return;
+		try (Stream<Path> walk = Files.walk(root)) {
+			walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+				try {
+					Files.deleteIfExists(p);
+				} catch (IOException ignored) {
+				}
+			});
+		} catch (IOException ignored) {
+		}
 	}
 
 	private static void rewriteCalendarWithFutureEndDates(Path source, Path dest) throws IOException {

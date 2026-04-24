@@ -264,7 +264,7 @@ def record_vehicle(
     lon = getattr(pos, "longitude", None)
     if lat is None or lon is None:
         return
-    heading = int(round(getattr(pos, "bearing", 0.0) or 0.0))
+    heading = round(getattr(pos, "bearing", 0.0) or 0.0)
 
     ts = int(getattr(vehicle_msg, "timestamp", 0) or 0)
     if ts <= 0:
