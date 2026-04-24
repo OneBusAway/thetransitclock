@@ -57,6 +57,11 @@ Two additional test suites are opt-in via Maven profiles and excluded from the d
   mvn install -P include-integration-tests
   ```
 
+To run **everything** (unit + pipeline + integration) in one go:
+```
+mvn install -P run-all-tests
+```
+
 ### Code coverage
 
 JaCoCo generates coverage reports as part of the Maven `verify` phase.
