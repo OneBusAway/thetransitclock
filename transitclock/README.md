@@ -39,7 +39,7 @@ mvn exec:java -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
               -Dexec.args="-o target -p org.transitclock.db.webstructs"
 ```
 
-Output files (one per supported dialect): `ddl_postgres_org_transitclock_db_structs.sql`, `ddl_mysql_…`, `ddl_oracle_…`, plus the `_webstructs` variants. Apply the dialect/schema pair appropriate for your database.
+Output files (one per supported dialect): `ddl_postgres_org_transitclock_db_structs.sql`, `ddl_mysql_…`, `ddl_oracle_…`, plus the `_webstructs` variants. Apply the dialect/schema pair appropriate for your database with `psql -U transitclock -d <dbname> -f <ddl-file>` (or the equivalent for your DB) — see [docs/setup.md §4](../docs/setup.md) for a worked example.
 
 ```
 usage:

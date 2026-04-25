@@ -31,11 +31,9 @@
         <!-- <authenticationUser>feed_user</authenticationUser> -->
         <!-- <authenticationPassword>feed_pass</authenticationPassword> -->
 
-        <!-- Poll cadence in seconds. Default 5. -->
-        <feedPollingRateSecs>5</feedPollingRateSecs>
-
-        <!-- HTTP timeout in milliseconds. Default 10000. -->
-        <feedTimeoutInMSecs>10000</feedTimeoutInMSecs>
+        <!-- Uncomment to override the defaults (5 s poll, 10000 ms timeout). -->
+        <!-- <feedPollingRateSecs>5</feedPollingRateSecs>     -->
+        <!-- <feedTimeoutInMSecs>10000</feedTimeoutInMSecs>   -->
 
         <!-- Optional: drop AVL outside this bbox (uncomment + set to use). -->
         <!--

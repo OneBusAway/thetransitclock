@@ -70,7 +70,10 @@ core data lives in a database whose name defaults to the agency ID and can
 be overridden with `-Dtransitclock.db.dbName=...`.
 
 ```bash
-# Example: agency id "02"
+# Example: agency id "02". This form assumes a local Postgres install
+# with a `postgres` Unix user (Debian/Ubuntu/Homebrew defaults). On a
+# managed service (RDS, Cloud SQL, …) run the same statements through
+# whatever client you normally use, as the master/admin role.
 sudo -u postgres psql <<'SQL'
 CREATE USER transitclock WITH PASSWORD 'changeme';
 CREATE DATABASE "02"  OWNER transitclock;   -- core data (per agency)
@@ -290,7 +293,8 @@ RMI_OPTS="-Dtransitclock.rmi.rmiHost=localhost"
 # List all vehicles Core knows about.
 java $RMI_OPTS -jar transitclock/target/RmiQuery.jar -a 02 -c vehicles
 
-# Predictions for a specific stop.
+# Predictions for a specific stop. Pick any stop_id from the GTFS
+# stops.txt you imported in step 6 (or fish one out with `-c routeConfig`).
 java $RMI_OPTS -jar transitclock/target/RmiQuery.jar -a 02 -c preds -s <stopId>
 
 # Predictions for everything within 1500 m of a lat/lon.
@@ -386,3 +390,4 @@ after the new rev is active.
 | Predictions table never grows | No active GTFS revision (forgot `-storeNewRevs`), or the AVL feed has no vehicles matching the GTFS routes/blocks. |
 | "Could not contact RMI" between API and Core | Ports 2099 and 2098 blocked, or `hostName` passed to `CreateWebAgency` doesn't resolve from the API host. |
 | Settings in your config file have no effect | Root tag is `<transitime>` (legacy). Change to `<transitclock>`; every typed `ConfigValue` is registered under `transitclock.*`. |
+| `CreateAPIKey` crashes / JDBC URL ends in `/null` | Forgot `-Dtransitclock.db.dbName=web`. `ApiKeyManager` resolves its DB name at class-init from `DbSetupConfig.getDbName()`; without the override the URL becomes `…/null` and the connection fails. |

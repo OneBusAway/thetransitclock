@@ -54,7 +54,8 @@ curl "http://<host>:<port>/api/v1/key/<API_KEY>/agency/<agencyId>/command/gtfs-r
 Drop `?format=human` for the binary protobuf feed. The full set of resources
 (predictions, vehicles, route config, GTFS-RT TripUpdates, SIRI, commands,
 cache queries) is defined by the JAX-RS classes under
-`org.transitclock.api.rootResources`; every path is rooted at `/api/v1/key/...`.
+`org.transitclock.api.rootResources`; the user-facing resources are rooted
+at `/api/v1/key/{key}/agency/{agencyId}/...`.
 
 ## Full setup runbook
 
