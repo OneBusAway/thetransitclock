@@ -1,18 +1,22 @@
-This is the web application for TheTransitClock and can be built by 
+# `transitclockWebapp` — web UI WAR
 
-```
+User-facing UI on top of `transitclockApi`. Built and deployed the same way:
+
+```bash
 cd transitclockWebapp
-maven install -DskipTests
+mvn install -DskipTests
 ```
 
-This produces a war file for deployment web.war in the target directory.
+Produces `target/web.war`.
 
-You will need to configure the location of the transitclockConfig.xml file as a command line argument:
+## Runtime requirements
 
-`-Dtransitclock.configFiles=/path/to/your/transitclockConfig.xml`
+The webapp shares Tomcat with `api.war` and consumes the REST API in-process.
+It needs the same `CATALINA_OPTS` as the API (config file, Hibernate config,
+DB credentials, `transitclock.db.dbName=web`) — see
+[`transitclockApi/README.md`](../transitclockApi/README.md) and the full
+runbook in [`docs/setup.md`](../docs/setup.md).
 
-The exact place to do this depends on how you're running TheTransitClock. In Eclipse, add this as a VM argument in the run configuration for Tomcat. In a bash script, add it to `CATALINA_OPTS` before Tomcat starts up.
+## Full setup runbook
 
-The transitclockConfig.xml file in turn is used to specify the location of the database and the hibernate file.
-
-You will also need to configure the key for accessing the transitclockApi in the template/includes.jsp file. You can use the CreateAPIKey application in TheTransitClock to create a test/demo key. This you may already have done as part of the setup of transitclockApi.
+See [../docs/setup.md](../docs/setup.md).

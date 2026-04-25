@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE hibernate-configuration SYSTEM
+"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+<!--
+  Production Hibernate config for PostgreSQL.
+
+  TheTransitClock will pick up this file via the
+  -Dtransitclock.hibernate.configFile=... system property
+  (or the <hibernate><configFile> entry in transitclockConfig.xml).
+
+  Connection URL/user/password set here can be overridden at the JVM with:
+      -Dtransitclock.db.dbType=postgresql
+      -Dtransitclock.db.dbHost=localhost
+      -Dtransitclock.db.dbName=02
+      -Dtransitclock.db.dbUserName=transitclock
+      -Dtransitclock.db.dbPassword=changeme
+
+  If you don't override at the JVM, set hibernate.connection.url below.
+-->
+<hibernate-configuration>
+    <session-factory>
+
+        <property name="hibernate.dialect">org.hibernate.dialect.PostgreSQLDialect</property>
+        <property name="hibernate.connection.driver_class">org.postgresql.Driver</property>
+
+        <!-- Inline connection settings. Comment out and use system properties
+             instead if you want a single cfg.xml for multiple agencies. -->
+        <property name="hibernate.connection.url">jdbc:postgresql://localhost/02</property>
+        <property name="hibernate.connection.username">transitclock</property>
+        <property name="hibernate.connection.password">changeme</property>
+
+        <!-- Quiet logging in production. -->
+        <property name="show_sql">false</property>
+        <property name="format_sql">false</property>
+        <property name="use_sql_comments">false</property>
+
+        <!-- C3P0 pool. Required for production: Hibernate's built-in pool is
+             explicitly not safe for production use. Setting any c3p0.* property
+             switches the pool over. -->
+        <property name="hibernate.c3p0.min_size">2</property>
+        <property name="hibernate.c3p0.max_size">20</property>
+        <property name="hibernate.c3p0.timeout">300</property>
+        <property name="hibernate.c3p0.max_statements">50</property>
+
+        <!-- Batched writes — DataDbLogger pushes high-volume AVL/AD writes
+             through this. -->
+        <property name="hibernate.jdbc.batch_size">25</property>
+        <property name="default_batch_fetch_size">100</property>
+        <property name="hibernate.order_inserts">true</property>
+        <property name="hibernate.order_updates">true</property>
+        <property name="hibernate.connection.autocommit">true</property>
+
+        <!-- Schema is created up-front by SchemaGenerator + psql; we only want
+             additive changes from Hibernate, never destructive ones. -->
+        <property name="hibernate.hbm2ddl.auto">update</property>
+
+        <mapping resource="named_queries.hbm.xml" />
+
+    </session-factory>
+</hibernate-configuration>
