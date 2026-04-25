@@ -1,0 +1,97 @@
+# Multi-stage build for TheTransitClock.
+#
+# Stages:
+#   builder       — Maven + JDK 17, runs `mvn install -DskipTests` against the
+#                   full reactor and produces shaded JARs in
+#                   transitclock/target/ plus api.war / web.war.
+#   tools         — Same image as builder; kept mounted at /workspace so
+#                   `docker compose run --rm tools <cmd>` can invoke the
+#                   shaded JARs (or `mvn exec:java` for SchemaGenerator) with
+#                   the build artifacts already present.
+#   core-runtime  — JDK 17 (not JRE — Core needs the `tools.jar`/`rmiregistry`
+#                   path on some flows). Carries Core.jar and the other
+#                   shaded JARs the `tools` stage uses for admin work.
+#   tomcat-runtime — Tomcat 9 + JDK 17 with api.war and web.war preinstalled.
+#
+# The two runtime stages copy from `builder`; nothing in the runtime images
+# touches the local filesystem, which is what the user asked for.
+
+# ----------------------------------------------------------------------------
+# Stage 1: builder
+# ----------------------------------------------------------------------------
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+WORKDIR /workspace
+
+# Pre-warm the dependency cache by copying the reactor poms first. This means
+# changing source code doesn't reinvalidate the dependency download layer.
+COPY pom.xml ./
+COPY transitclock/pom.xml                    transitclock/pom.xml
+COPY transitclockApi/pom.xml                 transitclockApi/pom.xml
+COPY transitclockWebapp/pom.xml              transitclockWebapp/pom.xml
+COPY transitclockQuickStart/pom.xml          transitclockQuickStart/pom.xml
+COPY transitclockBarefootClient/pom.xml      transitclockBarefootClient/pom.xml
+COPY transitclockTraccarClient/pom.xml       transitclockTraccarClient/pom.xml
+COPY transitclockIntegration/pom.xml         transitclockIntegration/pom.xml
+COPY transitclockPipelineTests/pom.xml       transitclockPipelineTests/pom.xml
+COPY coverage-report/pom.xml                 coverage-report/pom.xml
+
+# go-offline can fail in this codebase due to plugins that need real sources,
+# so we just let the actual build below pull what's missing into the cache.
+
+COPY . .
+
+# No --mount=type=cache here on purpose: a BuildKit cache mount lives outside
+# the image and would leave /root/.m2 empty in the `tools` stage downstream.
+# We want the resolved deps to land in image layers so `docker compose run
+# --rm tools mvn ...` can run admin commands offline.
+RUN mvn -B -DskipTests install
+
+# ----------------------------------------------------------------------------
+# Stage 2: tools (admin one-shots: SchemaGenerator, GtfsFileProcessor,
+# CreateWebAgency, CreateAPIKey, RmiQuery). Reuses the builder image so that
+# `mvn exec:java` continues to work for SchemaGenerator (the shaded JAR has a
+# known classloader issue — see transitclock/README.md).
+# ----------------------------------------------------------------------------
+FROM builder AS tools
+WORKDIR /workspace
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client \
+ && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT []
+CMD ["bash"]
+
+# ----------------------------------------------------------------------------
+# Stage 3: core-runtime
+# ----------------------------------------------------------------------------
+FROM eclipse-temurin:17-jdk AS core-runtime
+
+WORKDIR /opt/transitclock
+
+# Carry only what Core actually invokes. Logback config is bundled inside
+# Core.jar; the runbook exposes /var/log/transitclock and /var/run/transitclock
+# via volumes, so we create them up-front.
+COPY --from=builder /workspace/transitclock/target/Core.jar ./Core.jar
+
+RUN mkdir -p /var/log/transitclock /var/run/transitclock
+
+EXPOSE 2099 2098
+
+# The actual command line lives in docker-compose.yml so it can pull
+# environment-driven properties. Keep this entrypoint trivial.
+ENTRYPOINT ["java"]
+CMD ["-jar", "/opt/transitclock/Core.jar"]
+
+# ----------------------------------------------------------------------------
+# Stage 4: tomcat-runtime
+# ----------------------------------------------------------------------------
+FROM tomcat:9.0-jdk17-temurin AS tomcat-runtime
+
+# Drop the default ROOT app — we don't need it, and leaving it confuses people
+# who hit http://localhost:8080/ expecting the transitclock UI.
+RUN rm -rf /usr/local/tomcat/webapps/ROOT
+
+COPY --from=builder /workspace/transitclockApi/target/api.war        /usr/local/tomcat/webapps/api.war
+COPY --from=builder /workspace/transitclockWebapp/target/web.war     /usr/local/tomcat/webapps/web.war
+
+EXPOSE 8080

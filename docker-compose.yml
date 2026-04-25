@@ -1,0 +1,133 @@
+# TheTransitClock production-ish stack: Postgres + Core + Tomcat (api + webapp).
+#
+# Workflow:
+#   1. docker compose build                  # builds the multi-stage image
+#   2. docker compose up -d db               # bring up Postgres
+#   3. docker compose run --rm tools <cmd>   # admin one-shots (DDL, import,
+#                                            # CreateWebAgency, CreateAPIKey)
+#   4. docker compose up -d core             # long-running engine
+#   5. docker compose up -d tomcat           # API + webapp
+#
+# Configuration files (transitclockConfig.xml, postgres_hibernate.cfg.xml,
+# the WMATA API key, the minted REST API key) live in .deploy/conf/ on the
+# host and are mounted into the containers at /etc/transitclock/.
+# .deploy/ is gitignored.
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Postgres 17. The init script creates the `web` database and the
+  # `transitclock` role; POSTGRES_DB creates the per-agency database (`wmata`).
+  # ──────────────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: transitclock-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wmata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wmata"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Admin tools (Maven + JDK 17 + psql). Used only via `docker compose run`.
+  # Mounts .deploy/ so the host can hand the container the GTFS zip, read
+  # the generated DDL files back, etc.
+  # ──────────────────────────────────────────────────────────────────────────
+  tools:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: tools
+    image: transitclock/tools:latest
+    container_name: transitclock-tools
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Default DB plumbing for every admin command. Override per-invocation
+      # with `-e TRANSITCLOCK_DB_NAME=web` etc. when needed.
+      TRANSITCLOCK_DB_HOST: db
+      TRANSITCLOCK_DB_USER: transitclock
+      TRANSITCLOCK_DB_PASSWORD: changeme
+      PGPASSWORD: changeme
+    volumes:
+      - ./.deploy:/deploy
+      - ./.deploy/conf:/etc/transitclock:ro
+    profiles:
+      - tools
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Core: long-running engine. Hostname `core` so RMI advertises a name
+  # that resolves on the docker network. Tomcat reaches it via that name.
+  # ──────────────────────────────────────────────────────────────────────────
+  core:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: core-runtime
+    image: transitclock/core:latest
+    container_name: transitclock-core
+    hostname: core
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./.deploy/conf:/etc/transitclock:ro
+      - ./.deploy/logs:/var/log/transitclock
+    environment:
+      JAVA_OPTS: >-
+        -Xmx4g -server
+        -Dtransitclock.core.agencyId=1
+        -Dtransitclock.configFiles=/etc/transitclock/transitclockConfig.xml
+        -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml
+        -Dtransitclock.db.dbType=postgresql
+        -Dtransitclock.db.dbHost=db
+        -Dtransitclock.db.dbName=wmata
+        -Dtransitclock.db.dbUserName=transitclock
+        -Dtransitclock.db.dbPassword=changeme
+        -Dtransitclock.logging.dir=/var/log/transitclock
+        -Dtransitclock.core.pidDirectory=/var/run/transitclock
+        -Djava.rmi.server.hostname=core
+    entrypoint: ["sh", "-c"]
+    command: ["exec java $$JAVA_OPTS -jar /opt/transitclock/Core.jar"]
+    expose:
+      - "2099"
+      - "2098"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Tomcat 9 + JDK 17 (Tomcat 10 doesn't work — the WARs are still
+  # javax.servlet, not jakarta.servlet). Hosts api.war and web.war.
+  # ──────────────────────────────────────────────────────────────────────────
+  tomcat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: tomcat-runtime
+    image: transitclock/tomcat:latest
+    container_name: transitclock-tomcat
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      core:
+        condition: service_started
+    env_file:
+      - .deploy/conf/tomcat.env
+    volumes:
+      - ./.deploy/conf:/etc/transitclock:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  postgres-data:

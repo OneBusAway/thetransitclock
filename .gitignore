@@ -19,3 +19,4 @@ settings.local.json
 /tools/wmata_capture/.env
 
 __pycache__/
+.deploy/

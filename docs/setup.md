@@ -10,13 +10,151 @@ This guide ignores `transitclockQuickStart` entirely. QuickStart bundles all
 three tiers into a single launcher; everything below runs each tier as its own
 process, which is what you want in production.
 
+> **Docker shortcut.** The repo ships a `docker-compose.yml` plus
+> `docker/Dockerfile` that bundle Postgres 17, the build, Core, and Tomcat 9
+> + JDK 17 into one stack. If you're standing up a fresh deployment, jump to
+> [§0 Containerized deployment](#0-containerized-deployment) — every step
+> below is wired up there. The detailed §1–§10 flow is the bare-metal
+> reference for when Docker isn't an option (or when you need to debug what
+> a particular step is actually doing).
+
+## 0. Containerized deployment
+
+The included `docker-compose.yml` runs each tier as its own container on a
+single docker network. The build is a multi-stage `docker/Dockerfile`:
+
+- **builder** — runs `mvn install -DskipTests` against the full reactor.
+- **tools** — `FROM builder`, plus `psql`. Used via `docker compose run
+  --rm tools <cmd>` for SchemaGenerator, GtfsFileProcessor, CreateWebAgency,
+  CreateAPIKey, RmiQuery — i.e. every one-shot admin command in §4–§7.
+- **core-runtime** — JDK 17 + `Core.jar` (copied from builder).
+- **tomcat-runtime** — Tomcat 9 + JDK 17 + `api.war`/`web.war` (copied
+  from builder).
+
+Per-deployment files live in `.deploy/` (gitignored):
+
+```
+.deploy/
+├── conf/
+│   ├── transitclockConfig.xml          (copy of docs/examples/, with your
+│   │                                    AVL feed URL filled in)
+│   ├── postgres_hibernate.cfg.xml      (copy of docs/examples/)
+│   └── tomcat.env                      (CATALINA_OPTS, including the
+│                                        minted API key from step 7)
+├── ddl/                                 (SchemaGenerator output — applied
+│                                        to the `web` and per-agency DBs)
+├── logs/                                (mounted into Core)
+└── <your-gtfs>.zip
+```
+
+The flow then is just the §1–§9 flow run inside containers:
+
+```bash
+# 1+2. Build all images (builder runs once, runtime stages copy from it).
+docker compose build
+
+# 3. Start Postgres. The init script in docker/postgres-init.sql creates
+#    the `web` database and the `transitclock` role; POSTGRES_DB creates
+#    the per-agency database.
+docker compose up -d db
+
+# 4. Generate DDL via mvn exec:java in the tools container, then apply it
+#    to the right databases via psql (also in the tools container).
+docker compose run --rm tools bash -c "
+  cd /workspace/transitclock &&
+  mvn -q exec:java \
+    -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
+    -Dexec.args='-o /deploy/ddl -p org.transitclock.db.structs' &&
+  mvn -q exec:java \
+    -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
+    -Dexec.args='-o /deploy/ddl -p org.transitclock.db.webstructs'"
+
+docker compose run --rm tools bash -c "
+  psql -h db -U transitclock -d <agency-db> \
+       -f /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql &&
+  psql -h db -U transitclock -d web \
+       -f /deploy/ddl/ddl_postgres_org_transitclock_db_webstructs.sql"
+
+# 5. Drop your transitclockConfig.xml + postgres_hibernate.cfg.xml into
+#    .deploy/conf/. They get bind-mounted at /etc/transitclock/ inside
+#    every container.
+
+# 6. Import GTFS.
+docker compose run --rm tools bash -c "java -Xmx2g \
+  -Dtransitclock.core.agencyId=<id> \
+  -Dtransitclock.db.dbType=postgresql \
+  -Dtransitclock.db.dbHost=db \
+  -Dtransitclock.db.dbName=<agency-db> \
+  -Dtransitclock.db.dbUserName=transitclock \
+  -Dtransitclock.db.dbPassword=changeme \
+  -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+  -jar /workspace/transitclock/target/GtfsFileProcessor.jar \
+  -c /etc/transitclock/transitclockConfig.xml \
+  -gtfsZipFileName /deploy/<your-gtfs>.zip \
+  -storeNewRevs"
+
+# 7. CreateWebAgency: hostName MUST be `core` (the docker network DNS
+#    name of the core service) so the API resolves it inside the network.
+docker compose run --rm tools bash -c "java \
+  -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+  -Dtransitclock.db.dbType=postgresql -Dtransitclock.db.dbHost=db \
+  -Dtransitclock.db.dbUserName=transitclock -Dtransitclock.db.dbPassword=changeme \
+  -jar /workspace/transitclock/target/CreateWebAgency.jar \
+  <id> core <agency-db> postgresql db transitclock changeme"
+
+# Mint the API key. Note -Dtransitclock.db.dbName=web — see §7 below
+# for why CreateAPIKey crashes without it.
+docker compose run --rm tools bash -c "java \
+  -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+  -Dtransitclock.db.dbType=postgresql -Dtransitclock.db.dbHost=db \
+  -Dtransitclock.db.dbName=web \
+  -Dtransitclock.db.dbUserName=transitclock -Dtransitclock.db.dbPassword=changeme \
+  -jar /workspace/transitclock/target/CreateAPIKey.jar \
+  -c /etc/transitclock/transitclockConfig.xml \
+  -n 'ops' -u 'http://localhost' -e 'ops@example.org' -p '555-0100' -d 'Ops key'"
+
+# Save the printed key into .deploy/conf/tomcat.env on a single line:
+#   CATALINA_OPTS=-Dtransitclock.configFiles=... -Dtransitclock.apikey=<key>
+
+# 8+9. Start Core and Tomcat. Both pull JVM properties from
+# docker-compose.yml (core) and .deploy/conf/tomcat.env (tomcat).
+docker compose up -d core tomcat
+
+# Smoke test:
+curl "http://localhost:8080/api/v1/key/<API_KEY>/agency/<id>/command/gtfs-rt/tripUpdates?format=human"
+```
+
+A couple of Docker-specific gotchas worth knowing:
+
+- **Don't use `--mount=type=cache` for `~/.m2` in the builder stage.**
+  BuildKit cache mounts live outside the image, so the downstream `tools`
+  stage would inherit an empty `/root/.m2` and admin commands like
+  `mvn exec:java` would refuse to resolve the inter-module dependencies.
+  The committed Dockerfile drops the cache mount and lets the deps land in
+  image layers; the runtime images don't change, only the build cache does.
+- **Java RMI needs `-Djava.rmi.server.hostname=core`** (or whatever your
+  Core service is called on the docker network). Without it Core advertises
+  whatever its container IP happens to be, and Tomcat can't reach it on a
+  restart. The `core` service in `docker-compose.yml` already passes this.
+- **Don't combine `ENTRYPOINT ["java"]` in the Dockerfile with a shell
+  `command:` in compose** — Java will try to load `sh` as a main class.
+  Set `entrypoint: ["sh", "-c"]` in compose and put the full `java …`
+  invocation in `command:` instead, which is what we do.
+- **Custom HTTP headers on the AVL feed:** `PollUrlAvlModule` only supports
+  HTTP basic auth via `transitclock.avl.authenticationUser` /
+  `authenticationPassword`. If your provider needs a different header
+  (WMATA: `api_key: <key>`) and accepts the same value as a query-string
+  parameter, embed it in `gtfsRealtimeFeedURI` — that path requires no
+  code changes. Note the URL ends up in `core.log` on every poll, so
+  treat the log directory as sensitive if you go that route.
+
 ## 1. What you need to source externally
 
 | Input | Purpose | Where to get it |
 |---|---|---|
 | **GTFS static feed** (`.zip`) | Routes, stops, trips, schedule, shapes — the static skeleton TheTransitClock matches AVL onto. | Your transit agency's open-data portal, [Mobility Database](https://database.mobilitydata.org/), or [transit.land](https://www.transit.land/feeds). Must be GTFS, not GTFS-Flex. |
 | **GTFS-realtime VehiclePositions feed** (URL) | Live AVL stream. Must be a [VehiclePositions](https://gtfs.org/documentation/realtime/feed-entities/vehicle-positions/) feed (not TripUpdates / Alerts). | Same agency or aggregator. The URL is polled every 5 s by default. HTTP basic auth and headers are supported. |
-| **PostgreSQL 12+** | Persists config, GTFS, AVL, predictions, arrivals/departures, web agency registry, and API keys. | Any standard install. MySQL also works (`-Dtransitclock.db.dbType=mysql`); HSQLDB is for tests only. |
+| **PostgreSQL 16+** | Persists config, GTFS, AVL, predictions, arrivals/departures, web agency registry, and API keys. | Any standard install. The shipped `docker-compose.yml` pins Postgres 17. MySQL also works (`-Dtransitclock.db.dbType=mysql`); HSQLDB is for tests only. |
 | **JDK 17** | Runtime. | Any LTS distribution. |
 | **Tomcat 9** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 10+ won't work** — both WARs are still on `javax.servlet`, and Tomcat 10 switched to the Jakarta `jakarta.servlet` namespace. | Apache Tomcat distribution. |
 
