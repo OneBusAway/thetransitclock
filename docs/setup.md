@@ -279,8 +279,9 @@ java -jar transitclock/target/RmiQuery.jar -a 02 -c preds -lat 47.6 -lon -122.3
 ```
 
 Valid `-c` values are `vehicles`, `preds`, `routeConfig`, `config`,
-`activeBlocks`, and `resetVehicle`. `preds` requires either `-s` or
-`-lat`/`-lon` — without one it returns silently.
+`activeBlocks`, and `resetVehicle`. `preds` requires either `-s` or **both**
+`-lat` and `-lon`; called without one it prints
+`Error: must specify stop(s) to get predictions.` to stderr and exits.
 
 ## 9. Deploy the API and web WARs
 
@@ -312,10 +313,13 @@ CATALINA_OPTS="\
 
 > Setting `transitclock.db.dbName=web` is what makes the API read the
 > `WebAgency` registry from the right database. Without it,
-> `WebAgency.getWebAgencyDbName()` returns whatever `DbSetupConfig.getDbName()`
-> returns (which is `null` when no override is set), and the agency-id
-> fallback in `HibernateUtils.getSessionFactory()` kicks in instead — sending
-> the lookup at the per-agency database rather than at `web`.
+> `WebAgency.getWebAgencyDbName()` returns `null` (via
+> `DbSetupConfig.getDbName()`), and that `null` gets passed straight through
+> to `HibernateUtils.getSessionFactory(null, …)`. The agency-id fallback
+> there only fires if the *parameter* is non-null — so `dbName` stays
+> `null`, the JDBC URL is constructed as `jdbc:postgresql://<host>/null`,
+> and the lookup fails. The API will then return "no agencies" until you
+> set the property and redeploy.
 
 Deploy:
 

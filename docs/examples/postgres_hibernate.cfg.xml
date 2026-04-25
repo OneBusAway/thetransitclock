@@ -9,26 +9,31 @@
   -Dtransitclock.hibernate.configFile=... system property
   (or the <hibernate><configFile> entry in transitclockConfig.xml).
 
-  Connection URL/user/password set here can be overridden at the JVM with:
+  Connection URL/user/password are intentionally NOT set here. The runbook
+  in docs/setup.md drives them from JVM system properties so that
+  -Dtransitclock.db.dbName=web (used by CreateAPIKey, the API tier in
+  CATALINA_OPTS, etc.) can redirect lookups between the per-agency and
+  `web` databases without editing this file.
+
+  HibernateUtils.createSessionFactory honours hibernate.connection.url
+  if it's set here, and only falls back to building the URL from
+  -Dtransitclock.db.dbHost / dbName / dbType when it isn't. Setting the
+  URL inline therefore silently nullifies the dbName overrides the rest
+  of the runbook depends on. Don't put it back unless you've also
+  removed every -Dtransitclock.db.dbName=... flag from your deployment.
+
+  JVM properties used in place of inline settings:
       -Dtransitclock.db.dbType=postgresql
       -Dtransitclock.db.dbHost=localhost
-      -Dtransitclock.db.dbName=02
+      -Dtransitclock.db.dbName=02         (or =web for API/CreateAPIKey)
       -Dtransitclock.db.dbUserName=transitclock
       -Dtransitclock.db.dbPassword=changeme
-
-  If you don't override at the JVM, set hibernate.connection.url below.
 -->
 <hibernate-configuration>
     <session-factory>
 
         <property name="hibernate.dialect">org.hibernate.dialect.PostgreSQLDialect</property>
         <property name="hibernate.connection.driver_class">org.postgresql.Driver</property>
-
-        <!-- Inline connection settings. Comment out and use system properties
-             instead if you want a single cfg.xml for multiple agencies. -->
-        <property name="hibernate.connection.url">jdbc:postgresql://localhost/02</property>
-        <property name="hibernate.connection.username">transitclock</property>
-        <property name="hibernate.connection.password">changeme</property>
 
         <!-- Quiet logging in production. -->
         <property name="show_sql">false</property>

@@ -180,5 +180,6 @@ java -jar target/RmiQuery.jar -a 02 -c preds -lat 47.6 -lon -122.3
 ```
 
 Valid `-c` values: `vehicles`, `preds`, `routeConfig`, `config`,
-`activeBlocks`, `resetVehicle`. `preds` requires either `-s` or
-`-lat`/`-lon`; without one it returns silently.
+`activeBlocks`, `resetVehicle`. `preds` requires either `-s` or **both**
+`-lat` and `-lon`; called without one it prints
+`Error: must specify stop(s) to get predictions.` to stderr and exits.

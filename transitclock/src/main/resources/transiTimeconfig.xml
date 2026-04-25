@@ -7,7 +7,8 @@
   look it up by name.
 
   The canonical user-facing sample for production deployments lives at
-  ../../../docs/examples/transitclockConfig.xml — start from that one.
+  docs/examples/transitclockConfig.xml (relative to the repo root) —
+  start from that one.
   Renaming this file's root to <transitclock> would activate the contents,
   including the hard-coded third-party URL below; do not do that without
   also replacing the URL with a real local value.

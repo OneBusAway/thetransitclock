@@ -35,8 +35,9 @@ CATALINA_OPTS="\
 ```
 
 `-Dtransitclock.db.dbName=web` is what makes the API read the `WebAgency`
-registry from the right database. Without it, lookups fall back to using the
-agency id as the database name.
+registry from the right database. Without it, the registry lookup runs with
+`dbName=null`, the JDBC URL ends in `/null`, and the connection fails — the
+API will serve "no agencies" until you set it.
 
 ## API keys
 
