@@ -51,6 +51,11 @@
         <configFile>/etc/transitclock/postgres_hibernate.cfg.xml</configFile>
     </hibernate>
 
+    <!-- Auto-block assignment: when enabled, vehicles seen on the AVL feed
+         that aren't already assigned to a block will be matched against
+         currently-active blocks based on schedule and position, instead of
+         being dropped. Default true; set to false if your AVL upstream
+         already assigns blocks and you'd rather trust it. -->
     <autoBlockAssigner>
         <autoAssignerEnabled>true</autoAssignerEnabled>
     </autoBlockAssigner>

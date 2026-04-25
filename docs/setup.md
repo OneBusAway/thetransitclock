@@ -58,11 +58,16 @@ Tomcat-deployable WARs land at:
 
 ## 3. Provision the databases
 
-Create **two** Postgres databases. The split is enforced by the code:
-`CreateWebAgency.main` hardcodes its target database name to literally `web`
-(see `org.transitclock.applications.CreateWebAgency`). Per-agency core data
-lives in a database whose name defaults to the agency ID and can be
-overridden with `-Dtransitclock.db.dbName=...`.
+Create **two** Postgres databases. The split is convention plus a write-side
+hardcode: `CreateWebAgency.main` writes its row into a database literally
+named `web` (`String webAgencyDbName = "web";` in
+`org.transitclock.applications.CreateWebAgency`), and the rest of the runbook
+points the API and `CreateAPIKey` at the same name with
+`-Dtransitclock.db.dbName=web`. Nothing else in the runtime forces the name —
+in principle you could pick a different one if you also fix
+`CreateWebAgency` — but staying with `web` is much less work. Per-agency
+core data lives in a database whose name defaults to the agency ID and can
+be overridden with `-Dtransitclock.db.dbName=...`.
 
 ```bash
 # Example: agency id "02"
@@ -190,6 +195,14 @@ Useful tuning flags (full list in `transitclock/README.md`):
 
 ## 7. Register the web agency and an API key
 
+Both commands target the `web` database, but they pick the target differently
+and one of those differences trips people up. `CreateWebAgency` ignores
+`transitclock.db.dbName` and writes to a database literally named `web`
+(hardcoded in its `main`). `CreateAPIKey` reads `transitclock.db.dbName` at
+class-init time and crashes with a `…/null` JDBC URL if you omit it. So the
+first command below has no `dbName` flag and the second one does — that's
+not a typo.
+
 `CreateWebAgency` writes a row into the hardcoded `web` database. **Positional
 args**, in order:
 
@@ -213,9 +226,11 @@ java \
 ```
 
 Mint an API key. Note `-Dtransitclock.db.dbName=web` — `ApiKeyManager`
-seeds its database name from `DbSetupConfig.getDbName()` at construction
-time, and without this flag the lookup falls through to a `null` JDBC URL
-and the command crashes:
+seeds its database name from `DbSetupConfig.getDbName()` when its singleton
+class-inits, and without that property the JDBC URL ends in `/null` and the
+command crashes. The flag is the easy form; equivalently you can put
+`<db><dbName>web</dbName></db>` in the config file passed via `-c`, since
+`ConfigFileReader.processConfig` runs before `ApiKeyManager` is touched:
 
 ```bash
 java \
@@ -265,18 +280,28 @@ predictions are being generated. Add `-Dlogback.configurationFile=/path/to/logba
 to the Core invocation if you need a different layout (additional appenders,
 JSON output, syslog, etc.).
 
-Sanity-check from a second shell:
+Sanity-check from a second shell. `RmiQuery` resolves the Core RMI host
+through the `WebAgency` table, so the easy form is to pass
+`-Dtransitclock.rmi.rmiHost=localhost` and skip the DB lookup:
 
 ```bash
+RMI_OPTS="-Dtransitclock.rmi.rmiHost=localhost"
+
 # List all vehicles Core knows about.
-java -jar transitclock/target/RmiQuery.jar -a 02 -c vehicles
+java $RMI_OPTS -jar transitclock/target/RmiQuery.jar -a 02 -c vehicles
 
 # Predictions for a specific stop.
-java -jar transitclock/target/RmiQuery.jar -a 02 -c preds -s <stopId>
+java $RMI_OPTS -jar transitclock/target/RmiQuery.jar -a 02 -c preds -s <stopId>
 
 # Predictions for everything within 1500 m of a lat/lon.
-java -jar transitclock/target/RmiQuery.jar -a 02 -c preds -lat 47.6 -lon -122.3
+java $RMI_OPTS -jar transitclock/target/RmiQuery.jar -a 02 -c preds -lat 47.6 -lon -122.3
 ```
+
+Without `transitclock.rmi.rmiHost` set, RmiQuery needs the same DB plumbing
+as `CreateAPIKey` in step 7 (`-Dtransitclock.configFiles=...`,
+`-Dtransitclock.hibernate.configFile=...`, `-Dtransitclock.db.dbType=postgresql`,
+`-Dtransitclock.db.dbName=web`, plus user/password) — the host comes out
+of the `WebAgency` row you wrote in that step.
 
 Valid `-c` values are `vehicles`, `preds`, `routeConfig`, `config`,
 `activeBlocks`, and `resetVehicle`. `preds` requires either `-s` or **both**
@@ -338,6 +363,10 @@ curl "http://localhost:8080/api/v1/key/<API_KEY>/agency/02/command/gtfs-rt/tripU
 
 The `format=human` query produces protobuf-as-text; drop it for the binary
 GTFS-RT feed.
+
+If the response is empty, Core hasn't generated any predictions yet — give
+it at least one full polling cycle of the AVL feed and check
+`prediction.log.gz` and `avl.log.gz` before assuming the API is misconfigured.
 
 ## 10. Updating GTFS
 

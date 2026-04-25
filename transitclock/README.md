@@ -127,9 +127,11 @@ java -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cf
 
 The minted key is printed to stdout. All `-n -u -e -p -d` flags are required.
 
-`-Dtransitclock.db.dbName=web` is mandatory: `ApiKeyManager` resolves its DB
-name from `DbSetupConfig.getDbName()` at construction time, and without this
-flag the JDBC URL becomes `…/null` and the command crashes.
+`transitclock.db.dbName=web` must be set somewhere: `ApiKeyManager`
+resolves its DB name from `DbSetupConfig.getDbName()` when its singleton
+class-inits, and without it the JDBC URL becomes `…/null` and the command
+crashes. The `-D` flag above is the easy form; equivalently you can put
+`<db><dbName>web</dbName></db>` in the config file passed via `-c`.
 
 ## `Core`
 

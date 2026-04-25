@@ -12,7 +12,9 @@ This builds every module and produces:
 - `transitclockApi/target/api.war` — the REST API.
 - `transitclockWebapp/target/web.war` — the user-facing web UI.
 
-Java 17 and Maven 3.6+ are required. There is no lint step.
+Java 17 is required (enforced by `<maven.compiler.source>` in
+`transitclock/pom.xml`). The build is regularly run against Maven 3.6+;
+older versions are untested. There is no lint step.
 
 For the full production runbook (database provisioning, DDL generation,
 config files, running each JAR, deploying the WARs to Tomcat), see
