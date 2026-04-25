@@ -72,8 +72,8 @@ These are all `main` classes in `org.transitclock.applications` and are wired as
 - `UpdateTravelTimes`, `ScheduleGenerator` — offline batch jobs over historical data.
 
 ### Config
-- Agency/runtime config comes from an XML config file (passed with `-c` and via the JVM property `-Dtransitime.configFiles=...`) plus system properties. The config framework is `org.transitclock.config.*` (typed `ConfigValue` subclasses registered statically on class load).
-- Agency identity is a JVM-wide setting: `-Dtransitime.core.agencyId=<id>` is required on most `main` classes.
+- Agency/runtime config comes from an XML config file (passed with `-c` and via the JVM property `-Dtransitclock.configFiles=...`) plus system properties. The config framework is `org.transitclock.config.*` (typed `ConfigValue` subclasses registered statically on class load).
+- Agency identity is a JVM-wide setting: `-Dtransitclock.core.agencyId=<id>` is required on most `main` classes.
 - DB connection info lives in `hibernate.cfg.xml` (on classpath) **and** can be overridden by config. The webapp has its own `hibernate.cfg.xml` in `transitclockWebapp/src/main/resources`.
 
 ### Two revision concepts

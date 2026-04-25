@@ -1,18 +1,39 @@
-This is the web application for TheTransitClock and can be built by 
+# `transitclockWebapp` — web UI WAR
 
-```
+User-facing UI on top of `transitclockApi`. Built and deployed the same way:
+
+```bash
 cd transitclockWebapp
-maven install -DskipTests
+mvn install -DskipTests
 ```
 
-This produces a war file for deployment web.war in the target directory.
+Produces `target/web.war`. Tomcat 9 only — the WAR is `javax.servlet`, not
+`jakarta.servlet`, so Tomcat 10+ will refuse to load it.
 
-You will need to configure the location of the transitclockConfig.xml file as a command line argument:
+## Runtime requirements
 
-`-Dtransitclock.configFiles=/path/to/your/transitclockConfig.xml`
+The webapp is plain JSP + JavaScript; it does **not** open a DB session, and
+it does **not** call the API in-process. Each rendered page emits JavaScript
+that calls the REST API over HTTP from the browser, using an API key the JSP
+reads from a JVM system property.
 
-The exact place to do this depends on how you're running TheTransitClock. In Eclipse, add this as a VM argument in the run configuration for Tomcat. In a bash script, add it to `CATALINA_OPTS` before Tomcat starts up.
+Practical implications:
 
-The transitclockConfig.xml file in turn is used to specify the location of the database and the hibernate file.
+- The webapp shares Tomcat with `api.war`, so it inherits the API's
+  `CATALINA_OPTS` (config file, Hibernate config, DB credentials,
+  `transitclock.db.dbName=web`). It doesn't actually use the DB credentials
+  itself, but they have to be set for the API tier in the same JVM.
+- It additionally needs `-Dtransitclock.apikey=<key>` set in `CATALINA_OPTS`.
+  `template/includes.jsp` reads it via
+  `System.getProperty("transitclock.apikey")` and bakes it into the
+  `apiUrlPrefix` JavaScript variable. Without it the JSP renders
+  `apiKey="null"` and every API call 401s. Mint the key with
+  `CreateAPIKey.jar` (see [`transitclock/README.md`](../transitclock/README.md))
+  and reuse the same key here.
 
-You will also need to configure the key for accessing the transitclockApi in the template/includes.jsp file. You can use the CreateAPIKey application in TheTransitClock to create a test/demo key. This you may already have done as part of the setup of transitclockApi.
+See [`transitclockApi/README.md`](../transitclockApi/README.md) and the full
+runbook in [`docs/setup.md`](../docs/setup.md).
+
+## Full setup runbook
+
+See [../docs/setup.md](../docs/setup.md).

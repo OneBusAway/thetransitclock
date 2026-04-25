@@ -1,177 +1,184 @@
-There are several main classes which are used in the set up of the system. These can be run directly by specifying the class to run or by using the executable jar in the target directory.
+# `transitclock` — core engine
 
-The steps to set up the system are 
-<ul>
-	<li>Create Database. For this step you are on your own and you should find instructions on the related database providers web sites.
-	</li>
-	<li>Create Database structures
-		using generateDatabaseScheme.jar
-	</li>
-	</li>
-	<li>Import GTFS static data using
-		processGTFSFile.jar
-	</li>		
-	<li>Get access to a source of realtime GPS data.</li>
-	<li>Create transiTime module to read realtime GPS data or create a converter to convert the realtime datasource to a GTFS-RT vechicle location source.</li>
-	<li>Config and run core module</li>
-	<li>Create Web Agency using WebAgency class</li>
-	<li>Create API key. For the moment see TestAPIKeyManager.java test. The testAPIKeyManger test will create a key for you.</li>
-	<li>Setup transitime api webapp. Instructions to be added to README.MD in transitimeApi.</li>
-	<li>Setup transitime webapp. Instructions to be added to README.MD in transitimeWebapp.</li>
-</ul>
-	
+The core module produces the long-running `Core` JVM plus the operational tooling
+around it. Every `main` class under `org.transitclock.applications` is wired as
+its own shaded executable JAR via `transitclock/pom.xml`. After
+`mvn install -DskipTests` from the repo root, the JARs land in
+`transitclock/target/`.
 
-generateDatabaseSchema.jar -- Main class: org.transitclock.applications.SchemaGenerator
-=================================
-ISSUE: skip to ISSUE below for the moment as there is a classloader issue when using onejar.
-<br/>
-The jar generateDatabaseSchema.jar can be used to re-generate the SQL required to create the database structures required to run transiTime. It generates three files in the specified directory. A file is generated for each supported database type. (Postgres, Oracle, Mysql). The script generated will drop tables that already exist.
-<br/>
-<i>
+For a complete production runbook (databases, configs, deployment), see
+[../docs/setup.md](../docs/setup.md). This README is a per-tool reference.
 
+## Tools
 
-```
-usage: 
-	java -jar generateDatabaseSchema.jar<br/>
- 		-o,--outputDirectory <arg>        This is the directory to output the sql<br/>
- 		-p,--hibernatePackagePath <arg>   This is the path to the package
-                		                  containing the hibernate annotated java<br/>
-                                		  classes<br/>
-```                                		  
-                                   
+| JAR | Main class | Use |
+|---|---|---|
+| `Core.jar` | `org.transitclock.applications.Core` | The engine. AVL ingestion, matching, prediction generation, RMI servers. Long-running. |
+| `SchemaGenerator.jar` | `org.transitclock.applications.SchemaGenerator` | Emit DDL from the Hibernate-annotated entities. **Run via `mvn exec:java`** — the shaded jar has a one-jar/Hibernate classloader collision. |
+| `GtfsFileProcessor.jar` | `org.transitclock.applications.GtfsFileProcessor` | Import a GTFS static feed into the database. One-shot. |
+| `CreateWebAgency.jar` | `org.transitclock.applications.CreateWebAgency` | Register an agency in the `web` database so the API can route RMI lookups. |
+| `CreateAPIKey.jar` | `org.transitclock.applications.CreateAPIKey` | Mint a REST API key. |
+| `RmiQuery.jar` | `org.transitclock.applications.RmiQuery` | CLI client for a running Core's RMI servers. |
+| `UpdateTravelTimes.jar` | `org.transitclock.applications.UpdateTravelTimes` | Offline travel-time recompute over historical AD data. |
+| `ScheduleGenerator.jar` | `org.transitclock.applications.ScheduleGenerator` | Offline schedule generation. |
 
-```
-example:
-	java -jar generateDatabaseSchema.jar -o c:\temp\ -p org.transitclock.db.structs	
-```
-To create all tables require you to support the core and the webapp you could run
+## `SchemaGenerator`
 
-```
-	java -jar generateDatabaseSchema.jar -o c:\temp\core\ -p org.transitclock.db.structs
-	java -jar generateDatabaseSchema.jar -o c:\temp\web\ -p org.transitclock.db.webstructs
+Generates DDL for both schemas the deployment needs:
+
+- `org.transitclock.db.structs` — core tables (predictions, AVL, AD, vehicles, …)
+- `org.transitclock.db.webstructs` — web layer (`WebAgency`, `ApiKey`)
+
+The `mvn exec:java` form sidesteps the shaded-jar classloader issue:
+
+```bash
+cd transitclock
+mvn exec:java -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
+              -Dexec.args="-o target -p org.transitclock.db.structs"
+mvn exec:java -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
+              -Dexec.args="-o target -p org.transitclock.db.webstructs"
 ```
 
-Once these commands have been run you should run the sql created in the files in the core and web directory in your database.
-	
-ISSUE: This works in eclipse by executing the class but not on command line using the executable jar. It is an issue with the ClassLoader and onejar. Maybe better to create using mvn exec plugin.
-
-The following will can be run from the transitime directory under core and will place the required SQL in the target directory.
-```
-mvn exec:java -Dexec.mainClass="org.transitclock.applications.SchemaGenerator" -Dexec.args="-o target -p org.transitclock.db.structs"
-mvn exec:java -Dexec.mainClass="org.transitclock.applications.SchemaGenerator" -Dexec.args="-o target -p org.transitclock.db.webstructs"
-````
-
-processGTFSFile.jar -- Main class: org.transitclock.applications.GTFSFileProcessor
-=================================    
-This class the usage can be got from specifying the -h option on its own.
+Output files (one per supported dialect): `ddl_postgres_org_transitclock_db_structs.sql`, `ddl_mysql_…`, `ddl_oracle_…`, plus the `_webstructs` variants. Apply the dialect/schema pair appropriate for your database.
 
 ```
-usage: java processGTFSFile.jar [-c <configFile>] [-combineRouteNames]
-       [-defaultWaitTimeAtStopMsec <msec>] [-gtfsDirectoryName <dirName>]
-       [-gtfsUrl <url>] [-gtfsZipFileName <zipFileName>] [-h]
-       [-maxDistanceForEliminatingVertices <meters>] [-maxSpeedKph <kph>]
-       [-maxStopToPathDistance <meters>] [-maxTravelTimeSegmentLength <meters>]
-       [-n <notes>] [-pathOffsetDistance <meters>] [-regexReplaceFile
-       <fileName>] [-storeNewRevs] [-supplementDir <dirName>]
-       [-trimPathBeforeFirstStopOfTrip] [-unzipSubdirectory <dirName>]
-args:
-  -c,--config <configFile>                     Specifies configuration file to
-                                               read in. Needed for specifying
-                                               how to connect to database.
-  -combineRouteNames                           Combines short and long route
-                                               names to create full name.
-  -defaultWaitTimeAtStopMsec <msec>            For initial travel times before
-                                               AVL data used to refine them.
-                                               Specifies how long vehicle is
-                                               expected to wait at the stop.
-                                               Default is 10,000 msec (10
-                                               seconds).
-  -gtfsDirectoryName <dirName>                 Directory where unzipped GTFS
-                                               file are. Can be used if already
-                                               have current version of GTFS data
-                                               and it is already unzipped.
-  -gtfsUrl <url>                               URL where to get GTFS zip file
-                                               from. It will be copied over,
-                                               unzipped, and processed.
-  -gtfsZipFileName <zipFileName>               Local file name where the GTFS
-                                               zip file is. It will be unzipped
-                                               and processed.
-  -h                                           Display usage and help info.
-  -maxDistanceForEliminatingVertices <meters>  For consolidating vertices for a
-                                               path. If have short segments that
-                                               line up then might as combine
-                                               them. If a vertex is off the rest
-                                               of the path by only the distance
-                                               specified then the vertex will be
-                                               removed, thereby simplifying the
-                                               path. Value is in meters. Default
-                                               is 0.0m, which means that no
-                                               vertices will be eliminated.
-  -maxSpeedKph <kph>                           For initial travel times before
-                                               AVL data used to refine them.
-                                               Specifies maximum speed a vehicle
-                                               can go between stops when
-                                               determining schedule based travel
-                                               times. Default is 97kph (60mph).
-  -maxStopToPathDistance <meters>              How far a stop can be away from
-                                               the stopPaths. If the stop is
-                                               further away from the distance
-                                               then a warning message will be
-                                               output and the path will be
-                                               modified to include the stop.
-  -maxTravelTimeSegmentLength <meters>         For determining how many travel
-                                               time segments should have between
-                                               a pair of stops. Default is
-                                               200.0m, which means that many
-                                               stop stopPaths will have only a
-                                               single travel time segment
-                                               between stops.
-  -n,--notes <notes>                           Description of why processing the
-                                               GTFS data
-  -pathOffsetDistance <meters>                 When set then the shapes from
-                                               shapes.txt are offset to the
-                                               right by this distance in meters.
-                                               Useful for when shapes.txt is
-                                               street centerline data. By
-                                               offsetting the shapes then the
-                                               stopPaths for the two directions
-                                               won't overlap when zoomed in on
-                                               the map. Can use a negative
-                                               distance to adjust stopPaths to
-                                               the left instead of right, which
-                                               could be useful for countries
-                                               where one drives on the left side
-                                               of the road.
-  -regexReplaceFile <fileName>                 File that contains pairs or regex
-                                               and replacement text. The names
-                                               in the GTFS files are processed
-                                               using these replacements to fix
-                                               up spelling mistakes,
-                                               capitalization, etc.
-  -storeNewRevs                                Stores the config and travel time
-                                               revs into ActiveRevisions in
-                                               database.
-  -supplementDir <dirName>                     Directory where supplemental GTFS
-                                               files can be found. These files
-                                               are combined with the regular
-                                               GTFS files. Useful for additing
-                                               additional info such as
-                                               routeorder and hidden.
-  -trimPathBeforeFirstStopOfTrip               For trimming off path from
-                                               shapes.txt for before the first
-                                               stops of trips. Useful for when
-                                               the shapes have problems at the
-                                               beginning, which is suprisingly
-                                               common.
-  -unzipSubdirectory <dirName>                 For when unzipping GTFS files. If
-                                               set then the resulting files go
-                                               into this subdirectory.
+usage:
+    -o,--outputDirectory <arg>        Directory to write SQL files into.
+    -p,--hibernatePackagePath <arg>   Java package containing the Hibernate
+                                      annotated entity classes.
 ```
 
-```
-example:
-	java  -Xmx1000M -Dtransitime.core.agencyId=02 -jar processGTFSFile.jar -c d:/transiTime/transiTimeConfig.xml -gtfsDirectoryName d:/transiTime/updated_google_transit_irishrail/ -storeNewRevs -maxTravelTimeSegmentLength 1000
+## `GtfsFileProcessor`
+
+Imports a GTFS static feed into the database, computes initial travel times, and
+optionally promotes the resulting revision into `ActiveRevisions`.
+
+```bash
+java -Xmx2g \
+    -Dtransitclock.core.agencyId=02 \
+    -Dtransitclock.db.dbType=postgresql \
+    -Dtransitclock.db.dbHost=localhost \
+    -Dtransitclock.db.dbUserName=transitclock \
+    -Dtransitclock.db.dbPassword=changeme \
+    -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+    -jar target/GtfsFileProcessor.jar \
+    -c /etc/transitclock/transitclockConfig.xml \
+    -gtfsZipFileName /tmp/agency-gtfs.zip \
+    -storeNewRevs
 ```
 
+Key flags (full list with `-h`):
 
-WORK IN PROGRESS........................
+```
+-c, --config <configFile>            Config file. Required for DB connection.
+-gtfsZipFileName <zipFileName>       Local GTFS zip. Will be unzipped + processed.
+-gtfsUrl <url>                       GTFS zip URL. Will be downloaded + processed.
+-gtfsDirectoryName <dirName>         Pre-unzipped GTFS directory.
+-storeNewRevs                        Promote the new rev in ActiveRevisions.
+-supplementDir <dirName>             Supplemental GTFS files merged in.
+-maxTravelTimeSegmentLength <m>      Default 200m.
+-maxSpeedKph <kph>                   Default 97.
+-maxStopToPathDistance <m>           If a stop is farther than this from its
+                                     path it triggers a warning + path edit.
+-trimPathBeforeFirstStopOfTrip       Trim shape head before first stop.
+-defaultWaitTimeAtStopMsec <ms>      Default 10000.
+-n, --notes <notes>                  Free-text description of the import.
+-regexReplaceFile <fileName>         Spelling/case fix-ups for GTFS strings.
+```
+
+## `CreateWebAgency`
+
+Inserts a `WebAgency` row into the **`web`** database (the database name is
+hardcoded in the application's `main`). Positional args, in this exact order:
+
+```
+agencyId  hostName  dbName  dbType  dbHost  dbUserName  dbPassword
+```
+
+`hostName` is where Core is reachable over RMI from the API host.
+
+```bash
+java -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+     -Dtransitclock.db.dbType=postgresql \
+     -Dtransitclock.db.dbHost=localhost \
+     -Dtransitclock.db.dbUserName=transitclock \
+     -Dtransitclock.db.dbPassword=changeme \
+     -jar target/CreateWebAgency.jar \
+     02 localhost 02 postgresql localhost transitclock changeme
+```
+
+## `CreateAPIKey`
+
+```bash
+java -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+     -Dtransitclock.db.dbType=postgresql \
+     -Dtransitclock.db.dbHost=localhost \
+     -Dtransitclock.db.dbName=web \
+     -Dtransitclock.db.dbUserName=transitclock \
+     -Dtransitclock.db.dbPassword=changeme \
+     -jar target/CreateAPIKey.jar \
+     -c /etc/transitclock/transitclockConfig.xml \
+     -n "<application name>" \
+     -u "<application URL>" \
+     -e "<contact email>" \
+     -p "<contact phone>" \
+     -d "<description>"
+```
+
+The minted key is printed to stdout. All `-n -u -e -p -d` flags are required.
+
+`-Dtransitclock.db.dbName=web` is mandatory: `ApiKeyManager` resolves its DB
+name from `DbSetupConfig.getDbName()` at construction time, and without this
+flag the JDBC URL becomes `…/null` and the command crashes.
+
+## `Core`
+
+```bash
+java -Xmx4g -server \
+    -Dtransitclock.core.agencyId=02 \
+    -Dtransitclock.configFiles=/etc/transitclock/transitclockConfig.xml \
+    -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+    -Dtransitclock.db.dbType=postgresql \
+    -Dtransitclock.db.dbHost=localhost \
+    -Dtransitclock.db.dbUserName=transitclock \
+    -Dtransitclock.db.dbPassword=changeme \
+    -Dtransitclock.logging.dir=/var/log/transitclock \
+    -Dtransitclock.core.pidDirectory=/var/run/transitclock \
+    -jar target/Core.jar
+```
+
+System properties Core honours:
+
+| Property | Default | Notes |
+|---|---|---|
+| `transitclock.core.agencyId` | — | Required. Used as default DB name and log subdirectory. |
+| `transitclock.configFiles` | — | Required in practice. Semicolon-separated list of XML/properties config files. |
+| `transitclock.hibernate.configFile` | `hsql_hibernate.cfg.xml` | Filesystem path or classpath name. |
+| `transitclock.db.dbType` | `mysql` | **Set to `postgresql` if you're on Postgres.** |
+| `transitclock.db.dbHost` | (cfg.xml) | Override DB host. |
+| `transitclock.db.dbName` | agencyId | Override DB name. |
+| `transitclock.db.dbUserName` | (cfg.xml) | Override DB user. |
+| `transitclock.db.dbPassword` | (cfg.xml) | Override DB password. |
+| `transitclock.rmi.rmiPort` | `2099` | Primary RMI port. |
+| `transitclock.rmi.secondaryRmiPort` | `2098` | Secondary RMI port (data streams). |
+| `transitclock.logging.dir` | `/Logs` | Base directory for `logback.xml`. |
+| `transitclock.core.pidDirectory` | `/usr/local/transitclock/` | PID file location. |
+
+Logs are written to `${transitclock.logging.dir}/${agencyId}/core/YYYY/MM/DD/*.log.gz`.
+
+## `RmiQuery`
+
+Smoke-test a running Core:
+
+```bash
+# List all vehicles.
+java -jar target/RmiQuery.jar -a 02 -c vehicles
+
+# Predictions for a stop, or for a lat/lon (1500 m radius).
+java -jar target/RmiQuery.jar -a 02 -c preds -s <stopId>
+java -jar target/RmiQuery.jar -a 02 -c preds -lat 47.6 -lon -122.3
+```
+
+Valid `-c` values: `vehicles`, `preds`, `routeConfig`, `config`,
+`activeBlocks`, `resetVehicle`. `preds` requires either `-s` or
+`-lat`/`-lon`; without one it returns silently.

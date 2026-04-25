@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Production sample for TheTransitClock Core.
+
+  Pass this to Core / GtfsFileProcessor / etc. via:
+      -Dtransitclock.configFiles=/etc/transitclock/transitclockConfig.xml
+
+  Root tag MUST be <transitclock> — the XML node names become the prefix
+  of the resulting system properties (org.transitclock.config.ConfigFileReader),
+  and every typed ConfigValue in the codebase is registered under
+  transitclock.* . A root tag of <transitime> is silently ignored.
+-->
+<transitclock>
+
+    <core>
+        <agencyId>02</agencyId>
+    </core>
+
+    <modules>
+        <!-- Semicolon-separated list of Module subclasses to start as threads.
+             Separator MUST be ';' — comma is not accepted (CoreConfig).
+             For a GTFS-realtime VehiclePositions feed, this is the right one. -->
+        <optionalModulesList>org.transitclock.avl.GtfsRealtimeModule</optionalModulesList>
+    </modules>
+
+    <avl>
+        <!-- VehiclePositions feed URL. Comma-separated list also accepted. -->
+        <gtfsRealtimeFeedURI>https://example.org/gtfs-realtime/vehiclePositions</gtfsRealtimeFeedURI>
+
+        <!-- Optional HTTP basic auth on the feed. -->
+        <!-- <authenticationUser>feed_user</authenticationUser> -->
+        <!-- <authenticationPassword>feed_pass</authenticationPassword> -->
+
+        <!-- Poll cadence in seconds. Default 5. -->
+        <feedPollingRateSecs>5</feedPollingRateSecs>
+
+        <!-- HTTP timeout in milliseconds. Default 10000. -->
+        <feedTimeoutInMSecs>10000</feedTimeoutInMSecs>
+
+        <!-- Optional: drop AVL outside this bbox (uncomment + set to use). -->
+        <!--
+        <minLatitude>27.0</minLatitude>
+        <maxLatitude>28.0</maxLatitude>
+        <minLongitude>-83.0</minLongitude>
+        <maxLongitude>-82.0</maxLongitude>
+        -->
+    </avl>
+
+    <hibernate>
+        <!-- Absolute path is most reliable; classpath lookup is also tried. -->
+        <configFile>/etc/transitclock/postgres_hibernate.cfg.xml</configFile>
+    </hibernate>
+
+    <autoBlockAssigner>
+        <autoAssignerEnabled>true</autoAssignerEnabled>
+    </autoBlockAssigner>
+
+</transitclock>
