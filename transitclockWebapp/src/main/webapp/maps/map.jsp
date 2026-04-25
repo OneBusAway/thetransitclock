@@ -21,8 +21,8 @@
  
   <!-- Load javascript and css files -->
   <%@include file="/template/includes.jsp" %>
-  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-  <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.css" />
+  <script src="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
   <script src="javascript/leafletRotatedMarker.js"></script>
   <script src="javascript/mapUiOptions.js"></script>
   <script src="<%= request.getContextPath() %>/javascript/jquery-dateFormat.min.js"></script>
@@ -857,8 +857,8 @@ L.control.zoom({position: 'bottomleft'}).addTo(map);
 var mapTileUrl = '<%= WebConfigParams.getMapTileUrl() %>'; 
 L.tileLayer(mapTileUrl, {
 	// Specifying a shorter version of attribution. Original really too long.
-    //attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
-    attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> &amp; <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery ©<%= WebConfigParams.getMapTileCopyright() %>',
+    //attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery &copy; <a href="http://mapbox.com">Mapbox</a>',
+    attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> &amp; <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery &copy; <%= WebConfigParams.getMapTileCopyright() %>',
     maxZoom: 19
 }).addTo(map);
 

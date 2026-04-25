@@ -29,18 +29,22 @@ public class WebConfigParams {
 	public static String getMapTileUrl() {
 		return mapTileUrl.getValue();
 	}
-	private static StringConfigValue mapTileUrl = 
-			new StringConfigValue("transitclock.web.mapTileUrl", 
-					"http://otile4.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png",
+	private static StringConfigValue mapTileUrl =
+			new StringConfigValue("transitclock.web.mapTileUrl",
+					"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
 					"Specifies the URL used by Leaflet maps to fetch map "
-					+ "tiles.");
+					+ "tiles. Default is the OpenStreetMap public tile "
+					+ "server, which is fine for development but is rate-"
+					+ "limited and asks heavy users to switch to a paid "
+					+ "provider or self-host. Override for production.");
 
 	public static String getMapTileCopyright() {
 		return mapTileCopyright.getValue();
 	}
 	private static StringConfigValue mapTileCopyright =
-			new StringConfigValue("transitclock.web.mapTileCopyright", 
-					"MapQuest",
-					"For displaying as map attributing for the where map tiles "
-					+ "from.");
+			new StringConfigValue("transitclock.web.mapTileCopyright",
+					"OpenStreetMap",
+					"Map attribution shown next to the OSM credit. Match "
+					+ "this to whoever is actually serving the tiles "
+					+ "configured by transitclock.web.mapTileUrl.");
 }

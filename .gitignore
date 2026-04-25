@@ -20,3 +20,5 @@ settings.local.json
 
 __pycache__/
 .deploy/
+.playwright-mcp/
+map-fixed.png

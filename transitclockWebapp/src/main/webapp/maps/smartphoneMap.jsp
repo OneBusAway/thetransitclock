@@ -13,8 +13,8 @@
   <link rel="stylesheet" href="css/mapUi.css" />
  
   <!-- Load javascript and css files -->
-  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-  <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.css" />
+  <script src="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
   <!-- New version of map. CLIP_PADDING doesn't seem to work and then see 
        route paths be redrawn in ugly way when panning
   <link rel="stylesheet" href="leaflet/leaflet.css" />
