@@ -22,9 +22,9 @@ import org.transitclock.api.gtfsRealtime.GtfsRtTestSupport;
 import org.transitclock.db.webstructs.WebAgency;
 
 /**
- * Smoke for {@link TransitimeNonAgencyApi}: hits {@code /command/agencies}
- * which iterates {@link WebAgency#getCachedOrderedListOfWebAgencies()}. We
- * seed it to empty so the response is a valid-but-empty {@code ApiAgencies}.
+ * The {@code /command/agencies} handler iterates
+ * {@link WebAgency#getCachedOrderedListOfWebAgencies()} which otherwise hits
+ * the DB; seed it to empty so the response is a valid empty {@code ApiAgencies}.
  */
 public class TransitimeNonAgencyApiSmokeTest extends JaxRsResourceSmokeBase {
 
@@ -45,7 +45,7 @@ public class TransitimeNonAgencyApiSmokeTest extends JaxRsResourceSmokeBase {
 		Response r = keyCommand("agencies").request(MediaType.APPLICATION_JSON).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_JSON);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_JSON_TYPE)).isTrue();
 		assertThat(r.readEntity(String.class)).isNotEmpty();
 	}
 
@@ -54,7 +54,7 @@ public class TransitimeNonAgencyApiSmokeTest extends JaxRsResourceSmokeBase {
 		Response r = keyCommand("agencies").request(MediaType.APPLICATION_XML).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_XML);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_XML_TYPE)).isTrue();
 		assertThat(r.readEntity(String.class)).startsWith("<?xml");
 	}
 }

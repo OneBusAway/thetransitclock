@@ -18,7 +18,7 @@ Add green coverage of every layer the upgrade will touch on the current `javax` 
 
 ### Task 2 — Phase 0.2: JAX-RS endpoint smoke suite
 
-- **Status:** in progress
+- **Status:** completed
 - **Blocked by:** Task 1 (shares the API module test scaffolding from 0.1)
 - **Description:** One smoke test per root resource (`TransitimeApi`, `GtfsRealtimeApi`, `SiriApi`, `CommandsApi`, `CacheApi`, `TransitimeNonAgencyApi`). For each, hit one representative endpoint per HTTP method via Jersey Test Framework with mocked RMI client factories. Cover both `application/json` and `application/xml` Accept variants for the JAXB-serialized DTOs in `transitclockApi/src/main/java/org/transitclock/api/data/`.
 

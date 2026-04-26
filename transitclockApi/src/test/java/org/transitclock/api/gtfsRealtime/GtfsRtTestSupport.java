@@ -214,38 +214,47 @@ public final class GtfsRtTestSupport {
 	/**
 	 * Seeds {@link WebAgency}'s static cache so resource handlers that call
 	 * {@link WebAgency#getCachedOrderedListOfWebAgencies()} short-circuit
-	 * past the DB read.
+	 * past the DB read. Pinning {@code webAgencyMapCacheReadTime} to
+	 * {@link Long#MAX_VALUE} makes {@code updateCacheIfShould} treat the
+	 * cache as freshly-read forever, so {@code getMapFromDb()} is never
+	 * invoked.
 	 */
 	public static void seedWebAgencies(List<WebAgency> webAgencies) {
+		// Resolve all three fields up front so a NoSuchFieldException
+		// fails fast without leaving the cache half-mutated.
+		Field mapField = webAgencyField("webAgencyMapCache");
+		Field readField = webAgencyField("webAgencyMapCacheReadTime");
+		Field orderedField = webAgencyField("webAgencyOrderedList");
 		try {
-			Field map = WebAgency.class.getDeclaredField("webAgencyMapCache");
-			map.setAccessible(true);
-			map.set(null, Collections.emptyMap());
-
-			Field read = WebAgency.class.getDeclaredField("webAgencyMapCacheReadTime");
-			read.setAccessible(true);
-			read.setLong(null, Long.MAX_VALUE);
-
-			Field ordered = WebAgency.class.getDeclaredField("webAgencyOrderedList");
-			ordered.setAccessible(true);
-			ordered.set(null, webAgencies);
-		} catch (ReflectiveOperationException e) {
+			mapField.set(null, Collections.emptyMap());
+			readField.setLong(null, Long.MAX_VALUE);
+			orderedField.set(null, webAgencies);
+		} catch (IllegalAccessException e) {
 			throw new IllegalStateException("Could not seed WebAgency cache", e);
 		}
 	}
 
 	public static void clearWebAgencies() {
+		Field mapField = webAgencyField("webAgencyMapCache");
+		Field readField = webAgencyField("webAgencyMapCacheReadTime");
+		Field orderedField = webAgencyField("webAgencyOrderedList");
 		try {
-			for (String f : new String[] { "webAgencyMapCache", "webAgencyOrderedList" }) {
-				Field field = WebAgency.class.getDeclaredField(f);
-				field.setAccessible(true);
-				field.set(null, null);
-			}
-			Field read = WebAgency.class.getDeclaredField("webAgencyMapCacheReadTime");
-			read.setAccessible(true);
-			read.setLong(null, 0L);
-		} catch (ReflectiveOperationException e) {
+			mapField.set(null, null);
+			orderedField.set(null, null);
+			readField.setLong(null, 0L);
+		} catch (IllegalAccessException e) {
 			throw new IllegalStateException("Could not clear WebAgency cache", e);
+		}
+	}
+
+	private static Field webAgencyField(String name) {
+		try {
+			Field f = WebAgency.class.getDeclaredField(name);
+			f.setAccessible(true);
+			return f;
+		} catch (NoSuchFieldException e) {
+			throw new IllegalStateException(
+					"WebAgency." + name + " no longer exists", e);
 		}
 	}
 

@@ -21,11 +21,6 @@ import org.junit.Test;
 import org.transitclock.ipc.clients.CommandsInterfaceFactory;
 import org.transitclock.ipc.interfaces.CommandsInterface;
 
-/**
- * Smoke for {@link CommandsApi}: hits {@code /command/pushAvl} once via GET
- * (query-string form) and once via POST (JSON body). Plan §0.2 calls for
- * "one representative endpoint per HTTP method".
- */
 public class CommandsApiSmokeTest extends JaxRsResourceSmokeBase {
 
 	@Override
@@ -50,7 +45,7 @@ public class CommandsApiSmokeTest extends JaxRsResourceSmokeBase {
 				.request(MediaType.APPLICATION_JSON).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_JSON);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_JSON_TYPE)).isTrue();
 		assertThat(r.readEntity(String.class)).contains("AVL processed");
 	}
 
@@ -62,7 +57,7 @@ public class CommandsApiSmokeTest extends JaxRsResourceSmokeBase {
 				.request(MediaType.APPLICATION_XML).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_XML);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_XML_TYPE)).isTrue();
 		String body = r.readEntity(String.class);
 		assertThat(body).startsWith("<?xml").contains("AVL processed");
 	}
@@ -76,6 +71,6 @@ public class CommandsApiSmokeTest extends JaxRsResourceSmokeBase {
 				.post(Entity.entity(avlBody, MediaType.APPLICATION_JSON));
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_JSON);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_JSON_TYPE)).isTrue();
 	}
 }

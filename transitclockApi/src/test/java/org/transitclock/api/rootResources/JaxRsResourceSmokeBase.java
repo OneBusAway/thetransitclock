@@ -20,14 +20,12 @@ import org.junit.ClassRule;
 import org.transitclock.api.gtfsRealtime.GtfsRtTestSupport;
 
 /**
- * Common JerseyTest scaffolding for resource smoke tests: a ClassRule-pinned
- * agency timezone, API-key seeding in {@code @Before}, and a teardown
- * registry so subclasses can {@link #registerFactoryMock} their RMI client
- * stubs without writing matching {@code @After} cleanup code.
- *
- * <p>Subclasses register their resource via {@link #configure()} and call
- * {@link #registerFactoryMock} (or {@link #registerCleanup}) in their own
- * {@code setUp} after invoking {@code super.setUp()}.
+ * JerseyTest scaffolding for the resource smoke tests. Resources read
+ * agency timezone, API keys, and RMI client interfaces from process-global
+ * static caches, so each test must seed those caches in setUp and clear
+ * them in tearDown — the {@link #registerFactoryMock} / {@link
+ * #registerCleanup} pair gives subclasses a single registration point that
+ * the base unwinds automatically.
  */
 public abstract class JaxRsResourceSmokeBase extends JerseyTest {
 
@@ -53,8 +51,13 @@ public abstract class JaxRsResourceSmokeBase extends JerseyTest {
 			for (Runnable action : teardownActions) {
 				try {
 					action.run();
-				} catch (RuntimeException keepUnwinding) {
-					// Keep unwinding remaining cleanups even if one fails.
+				} catch (RuntimeException e) {
+					// Keep unwinding remaining cleanups so one failed clear
+					// doesn't strand other static state, but surface the
+					// failure to stderr — silent leakage of static state
+					// into the next test class is the worst outcome.
+					System.err.println("Cleanup action failed: " + e);
+					e.printStackTrace(System.err);
 				}
 			}
 			teardownActions.clear();
@@ -64,10 +67,6 @@ public abstract class JaxRsResourceSmokeBase extends JerseyTest {
 		}
 	}
 
-	/**
-	 * Seeds an RMI client factory's static map with the given mock and
-	 * registers the matching {@code clearFactoryMap} to run at tearDown.
-	 */
 	protected final void registerFactoryMock(Class<?> factoryClass,
 			String mapField, Object iface) {
 		GtfsRtTestSupport.seedFactoryMap(factoryClass, mapField,
@@ -75,18 +74,15 @@ public abstract class JaxRsResourceSmokeBase extends JerseyTest {
 		registerCleanup(() -> GtfsRtTestSupport.clearFactoryMap(factoryClass, mapField));
 	}
 
-	/** Registers an arbitrary cleanup callback for tearDown. */
 	protected final void registerCleanup(Runnable action) {
 		teardownActions.add(action);
 	}
 
-	/** Builds a target under {@code /key/{KEY}/agency/{AGENCY}/command/...}. */
 	protected final WebTarget agencyCommand(String command) {
 		return target("/key/" + KEY + "/agency/" + GtfsRtTestSupport.AGENCY
 				+ "/command/" + command);
 	}
 
-	/** Builds a target under {@code /key/{KEY}/command/...} (no agency segment). */
 	protected final WebTarget keyCommand(String command) {
 		return target("/key/" + KEY + "/command/" + command);
 	}

@@ -23,11 +23,6 @@ import org.junit.Test;
 import org.transitclock.ipc.clients.VehiclesInterfaceFactory;
 import org.transitclock.ipc.interfaces.VehiclesInterface;
 
-/**
- * Smoke for {@link SiriApi}: hits {@code /command/siri/vehicleMonitoring}
- * with empty vehicle data so the SIRI XML/JSON wrapper still serializes
- * cleanly.
- */
 public class SiriApiSmokeTest extends JaxRsResourceSmokeBase {
 
 	@Override
@@ -49,7 +44,7 @@ public class SiriApiSmokeTest extends JaxRsResourceSmokeBase {
 				.request(MediaType.APPLICATION_JSON).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_JSON);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_JSON_TYPE)).isTrue();
 		assertThat(r.readEntity(String.class)).isNotEmpty();
 	}
 
@@ -59,7 +54,7 @@ public class SiriApiSmokeTest extends JaxRsResourceSmokeBase {
 				.request(MediaType.APPLICATION_XML).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
-		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_XML);
+		assertThat(r.getMediaType().isCompatible(MediaType.APPLICATION_XML_TYPE)).isTrue();
 		assertThat(r.readEntity(String.class)).startsWith("<?xml");
 	}
 }
