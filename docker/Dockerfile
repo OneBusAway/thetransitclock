@@ -1,17 +1,20 @@
 # Multi-stage build for TheTransitClock.
 #
 # Stages:
-#   builder       — Maven + JDK 17, runs `mvn install -DskipTests` against the
+#   builder       — Maven + JDK 21, runs `mvn install -DskipTests` against the
 #                   full reactor and produces shaded JARs in
 #                   transitclock/target/ plus api.war / web.war.
 #   tools         — Same image as builder; kept mounted at /workspace so
 #                   `docker compose run --rm tools <cmd>` can invoke the
 #                   shaded JARs (or `mvn exec:java` for SchemaGenerator) with
 #                   the build artifacts already present.
-#   core-runtime  — JDK 17 (not JRE — Core needs the `tools.jar`/`rmiregistry`
+#   core-runtime  — JDK 21 (not JRE — Core needs the `tools.jar`/`rmiregistry`
 #                   path on some flows). Carries Core.jar and the other
 #                   shaded JARs the `tools` stage uses for admin work.
-#   tomcat-runtime — Tomcat 9 + JDK 17 with api.war and web.war preinstalled.
+#   tomcat-runtime — Tomcat 9 + JDK 17 with api.war and web.war preinstalled
+#                   (Tomcat 9 has no -jdk21 image; the WAR is still on
+#                   javax.servlet so we cannot move to Tomcat 10/11 yet).
+#                   Phase B replaces this with tomcat:11.0-jdk21-temurin.
 #
 # The two runtime stages copy from `builder`; nothing in the runtime images
 # touches the local filesystem, which is what the user asked for.
@@ -19,7 +22,7 @@
 # ----------------------------------------------------------------------------
 # Stage 1: builder
 # ----------------------------------------------------------------------------
-FROM maven:3.9-eclipse-temurin-17 AS builder
+FROM maven:3.9-eclipse-temurin-21 AS builder
 
 WORKDIR /workspace
 
@@ -53,7 +56,7 @@ CMD ["bash"]
 # ----------------------------------------------------------------------------
 # Stage 3: core-runtime
 # ----------------------------------------------------------------------------
-FROM eclipse-temurin:17-jdk AS core-runtime
+FROM eclipse-temurin:21-jdk AS core-runtime
 
 WORKDIR /opt/transitclock
 

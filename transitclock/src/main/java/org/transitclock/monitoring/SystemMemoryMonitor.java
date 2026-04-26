@@ -18,7 +18,6 @@
 package org.transitclock.monitoring;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
 import java.lang.reflect.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,36 +75,31 @@ public class SystemMemoryMonitor extends MonitorBase {
 	}
 
 	/**
-	 * Gets an operating system value via reflection. Yes, this is a rather
-	 * obtuse way of getting such values but it appears to work.
-	 * 
-	 * @param methodName
-	 *            Name of the special internal
-	 *            com.sun.management.OperatingSystemMXBean method to call
-	 * @return The result from invoking the specified method
+	 * Invokes a method on the platform {@link com.sun.management.OperatingSystemMXBean}
+	 * by name. The method is public on the Sun extension interface, so no
+	 * {@code setAccessible(true)} is required (which Java 17+ warns on and a
+	 * future JDK will deny).
 	 */
 	public static Object getOperatingSystemValue(String methodName) {
-		OperatingSystemMXBean operatingSystemMxBean = 
+		java.lang.management.OperatingSystemMXBean bean =
 				ManagementFactory.getOperatingSystemMXBean();
+		if (!(bean instanceof com.sun.management.OperatingSystemMXBean)) {
+			logger.error("Platform OperatingSystemMXBean is not a "
+					+ "com.sun.management.OperatingSystemMXBean; "
+					+ "cannot read {}.", methodName);
+			return null;
+		}
 		try {
-			// Get the getSystemCpuLoad() method using reflection
-			Method method = 
-					operatingSystemMxBean.getClass().getMethod(methodName);
-			
-			// Need to declare the method as accessible so that can 
-			// invoke it
-			method.setAccessible(true);
-
-			// Get and return the result by invoking the specified method
-			Object result = method.invoke(operatingSystemMxBean);
-			return result;
-		} catch (Exception e) {
+			Method method = com.sun.management.OperatingSystemMXBean.class
+					.getMethod(methodName);
+			return method.invoke(bean);
+		} catch (ReflectiveOperationException e) {
 			logger.error("Could not execute "
-					+ "OperatingSystemMXBean.{}(). {}", 
+					+ "OperatingSystemMXBean.{}(). {}",
 					methodName, e.getMessage());
 			return null;
 		}
-	}	
+	}
 	
 	/* (non-Javadoc)
 	 * @see org.transitclock.monitoring.MonitorBase#triggered()
@@ -120,8 +114,7 @@ public class SystemMemoryMonitor extends MonitorBase {
 	 */
 	@Override
 	protected boolean triggered() {
-		Object resultObject = 
-				getOperatingSystemValue("getFreePhysicalMemorySize");
+		Object resultObject = getOperatingSystemValue("getFreeMemorySize");
 		if (resultObject != null) {
 			long freePhysicalMemory = (Long) resultObject;
 				
