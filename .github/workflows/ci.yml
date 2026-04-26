@@ -27,6 +27,11 @@ jobs:
       # WAR copy to generate-resources, which only runs by package time (MDEP-187).
       # `verify` both packages and runs tests across every module.
       # Integration tests stay excluded by the default skip-integration-tests profile.
+      #
+      # Picks up the Phase 0 migration-safety tests:
+      #   * transitclockApi/src/test/    — GTFS-RT golden fixtures (0.1)
+      #                                    and JAX-RS resource smoke (0.2).
+      #   * transitclockWebapp/src/test/ — JSP taglib URI audit (0.4).
       - name: Build and run unit tests
         run: mvn -B -ntp verify
 
@@ -35,6 +40,11 @@ jobs:
       # against an in-memory HSQL database populated with a small WMATA GTFS
       # fixture and exercise matcher/generator behavior end-to-end. Separate
       # step so failures are attributed distinctly from unit-test failures.
+      #
+      # Picks up the Phase 0 migration-safety tests:
+      #   * pipelinetests/persistence/ — Hibernate Criteria pinning + entity
+      #                                  round-trip (0.3).
+      #   * pipelinetests/rmi/         — RMI server boot + client smoke (0.5).
       - name: Run pipeline tests
         run: mvn -B -ntp -pl transitclockPipelineTests -am -P include-pipeline-tests test
 
