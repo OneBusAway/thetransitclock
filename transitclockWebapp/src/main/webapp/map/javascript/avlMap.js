@@ -198,8 +198,13 @@ function createExport(vehicles) {
 //when selections change without having to redraw tiles.
 var map = L.map('map');
 L.control.scale({metric: false}).addTo(map);
-L.tileLayer('http://api.tiles.mapbox.com/v4/transitime.j1g5bb0j/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoidHJhbnNpdGltZSIsImEiOiJiYnNWMnBvIn0.5qdbXMUT1-d90cv1PAIWOQ', {
- attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> &amp; <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+// The hosting JSP injects window.transitclockMapTileUrl /
+// window.transitclockMapTileCopyright from WebConfigParams; fall back to
+// the OSM public tile server so a missing scriptlet still renders.
+var mapTileUrl = window.transitclockMapTileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+var mapTileCopyright = window.transitclockMapTileCopyright || 'OpenStreetMap';
+L.tileLayer(mapTileUrl, {
+ attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> &amp; <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Tiles &copy; ' + mapTileCopyright,
  maxZoom: 19
 }).addTo(map);
 
