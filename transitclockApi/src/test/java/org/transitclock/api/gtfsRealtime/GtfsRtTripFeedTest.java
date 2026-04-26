@@ -33,12 +33,6 @@ import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
  * Builder unit tests for {@link GtfsRtTripFeed#createMessage(Map)}. Exercises
  * the field-by-field shape of the produced FeedMessage from canned
  * IpcPrediction inputs (no Jersey, no servlet container, no RMI).
- *
- * Pinned uncertainty values per the producer:
- *   schedule-based prediction → 300
- *   delayed                   → 301 (DELAYED_UNCERTAINTY_VALUE)
- *   late+subsequent trip      → 302 (LATE_AND_SUBSEQUENT_TRIP_UNCERTAINTY_VALUE)
- *   "delayed" wins over the other two by precedence order in the producer.
  */
 public class GtfsRtTripFeedTest {
 

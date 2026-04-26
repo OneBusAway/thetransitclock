@@ -129,13 +129,24 @@ public final class GtfsRtTestSupport {
 		return p;
 	}
 
-	/** Seeds the {@link ApiKeyManager} singleton's cache with a known-valid key. */
+	/**
+	 * Seeds the {@link ApiKeyManager} singleton's cache with a known-valid
+	 * key and pins the "last keys read" timestamp to {@code Long.MAX_VALUE}
+	 * so any cache miss for an unknown key returns {@code false} immediately
+	 * — without falling through to a Hibernate {@code getApiKeys()} lookup
+	 * that has no DB connection in tests.
+	 */
 	@SuppressWarnings("unchecked")
 	public static void seedApiKeyCache(String key) {
 		try {
-			Field f = ApiKeyManager.class.getDeclaredField("apiKeyCache");
-			f.setAccessible(true);
-			((Map<String, ApiKey>) f.get(ApiKeyManager.getInstance())).put(key, mock(ApiKey.class));
+			ApiKeyManager mgr = ApiKeyManager.getInstance();
+			Field cache = ApiKeyManager.class.getDeclaredField("apiKeyCache");
+			cache.setAccessible(true);
+			((Map<String, ApiKey>) cache.get(mgr)).put(key, mock(ApiKey.class));
+
+			Field last = ApiKeyManager.class.getDeclaredField("lastTimeKeysReadIntoCache");
+			last.setAccessible(true);
+			last.setLong(mgr, Long.MAX_VALUE);
 		} catch (ReflectiveOperationException e) {
 			throw new IllegalStateException("Could not seed ApiKeyManager cache", e);
 		}
@@ -143,9 +154,14 @@ public final class GtfsRtTestSupport {
 
 	public static void clearApiKeyCache() {
 		try {
-			Field f = ApiKeyManager.class.getDeclaredField("apiKeyCache");
-			f.setAccessible(true);
-			((Map<?, ?>) f.get(ApiKeyManager.getInstance())).clear();
+			ApiKeyManager mgr = ApiKeyManager.getInstance();
+			Field cache = ApiKeyManager.class.getDeclaredField("apiKeyCache");
+			cache.setAccessible(true);
+			((Map<?, ?>) cache.get(mgr)).clear();
+
+			Field last = ApiKeyManager.class.getDeclaredField("lastTimeKeysReadIntoCache");
+			last.setAccessible(true);
+			last.setLong(mgr, 0L);
 		} catch (ReflectiveOperationException e) {
 			throw new IllegalStateException("Could not clear ApiKeyManager cache", e);
 		}

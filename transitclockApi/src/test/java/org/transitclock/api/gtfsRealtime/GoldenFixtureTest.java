@@ -34,9 +34,8 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 /**
  * Golden-fixture regression suite: builds VehiclePositions and TripUpdates
  * FeedMessages from canned, deterministic inputs and compares the resulting
- * byte stream against committed {@code .pb} fixtures. Catches any wire-format
- * regression introduced by the Java 21 jump (Phase A) or the Jakarta jump
- * (Phase B).
+ * byte stream against committed {@code .pb} fixtures. Catches wire-format
+ * regressions across JVM and dependency upgrades.
  *
  * <p>To regenerate the fixtures (after a deliberate change to canned inputs
  * or producer behavior), run:
@@ -146,6 +145,11 @@ public class GoldenFixtureTest {
 	 * Canned set covering: a normal multi-stop trip, a delayed single-stop
 	 * trip, and a schedule-based prediction. {@link LinkedHashMap} pins
 	 * iteration order so the proto entity order is stable.
+	 *
+	 * <p>Do NOT add a frequency-based prediction (one with
+	 * {@code freqStartTime > 0}) here: the producer routes those through
+	 * a plain {@code HashMap<Long, …>} whose iteration order isn't pinned,
+	 * which would make this fixture non-deterministic across JDK upgrades.
 	 */
 	private Map<String, List<IpcPrediction>> cannedTripPredictions() {
 		Map<String, List<IpcPrediction>> m = new LinkedHashMap<>();

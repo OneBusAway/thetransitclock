@@ -13,11 +13,11 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.TimeZone;
 
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.core.Application;
@@ -28,6 +28,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.api.gtfsRealtime.GtfsRtTestSupport;
 import org.transitclock.ipc.clients.PredictionsInterfaceFactory;
@@ -56,7 +57,12 @@ public class GtfsRealtimeApiResourceTest extends JerseyTest {
 	private static final String KEY = "test-key";
 	private static final String AGENCY = GtfsRtTestSupport.AGENCY;
 
-	private TimeZone savedDefault;
+	@ClassRule
+	public static final GtfsRtTestSupport.AgencyTimezone AGENCY_TZ =
+			new GtfsRtTestSupport.AgencyTimezone();
+
+	private VehiclesInterface vehiclesIface;
+	private PredictionsInterface predictionsIface;
 
 	@Override
 	protected Application configure() {
@@ -68,20 +74,16 @@ public class GtfsRealtimeApiResourceTest extends JerseyTest {
 	public void setUp() throws Exception {
 		super.setUp();
 
-		savedDefault = TimeZone.getDefault();
-		TimeZone.setDefault(GtfsRtTestSupport.AGENCY_TZ);
-
-		GtfsRtTestSupport.seedAgencyTimezoneCache();
 		GtfsRtTestSupport.seedApiKeyCache(KEY);
 
 		Collection<IpcVehicleGtfsRealtime> vehicles = cannedVehicles();
-		VehiclesInterface vehiclesIface = mock(VehiclesInterface.class);
+		vehiclesIface = mock(VehiclesInterface.class);
 		when(vehiclesIface.getGtfsRealtime()).thenReturn(vehicles);
 		GtfsRtTestSupport.seedFactoryMap(VehiclesInterfaceFactory.class,
 				"vehiclesInterfaceMap", AGENCY, vehiclesIface);
 
 		List<IpcPredictionsForRouteStopDest> preds = cannedPredictionsByStop();
-		PredictionsInterface predictionsIface = mock(PredictionsInterface.class);
+		predictionsIface = mock(PredictionsInterface.class);
 		when(predictionsIface.getAllPredictions(anyInt())).thenReturn(preds);
 		GtfsRtTestSupport.seedFactoryMap(PredictionsInterfaceFactory.class,
 				"predictionsInterfaceMap", AGENCY, predictionsIface);
@@ -93,13 +95,13 @@ public class GtfsRealtimeApiResourceTest extends JerseyTest {
 	@Override
 	public void tearDown() throws Exception {
 		try {
+			GtfsRtTestSupport.clearProducerCaches();
 			GtfsRtTestSupport.clearFactoryMap(VehiclesInterfaceFactory.class,
 					"vehiclesInterfaceMap");
 			GtfsRtTestSupport.clearFactoryMap(PredictionsInterfaceFactory.class,
 					"predictionsInterfaceMap");
 			GtfsRtTestSupport.clearApiKeyCache();
 		} finally {
-			if (savedDefault != null) TimeZone.setDefault(savedDefault);
 			super.tearDown();
 		}
 	}
@@ -158,6 +160,23 @@ public class GtfsRealtimeApiResourceTest extends JerseyTest {
 				.request(MediaType.APPLICATION_OCTET_STREAM).get();
 
 		assertThat(r.getStatus()).isEqualTo(401);
+	}
+
+	/**
+	 * Pins behavior when the upstream RMI server fails: producer's
+	 * {@code getVehicles()} returns null on RemoteException, which then
+	 * NPEs inside the StreamingOutput callback and surfaces as a 500. If a
+	 * future change converts the null path into an empty feed (preferable),
+	 * update this assertion deliberately.
+	 */
+	@Test
+	public void rmiFailureSurfacesServerError() throws Exception {
+		when(vehiclesIface.getGtfsRealtime()).thenThrow(new RemoteException("boom"));
+		GtfsRtTestSupport.clearProducerCaches();
+
+		Response r = endpoint("vehiclePositions", null).get();
+
+		assertThat(r.getStatus()).isEqualTo(500);
 	}
 
 	private Invocation.Builder endpoint(String name, String formatOverride) {

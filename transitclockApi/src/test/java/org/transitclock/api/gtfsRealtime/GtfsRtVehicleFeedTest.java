@@ -105,9 +105,9 @@ public class GtfsRtVehicleFeedTest {
 
 		FeedMessage msg = feed().createMessage(Collections.singletonList(v));
 
-		// isCanceled is applied before the SCHEDULED/UNSCHEDULED branch in
-		// the producer, so SCHEDULED ends up overriding CANCELED. Pin the
-		// current behavior so future rewrites preserve or knowingly change it.
+		// Producer's SCHEDULED/UNSCHEDULED branch unconditionally overrides
+		// the CANCELED relationship set above it (latent bug); pin current
+		// behavior so a fix is a deliberate test update.
 		assertThat(msg.getEntity(0).getVehicle().getTrip().getScheduleRelationship())
 				.isEqualTo(ScheduleRelationship.SCHEDULED);
 	}

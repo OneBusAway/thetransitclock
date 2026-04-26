@@ -12,7 +12,7 @@ Add green coverage of every layer the upgrade will touch on the current `javax` 
 
 ### Task 1 — Phase 0.1: GTFS-RT golden-fixture test suite
 
-- **Status:** in progress
+- **Status:** completed
 - **Blocked by:** —
 - **Description:** Create `transitclockApi/src/test/` scaffolding (the API module currently has no test sources at all). Add builder unit tests (`GtfsRtVehicleFeedTest`, `GtfsRtTripFeedTest`, `DataCacheTest`), Jersey Test Framework HTTP-level tests for `GtfsRealtimeApi`, and golden `.pb` fixtures under `transitclockApi/src/test/resources/gtfsrt/` for both `vehiclePositions` and `tripUpdates` feeds. Highest priority — this is the regression backstop for both upgrade phases.
 
