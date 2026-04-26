@@ -1,4 +1,4 @@
-# TheTransitClock production-ish stack: Postgres + Core + Tomcat (api + webapp).
+# TransitClock production-ish stack: Postgres + Core + Tomcat (api + webapp).
 #
 # Before first run: `cp .env.example .env` and fill in TRANSITCLOCK_DB_PASSWORD
 # (and TRANSITCLOCK_APIKEY after step 7). Compose substitutes these into the

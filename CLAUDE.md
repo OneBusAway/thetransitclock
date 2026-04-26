@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-TheTransitClock (formerly Transitime) is a Java real-time transit prediction and monitoring system. It ingests AVL (Automatic Vehicle Location) data, matches vehicles to GTFS schedules/routes, and generates arrival/departure predictions. Java 17, Maven multi-module, Hibernate 5.5 over PostgreSQL (MySQL and HSQLDB also wired up).
+TransitClock (formerly TheTransitClock, formerly Transitime) is a Java real-time transit prediction and monitoring system. It ingests AVL (Automatic Vehicle Location) data, matches vehicles to GTFS schedules/routes, and generates arrival/departure predictions. Java 17, Maven multi-module, Hibernate 5.5 over PostgreSQL (MySQL and HSQLDB also wired up).
 
 ## Build and test
 

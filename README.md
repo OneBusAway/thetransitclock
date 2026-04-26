@@ -1,4 +1,4 @@
-# TheTransitClock
+# TransitClock
 
 This is a fork of TheTransitClock, a [GTFS-RT Trip Updates](https://gtfs.org/documentation/realtime/feed-entities/trip-updates/) generation engine used by public transit agencies around the world, including in Minneapolis, MN where [the software was found to outperform proprietary alternatives](http://berrebi.net/wp-content/uploads/2020/01/trbws07_FileUploads_2020-AM-Presentations_3470_pdf_13557_P20-20421_2020-01-14-09-24-54.pdf).
 
@@ -6,7 +6,7 @@ This is a fork of TheTransitClock, a [GTFS-RT Trip Updates](https://gtfs.org/doc
 
 ## About this repo
 
-The complete core Java software for the Transitime real-time transit information project. The purpose of the software is to use any type of real-time GPS data to generate useful public transportation information, namely a GTFS-RT Trip Updates feed.
+The complete core Java software for the TransitClock real-time transit information project. The purpose of the software is to use any type of real-time GPS data to generate useful public transportation information, namely a GTFS-RT Trip Updates feed.
 
 The system is for both letting passengers know the status of their vehicles and helping agencies more effectively manage their systems. By providing a complete open-source system, agencies can have a cost-effective system and have full ownership of it.
 
