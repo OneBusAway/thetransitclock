@@ -22,6 +22,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
+import java.util.function.LongSupplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,22 +52,30 @@ import com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatu
 public class GtfsRtVehicleFeed {
 
 	private final String agencyId;
+	private final LongSupplier currentTimeMillisSupplier;
 
 	// For outputting date in GTFS-realtime format
-	private SimpleDateFormat gtfsRealtimeDateFormatter = 
+	private SimpleDateFormat gtfsRealtimeDateFormatter =
 			new SimpleDateFormat("yyyyMMdd");
-	
-	private SimpleDateFormat gtfsRealtimeTimeFormatter = 
+
+	private SimpleDateFormat gtfsRealtimeTimeFormatter =
 			new SimpleDateFormat("HH:mm:ss");
-	
+
 	private static final Logger logger = LoggerFactory
 			.getLogger(GtfsRtVehicleFeed.class);
 
 	/********************** Member Functions **************************/
 
 	public GtfsRtVehicleFeed(String agencyId) {
+		this(agencyId, System::currentTimeMillis);
+	}
+
+	// Package-private clock-injection seam used by tests so the FeedHeader
+	// timestamp can be made deterministic (golden-fixture comparison).
+	GtfsRtVehicleFeed(String agencyId, LongSupplier currentTimeMillisSupplier) {
 		this.agencyId = agencyId;
-		
+		this.currentTimeMillisSupplier = currentTimeMillisSupplier;
+
 		this.gtfsRealtimeDateFormatter.setTimeZone(AgencyTimezoneCache
 				.get(agencyId));
 	}
@@ -170,12 +179,14 @@ public class GtfsRtVehicleFeed {
 
 	/**
 	 * Creates a GTFS-realtime message for the list of ApiVehicle passed in.
-	 * 
+	 *
 	 * @param vehicles
 	 *            the data to be put into the GTFS-realtime message
 	 * @return the GTFS-realtime FeedMessage
 	 */
-	private FeedMessage createMessage(
+	// Package-private so tests in the same package can drive it directly with
+	// canned IpcVehicleGtfsRealtime inputs (avoids the RMI round-trip).
+	FeedMessage createMessage(
 			Collection<IpcVehicleGtfsRealtime> vehicles) {
 		FeedMessage.Builder message = FeedMessage.newBuilder();
 
@@ -185,7 +196,7 @@ public class GtfsRtVehicleFeed {
 						.setGtfsRealtimeVersion("1.0")
 						.setIncrementality(Incrementality.FULL_DATASET)
 						.setTimestamp(
-								System.currentTimeMillis() / Time.MS_PER_SEC);
+								currentTimeMillisSupplier.getAsLong() / Time.MS_PER_SEC);
 		message.setHeader(feedheader);
 
 		for (IpcVehicleGtfsRealtime vehicle : vehicles) {

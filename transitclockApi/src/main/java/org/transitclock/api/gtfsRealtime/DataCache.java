@@ -19,6 +19,7 @@ package org.transitclock.api.gtfsRealtime;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.LongSupplier;
 
 import org.transitclock.utils.Time;
 
@@ -35,6 +36,7 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 public class DataCache {
 
     private Map<String, CacheEntry> cacheMap = new HashMap<String, CacheEntry>();
+    private final LongSupplier currentTimeMillisSupplier;
 
     /********************** Member Functions **************************/
 
@@ -43,20 +45,30 @@ public class DataCache {
 	private FeedMessage cachedFeedMessage;
     }
 
+    public DataCache() {
+	this(System::currentTimeMillis);
+    }
+
+    // Package-private clock-injection seam used by tests so TTL eviction can
+    // be exercised without sleeping.
+    DataCache(LongSupplier currentTimeMillisSupplier) {
+	this.currentTimeMillisSupplier = currentTimeMillisSupplier;
+    }
+
     public FeedMessage get(String agencyId, int maxCacheSeconds) {
 	CacheEntry cacheEntry = cacheMap.get(agencyId);
 	if (cacheEntry == null)
 	    return null;
-	if (cacheEntry.timeCreated < System.currentTimeMillis() - maxCacheSeconds * Time.MS_PER_SEC) {
+	if (cacheEntry.timeCreated < currentTimeMillisSupplier.getAsLong() - maxCacheSeconds * Time.MS_PER_SEC) {
 	    cacheMap.remove(agencyId);
 	    return null;
 	}
 	return cacheEntry.cachedFeedMessage;
     }
-    
+
     public void put(String agencyId, FeedMessage feedMessage) {
 	CacheEntry cacheEntry = new CacheEntry();
-	cacheEntry.timeCreated = System.currentTimeMillis();
+	cacheEntry.timeCreated = currentTimeMillisSupplier.getAsLong();
 	cacheEntry.cachedFeedMessage = feedMessage;
 	cacheMap.put(agencyId, cacheEntry);
     }
