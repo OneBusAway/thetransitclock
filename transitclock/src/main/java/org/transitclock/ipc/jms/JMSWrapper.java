@@ -75,11 +75,9 @@ import org.transitclock.config.StringConfigValue;
  */
 public class JMSWrapper {
 	
-	// URL of the JMS broker. Default is the Artemis JBoss-Naming address kept
-	// from the HornetQ era so existing operator config files continue to load;
-	// the JNDI bootstrap below is itself HornetQ-style and is scheduled to be
-	// rewritten to Artemis-native ConnectionFactory lookup as part of the
-	// Artemis in-process broker test (Phase B follow-up).
+	// JBoss-Naming default kept from the HornetQ era; the initiateConnection()
+	// JNDI bootstrap is also HornetQ-style and is scheduled to be rewritten to
+	// Artemis-native ConnectionFactory lookup (Phase B follow-up).
 	private static StringConfigValue jmsServerUrl =
 			new StringConfigValue("transitclock.ipc.jmsServerURL",
 					"jnp://localhost:1099",

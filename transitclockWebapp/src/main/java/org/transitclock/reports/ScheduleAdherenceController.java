@@ -166,12 +166,10 @@ public class ScheduleAdherenceController {
 			select.append(ADHERENCE_SQL).append(" as scheduleAdherence");
 		}
 
-		// SQL-standard CAST(... AS TIME) is portable across PostgreSQL,
-		// MySQL, and HSQL; the previous TIME(time) form was MySQL-specific
-		// and produced a syntax error on Postgres. The :startTimeStr /
-		// :endTimeStr parameters bind as VARCHAR, so cast them as well —
-		// HSQL strict typing rejects VARCHAR-vs-TIME comparison and Postgres
-		// silently allows it but a typed comparison reads more clearly.
+		// SQL-standard cast(... as time) is portable across Postgres, MySQL,
+		// and HSQL; the previous time(time) form was MySQL-only. The string
+		// parameters are cast on both sides because HSQL rejects
+		// VARCHAR-vs-TIME comparison.
 		StringBuilder where = new StringBuilder(
 				" from ArrivalsDepartures where time between :startDate and :endDate"
 						+ " and scheduledTime is not null"

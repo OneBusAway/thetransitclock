@@ -81,18 +81,13 @@ public class SchemaGenerator {
 			LoggerFactory.getLogger(SchemaGenerator.class);
 	
 	/**
-	 * Empty subclass kept for the {@link Dialect#MYSQL} enum binding only.
-	 *
-	 * <p>Historical note: this used to call
-	 * {@code registerColumnType(Types.TIMESTAMP, "datetime(3)")} so the DDL
-	 * emitted millisecond-precision timestamps for MySQL. Hibernate 6.x
-	 * removed the {@code Dialect.registerColumnType(int, String)} hook in
-	 * favor of {@code DdlTypeRegistry}, and Connector/J 8 + MySQL 5.6.4+
-	 * default to fractional-second precision when columns use
-	 * {@code @Temporal(TemporalType.TIMESTAMP)} — so the override is no
-	 * longer needed. The class itself is retained because the {@code MYSQL}
-	 * enum constant references it by fully-qualified name; deleting it
-	 * would silently break MySQL DDL generation.
+	 * Empty subclass referenced by the {@link Dialect#MYSQL} enum constant.
+	 * Previously overrode {@code registerColumnType(Types.TIMESTAMP, "datetime(3)")}
+	 * for millisecond-precision timestamps; Hibernate 6 dropped that hook and
+	 * Connector/J 8 + MySQL 5.6.4+ default to fractional-second precision via
+	 * {@code @Temporal(TemporalType.TIMESTAMP)}, so the override is no longer
+	 * needed. Kept (rather than collapsed to {@code MySQLDialect.class}) so the
+	 * fully-qualified class name in {@code Dialect.MYSQL} stays valid.
 	 */
 	public static class ImprovedMySQLDialect extends MySQLDialect {
 	}
@@ -235,33 +230,27 @@ public class SchemaGenerator {
 		// Get rid of unneeded SQL for dropping tables and keys and such
 		trimCruftFromFile(outputFilename);
 
-		// Hibernate's schema-generation SPI does not surface failures: if the
-		// metadata had no @Entity classes, or the script writer hit an IO
-		// error, we silently end up with a missing or empty file. Verify the
-		// post-condition explicitly so callers see a useful error instead of
-		// a successful build that ships an empty DDL artifact.
+		// Hibernate's schema-generation SPI is silent on failure (e.g. no
+		// @Entity classes found): assert the post-condition so a build that
+		// ships an empty DDL artifact fails loudly instead.
 		verifyDdlWritten(outputFilename);
 	}
 
 	private static void verifyDdlWritten(String outputFilename) {
 		File outFile = new File(outputFilename);
-		if (!outFile.exists() || outFile.length() == 0) {
-			throw new IllegalStateException("DDL generation produced no output at "
-					+ outputFilename + " — expected at least one 'create table' "
-					+ "statement. Likely cause: no @Entity classes were found in "
-					+ "the configured package.");
-		}
 		String contents;
 		try {
-			contents = Files.readString(outFile.toPath(), StandardCharsets.UTF_8);
+			contents = outFile.exists()
+					? Files.readString(outFile.toPath(), StandardCharsets.UTF_8)
+					: "";
 		} catch (IOException e) {
-			throw new IllegalStateException("Failed to read generated DDL at "
-					+ outputFilename, e);
+			throw new IllegalStateException(
+					"Failed to read generated DDL at " + outputFilename, e);
 		}
 		if (!contents.toLowerCase().contains("create table")) {
-			throw new IllegalStateException("DDL at " + outputFilename
-					+ " is non-empty but contains no 'create table' statement; "
-					+ "schema generation likely failed silently.");
+			throw new IllegalStateException("DDL generation at " + outputFilename
+					+ " produced no 'create table' statement — likely no @Entity "
+					+ "classes found in the configured package.");
 		}
 	}
 
@@ -298,8 +287,7 @@ public class SchemaGenerator {
 	 */
 	static enum Dialect {
 		ORACLE("org.hibernate.dialect.Oracle10gDialect"),
-		// MySQL maps to ImprovedMySQLDialect — see its javadoc for why the
-		// otherwise-empty subclass exists.
+		// See ImprovedMySQLDialect javadoc for why the empty subclass exists.
 		MYSQL("org.transitclock.applications.SchemaGenerator$ImprovedMySQLDialect"),
 		POSTGRES("org.hibernate.dialect.PostgreSQLDialect"),
 		HSQL("org.hibernate.dialect.HSQLDialect");

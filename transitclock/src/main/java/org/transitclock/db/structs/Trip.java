@@ -1191,10 +1191,8 @@ public class Trip implements Lifecycle, Serializable {
         count = ((Number) raw).longValue();
       } else {
         Core.getLogger().warn(
-            "countTravelTimesForTrips(rev={}) returned non-Number result: {} "
-                + "(class={}). Returning null.",
-            travelTimesRev, raw,
-            raw == null ? "null" : raw.getClass().getName());
+            "countTravelTimesForTrips(rev={}) returned non-Number result {}; returning null.",
+            travelTimesRev, raw);
       }
     } catch (HibernateException e) {
       Core.getLogger().error(

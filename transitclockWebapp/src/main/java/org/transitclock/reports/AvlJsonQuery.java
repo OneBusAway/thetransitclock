@@ -61,12 +61,11 @@ public class AvlJsonQuery {
 			if (endTime == null || endTime.isEmpty())
 				endTime = "24:00";
 		}
-		if (beginTime != null && !beginTime.isEmpty() 
+		if (beginTime != null && !beginTime.isEmpty()
 				&& endTime != null && !endTime.isEmpty()) {
-			// SQL-standard CAST(... AS TIME) — portable across PostgreSQL,
-			// MySQL, and HSQL; the previous TIME(time) form was MySQL-only.
-			// String literals are cast on both sides to keep HSQL's strict
-			// typing happy (it rejects VARCHAR-vs-TIME comparison).
+			// SQL-standard cast(... as time): portable across Postgres,
+			// MySQL, and HSQL (HSQL rejects VARCHAR-vs-TIME comparison, so
+			// cast both sides).
 			timeSql = " AND cast(time as time) BETWEEN cast('"
 				+ beginTime + "' as time) AND cast('" + endTime + "' as time) ";
 		}

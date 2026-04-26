@@ -125,35 +125,31 @@ public class AvlJmsClientModule extends Module {
 	
 	/**
 	 * Creates the JMS message consumer. Throws {@link IllegalStateException}
-	 * with the broker URL and topic name in the message when either the
-	 * broker is unreachable or the topic cannot be looked up / created.
-	 * The caller is expected to log loudly and stop the feed instead of
-	 * spinning on a null consumer.
+	 * with the broker URL and topic name when the broker is unreachable or
+	 * the topic cannot be looked up. Callers must let it propagate so the
+	 * feed thread exits instead of spinning on a null consumer.
 	 */
 	void createMessageConsumer() {
 		String jmsTopicName = getTopicName(agencyId);
 		String brokerUrl = JMSWrapper.getJmsServerUrl();
-		JMSWrapper jmsWrapper;
 		try {
-			jmsWrapper = JMSWrapper.getJMSWrapper();
+			JMSWrapper jmsWrapper = JMSWrapper.getJMSWrapper();
+			msgConsumer = jmsWrapper.createTopicConsumer(jmsTopicName);
 		} catch (JMSException | NamingException e) {
-			throw new IllegalStateException(
-					"Could not connect to Artemis JMS broker at " + brokerUrl
-							+ " for topic '" + jmsTopicName
-							+ "'. Verify that the broker is running and that "
-							+ "transitclock.ipc.jmsServerURL points at it. "
-							+ "AVL feed terminated.",
-					e);
+			throw new IllegalStateException(brokerFailureMessage(
+					brokerUrl, jmsTopicName, "could not connect to broker"), e);
 		}
-
-		msgConsumer = jmsWrapper.createTopicConsumer(jmsTopicName);
 		if (msgConsumer == null) {
-			throw new IllegalStateException(
-					"Failed to create JMS topic consumer for '" + jmsTopicName
-							+ "' on broker " + brokerUrl
-							+ ". Topic lookup failed and dynamic topic creation "
-							+ "did not succeed. AVL feed terminated.");
+			throw new IllegalStateException(brokerFailureMessage(
+					brokerUrl, jmsTopicName, "topic lookup/creation failed"));
 		}
+	}
+
+	private static String brokerFailureMessage(String brokerUrl,
+			String topic, String cause) {
+		return "AVL feed terminated: " + cause + " for topic '" + topic
+				+ "' on Artemis broker " + brokerUrl
+				+ " (config key transitclock.ipc.jmsServerURL).";
 	}
 	
 	/**
@@ -164,43 +160,27 @@ public class AvlJmsClientModule extends Module {
 	 */
 	@Override
 	public void run() {
-		// Establish the AVL message consumer. This is done here instead
-		// of in the constructor since can't access session from multiple
-		// threads. So apparently need to create it in thread that it is used.
-		// Otherwise get a warning "HQ214021: Invalid concurrent session usage."
+		// Consumer is created here, not in the constructor, because the JMS
+		// session cannot be shared across threads ("HQ214021: Invalid
+		// concurrent session usage.").
 		try {
 			createMessageConsumer();
-		} catch (IllegalStateException e) {
-			// Broker / topic unreachable. Returning ends the thread cleanly
-			// instead of NPE-storming on a null consumer; the email marker
-			// pages an operator with the actionable URL+topic message.
-			logger.error(Markers.email(),
-					"AvlJmsClientModule could not start for agencyId={}: {}",
-					AgencyConfig.getAgencyId(), e.getMessage(), e);
-			return;
-		}
-
-		// Simply continue to do things
-		while (true) {
-			// Surround thread with a try/catch to catch
-			// all exceptions and loop forever. This way
-			// don't have to worry about a thread dying.
-			try {
-				// Actually process the data
-				processAVLDataFromJMSTopic();
-			} catch (IllegalStateException e) {
-				// Broker reconnection inside the inner loop also failed.
-				// Same loud-and-exit treatment as the initial connect.
-				logger.error(Markers.email(),
-						"AvlJmsClientModule lost broker for agencyId={} and "
-						+ "could not reconnect: {}",
-						AgencyConfig.getAgencyId(), e.getMessage(), e);
-				return;
-			} catch (Exception e) {
-				logger.error(Markers.email(),
-						"Unexpected exception occurred in AvlClient for "
-						+ "agencyId={}", AgencyConfig.getAgencyId(), e);
+			while (true) {
+				try {
+					processAVLDataFromJMSTopic();
+				} catch (Exception e) {
+					logger.error(Markers.email(),
+							"Unexpected exception occurred in AvlClient for "
+							+ "agencyId={}", AgencyConfig.getAgencyId(), e);
+				}
 			}
+		} catch (IllegalStateException e) {
+			// Broker / topic unreachable on initial connect or on
+			// reconnect inside processAVLDataFromJMSTopic(). Exit the
+			// thread cleanly instead of NPE-storming on a null consumer.
+			logger.error(Markers.email(),
+					"AvlJmsClientModule terminated for agencyId={}: {}",
+					AgencyConfig.getAgencyId(), e.getMessage(), e);
 		}
 	}
 	
