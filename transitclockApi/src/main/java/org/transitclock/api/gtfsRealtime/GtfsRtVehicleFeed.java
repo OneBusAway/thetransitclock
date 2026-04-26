@@ -22,7 +22,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
-import java.util.function.LongSupplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +29,8 @@ import org.transitclock.api.utils.AgencyTimezoneCache;
 import org.transitclock.ipc.clients.VehiclesInterfaceFactory;
 import org.transitclock.ipc.data.IpcVehicleGtfsRealtime;
 import org.transitclock.ipc.interfaces.VehiclesInterface;
+import org.transitclock.utils.SystemCurrentTime;
+import org.transitclock.utils.SystemTime;
 import org.transitclock.utils.Time;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
@@ -52,7 +53,7 @@ import com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatu
 public class GtfsRtVehicleFeed {
 
 	private final String agencyId;
-	private final LongSupplier currentTimeMillisSupplier;
+	private final SystemTime systemTime;
 
 	// For outputting date in GTFS-realtime format
 	private SimpleDateFormat gtfsRealtimeDateFormatter =
@@ -67,14 +68,14 @@ public class GtfsRtVehicleFeed {
 	/********************** Member Functions **************************/
 
 	public GtfsRtVehicleFeed(String agencyId) {
-		this(agencyId, System::currentTimeMillis);
+		this(agencyId, new SystemCurrentTime());
 	}
 
 	// Package-private clock-injection seam used by tests so the FeedHeader
 	// timestamp can be made deterministic (golden-fixture comparison).
-	GtfsRtVehicleFeed(String agencyId, LongSupplier currentTimeMillisSupplier) {
+	GtfsRtVehicleFeed(String agencyId, SystemTime systemTime) {
 		this.agencyId = agencyId;
-		this.currentTimeMillisSupplier = currentTimeMillisSupplier;
+		this.systemTime = systemTime;
 
 		this.gtfsRealtimeDateFormatter.setTimeZone(AgencyTimezoneCache
 				.get(agencyId));
@@ -196,7 +197,7 @@ public class GtfsRtVehicleFeed {
 						.setGtfsRealtimeVersion("1.0")
 						.setIncrementality(Incrementality.FULL_DATASET)
 						.setTimestamp(
-								currentTimeMillisSupplier.getAsLong() / Time.MS_PER_SEC);
+								systemTime.get() / Time.MS_PER_SEC);
 		message.setHeader(feedheader);
 
 		for (IpcVehicleGtfsRealtime vehicle : vehicles) {

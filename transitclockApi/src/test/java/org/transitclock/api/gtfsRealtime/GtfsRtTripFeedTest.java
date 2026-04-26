@@ -9,8 +9,6 @@
 package org.transitclock.api.gtfsRealtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -18,12 +16,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.ipc.data.IpcPrediction;
+import org.transitclock.utils.SettableSystemTime;
+import org.transitclock.utils.Time;
 
 import com.google.transit.realtime.GtfsRealtime.FeedHeader.Incrementality;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -45,48 +43,21 @@ import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
 public class GtfsRtTripFeedTest {
 
 	private static final long FIXED_TIME_MS = 1_700_000_000_000L; // 2023-11-14 22:13:20Z
-	private static final long EXPECTED_HEADER_TIMESTAMP_S = FIXED_TIME_MS / 1_000L;
-	private static final long PREDICTION_TIME_MS = FIXED_TIME_MS + 60_000L; // +60s
+	private static final long EXPECTED_HEADER_TIMESTAMP_S = FIXED_TIME_MS / Time.MS_PER_SEC;
+	private static final long PREDICTION_TIME_MS = FIXED_TIME_MS + 60_000L;
 
-	private static TimeZone savedDefault;
-
-	@BeforeClass
-	public static void seedTimezone() {
-		GtfsRtTestSupport.seedAgencyTimezoneCache();
-		savedDefault = TimeZone.getDefault();
-		TimeZone.setDefault(GtfsRtTestSupport.AGENCY_TZ);
-	}
-
-	@AfterClass
-	public static void restoreTimezone() {
-		if (savedDefault != null) {
-			TimeZone.setDefault(savedDefault);
-		}
-	}
+	@ClassRule
+	public static final GtfsRtTestSupport.AgencyTimezone AGENCY_TZ =
+			new GtfsRtTestSupport.AgencyTimezone();
 
 	private GtfsRtTripFeed feed() {
-		return new GtfsRtTripFeed(GtfsRtTestSupport.AGENCY, () -> FIXED_TIME_MS);
+		return new GtfsRtTripFeed(GtfsRtTestSupport.AGENCY,
+				new SettableSystemTime(FIXED_TIME_MS));
 	}
 
 	private IpcPrediction basePred(String tripId, String stopId, int seq) {
-		IpcPrediction p = mock(IpcPrediction.class);
-		lenient().when(p.getRouteId()).thenReturn("5A");
-		lenient().when(p.getTripId()).thenReturn(tripId);
-		lenient().when(p.getStopId()).thenReturn(stopId);
-		lenient().when(p.getGtfsStopSeq()).thenReturn(seq);
-		lenient().when(p.getVehicleId()).thenReturn("V-" + tripId);
-		lenient().when(p.getPredictionTime()).thenReturn(PREDICTION_TIME_MS);
-		lenient().when(p.getAvlTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(p.getTripStartEpochTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(p.getFreqStartTime()).thenReturn(0L);
-		lenient().when(p.isCanceled()).thenReturn(false);
-		lenient().when(p.isTripUnscheduled()).thenReturn(false);
-		lenient().when(p.isSchedBasedPred()).thenReturn(false);
-		lenient().when(p.isDelayed()).thenReturn(false);
-		lenient().when(p.isLateAndSubsequentTripSoMarkAsUncertain()).thenReturn(false);
-		lenient().when(p.isArrival()).thenReturn(false);
-		lenient().when(p.getDelay()).thenReturn(null);
-		return p;
+		return GtfsRtTestSupport.mockPrediction(tripId, stopId, seq, PREDICTION_TIME_MS,
+				FIXED_TIME_MS);
 	}
 
 	private Map<String, List<IpcPrediction>> oneTrip(String tripId, IpcPrediction... preds) {
@@ -116,7 +87,7 @@ public class GtfsRtTripFeedTest {
 		StopTimeUpdate stu = tu.getStopTimeUpdate(0);
 		assertThat(stu.getStopSequence()).isEqualTo(3);
 		assertThat(stu.getStopId()).isEqualTo("S1");
-		assertThat(stu.getDeparture().getTime()).isEqualTo(PREDICTION_TIME_MS / 1_000L);
+		assertThat(stu.getDeparture().getTime()).isEqualTo(PREDICTION_TIME_MS / Time.MS_PER_SEC);
 		assertThat(stu.getDeparture().hasUncertainty()).isFalse();
 		assertThat(tu.getTrip().getScheduleRelationship())
 				.isEqualTo(TripDescriptor.ScheduleRelationship.SCHEDULED);
@@ -252,7 +223,7 @@ public class GtfsRtTripFeedTest {
 		FeedMessage msg = feed().createMessage(oneTrip("trip-1", p));
 
 		assertThat(msg.getEntity(0).getTripUpdate().getTimestamp())
-				.isEqualTo(FIXED_TIME_MS / 1_000L);
+				.isEqualTo(FIXED_TIME_MS / Time.MS_PER_SEC);
 	}
 
 	@Test

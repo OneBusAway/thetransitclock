@@ -9,8 +9,7 @@
 package org.transitclock.api.gtfsRealtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,13 +22,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.ipc.data.IpcPrediction;
 import org.transitclock.ipc.data.IpcVehicleGtfsRealtime;
+import org.transitclock.utils.SettableSystemTime;
 
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 
@@ -59,32 +57,20 @@ public class GoldenFixtureTest {
 	private static final Path FIXTURES_SOURCE_DIR =
 			Paths.get("src/test/resources/gtfsrt");
 
-	private static TimeZone savedDefault;
-
-	@BeforeClass
-	public static void seedTimezone() {
-		GtfsRtTestSupport.seedAgencyTimezoneCache();
-		savedDefault = TimeZone.getDefault();
-		TimeZone.setDefault(GtfsRtTestSupport.AGENCY_TZ);
-	}
-
-	@AfterClass
-	public static void restoreTimezone() {
-		if (savedDefault != null) {
-			TimeZone.setDefault(savedDefault);
-		}
-	}
+	@ClassRule
+	public static final GtfsRtTestSupport.AgencyTimezone AGENCY_TZ =
+			new GtfsRtTestSupport.AgencyTimezone();
 
 	@Test
 	public void vehiclePositionsMatchGoldenFixture() throws IOException {
-		FeedMessage built = buildVehiclesMessage();
-		assertFixtureMatches(VEHICLE_FIXTURE, "vehicle_positions_baseline.pb", built);
+		assertFixtureMatches(VEHICLE_FIXTURE, "vehicle_positions_baseline.pb",
+				buildVehiclesMessage());
 	}
 
 	@Test
 	public void tripUpdatesMatchGoldenFixture() throws IOException {
-		FeedMessage built = buildTripUpdatesMessage();
-		assertFixtureMatches(TRIP_FIXTURE, "trip_updates_baseline.pb", built);
+		assertFixtureMatches(TRIP_FIXTURE, "trip_updates_baseline.pb",
+				buildTripUpdatesMessage());
 	}
 
 	private void assertFixtureMatches(String classpathPath, String fileName, FeedMessage built)
@@ -101,11 +87,9 @@ public class GoldenFixtureTest {
 		}
 
 		byte[] expected = readFixture(classpathPath);
-
-		// Structural equality first — produces a useful diff if shape changed.
+		// Structural compare first so a regression yields a readable diff;
+		// byte equality second to pin the exact wire format.
 		assertThat(FeedMessage.parseFrom(actual)).isEqualTo(FeedMessage.parseFrom(expected));
-
-		// Byte equality second — pins the exact wire format.
 		assertThat(actual).isEqualTo(expected);
 	}
 
@@ -121,19 +105,21 @@ public class GoldenFixtureTest {
 
 	private FeedMessage buildVehiclesMessage() {
 		GtfsRtVehicleFeed feed =
-				new GtfsRtVehicleFeed(GtfsRtTestSupport.AGENCY, () -> FIXED_TIME_MS);
+				new GtfsRtVehicleFeed(GtfsRtTestSupport.AGENCY,
+						new SettableSystemTime(FIXED_TIME_MS));
 		return feed.createMessage(cannedVehicles());
 	}
 
 	private FeedMessage buildTripUpdatesMessage() {
 		GtfsRtTripFeed feed =
-				new GtfsRtTripFeed(GtfsRtTestSupport.AGENCY, () -> FIXED_TIME_MS);
+				new GtfsRtTripFeed(GtfsRtTestSupport.AGENCY,
+						new SettableSystemTime(FIXED_TIME_MS));
 		return feed.createMessage(cannedTripPredictions());
 	}
 
 	/**
-	 * Deterministic canned set covering predictable+at-stop, predictable+
-	 * in-transit, and an unpredictable vehicle.
+	 * Canned set covering predictable+at-stop, predictable+in-transit, and
+	 * an unpredictable vehicle.
 	 */
 	private List<IpcVehicleGtfsRealtime> cannedVehicles() {
 		return Arrays.asList(
@@ -144,64 +130,43 @@ public class GoldenFixtureTest {
 
 	private IpcVehicleGtfsRealtime vehicle(String id, boolean predictable, boolean atStop,
 			float lat, float lon, float speed, float heading, Integer stopSeq) {
-		IpcVehicleGtfsRealtime v = mock(IpcVehicleGtfsRealtime.class);
-		lenient().when(v.getId()).thenReturn(id);
-		lenient().when(v.getLicensePlate()).thenReturn("PLATE-" + id);
-		lenient().when(v.getLatitude()).thenReturn(lat);
-		lenient().when(v.getLongitude()).thenReturn(lon);
-		lenient().when(v.getHeading()).thenReturn(heading);
-		lenient().when(v.getSpeed()).thenReturn(speed);
-		lenient().when(v.getGpsTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(v.getRouteId()).thenReturn("5A");
-		lenient().when(v.getTripId()).thenReturn("trip-" + id);
-		lenient().when(v.getTripStartEpochTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(v.getFreqStartTime()).thenReturn(0L);
-		lenient().when(v.isCanceled()).thenReturn(false);
-		lenient().when(v.isTripUnscheduled()).thenReturn(false);
-		lenient().when(v.getAtOrNextStopId()).thenReturn("STOP-" + (stopSeq == null ? "X" : stopSeq));
-		lenient().when(v.getAtOrNextGtfsStopSeq()).thenReturn(stopSeq);
-		lenient().when(v.isPredictable()).thenReturn(predictable);
-		lenient().when(v.isAtStop()).thenReturn(atStop);
+		IpcVehicleGtfsRealtime v = GtfsRtTestSupport.mockVehicle(id, FIXED_TIME_MS);
+		when(v.getLatitude()).thenReturn(lat);
+		when(v.getLongitude()).thenReturn(lon);
+		when(v.getHeading()).thenReturn(heading);
+		when(v.getSpeed()).thenReturn(speed);
+		when(v.getAtOrNextStopId()).thenReturn("STOP-" + (stopSeq == null ? "X" : stopSeq));
+		when(v.getAtOrNextGtfsStopSeq()).thenReturn(stopSeq);
+		when(v.isPredictable()).thenReturn(predictable);
+		when(v.isAtStop()).thenReturn(atStop);
 		return v;
 	}
 
 	/**
-	 * Deterministic canned set covering: a normal multi-stop trip, a delayed
-	 * single-stop trip, and a schedule-based prediction. Iteration order is
-	 * pinned via LinkedHashMap so the proto entity order is stable.
+	 * Canned set covering: a normal multi-stop trip, a delayed single-stop
+	 * trip, and a schedule-based prediction. {@link LinkedHashMap} pins
+	 * iteration order so the proto entity order is stable.
 	 */
 	private Map<String, List<IpcPrediction>> cannedTripPredictions() {
 		Map<String, List<IpcPrediction>> m = new LinkedHashMap<>();
 		m.put("trip-A", Arrays.asList(
-				prediction("trip-A", "STOP-1", 1, FIXED_TIME_MS + 60_000L, false, false, false, false),
-				prediction("trip-A", "STOP-2", 2, FIXED_TIME_MS + 180_000L, false, false, false, false),
-				prediction("trip-A", "STOP-3", 3, FIXED_TIME_MS + 300_000L, false, false, false, true)));
+				prediction("trip-A", "STOP-1", 1, FIXED_TIME_MS + 60_000L, false, false, false),
+				prediction("trip-A", "STOP-2", 2, FIXED_TIME_MS + 180_000L, false, false, false),
+				prediction("trip-A", "STOP-3", 3, FIXED_TIME_MS + 300_000L, false, false, true)));
 		m.put("trip-B", Collections.singletonList(
-				prediction("trip-B", "STOP-1", 1, FIXED_TIME_MS + 90_000L, false, true, false, false)));
+				prediction("trip-B", "STOP-1", 1, FIXED_TIME_MS + 90_000L, false, true, false)));
 		m.put("trip-C", Collections.singletonList(
-				prediction("trip-C", "STOP-1", 1, FIXED_TIME_MS + 120_000L, true, false, false, false)));
+				prediction("trip-C", "STOP-1", 1, FIXED_TIME_MS + 120_000L, true, false, false)));
 		return m;
 	}
 
 	private IpcPrediction prediction(String tripId, String stopId, int seq, long predTimeMs,
-			boolean schedBased, boolean delayed, boolean lateAndSubsequent, boolean isArrival) {
-		IpcPrediction p = mock(IpcPrediction.class);
-		lenient().when(p.getRouteId()).thenReturn("5A");
-		lenient().when(p.getTripId()).thenReturn(tripId);
-		lenient().when(p.getStopId()).thenReturn(stopId);
-		lenient().when(p.getGtfsStopSeq()).thenReturn(seq);
-		lenient().when(p.getVehicleId()).thenReturn("V-" + tripId);
-		lenient().when(p.getPredictionTime()).thenReturn(predTimeMs);
-		lenient().when(p.getAvlTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(p.getTripStartEpochTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(p.getFreqStartTime()).thenReturn(0L);
-		lenient().when(p.isCanceled()).thenReturn(false);
-		lenient().when(p.isTripUnscheduled()).thenReturn(false);
-		lenient().when(p.isSchedBasedPred()).thenReturn(schedBased);
-		lenient().when(p.isDelayed()).thenReturn(delayed);
-		lenient().when(p.isLateAndSubsequentTripSoMarkAsUncertain()).thenReturn(lateAndSubsequent);
-		lenient().when(p.isArrival()).thenReturn(isArrival);
-		lenient().when(p.getDelay()).thenReturn(null);
+			boolean schedBased, boolean delayed, boolean isArrival) {
+		IpcPrediction p = GtfsRtTestSupport.mockPrediction(tripId, stopId, seq, predTimeMs,
+				FIXED_TIME_MS);
+		when(p.isSchedBasedPred()).thenReturn(schedBased);
+		when(p.isDelayed()).thenReturn(delayed);
+		when(p.isArrival()).thenReturn(isArrival);
 		return p;
 	}
 }

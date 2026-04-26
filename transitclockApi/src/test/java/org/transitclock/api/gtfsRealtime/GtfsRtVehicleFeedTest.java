@@ -9,22 +9,21 @@
 package org.transitclock.api.gtfsRealtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.TimeZone;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.ipc.data.IpcVehicleGtfsRealtime;
+import org.transitclock.utils.SettableSystemTime;
+import org.transitclock.utils.Time;
 
 import com.google.transit.realtime.GtfsRealtime.FeedHeader.Incrementality;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
+import com.google.transit.realtime.GtfsRealtime.Position;
 import com.google.transit.realtime.GtfsRealtime.TripDescriptor.ScheduleRelationship;
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition;
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatus;
@@ -37,55 +36,19 @@ import com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatu
 public class GtfsRtVehicleFeedTest {
 
 	private static final long FIXED_TIME_MS = 1_700_000_000_000L; // 2023-11-14 22:13:20Z
-	private static final long EXPECTED_HEADER_TIMESTAMP_S = FIXED_TIME_MS / 1_000L;
+	private static final long EXPECTED_HEADER_TIMESTAMP_S = FIXED_TIME_MS / Time.MS_PER_SEC;
 
-	private static TimeZone savedDefault;
-
-	@BeforeClass
-	public static void seedTimezone() {
-		GtfsRtTestSupport.seedAgencyTimezoneCache();
-		// The producer's time-of-day formatter is not bound to the agency
-		// timezone (only the date formatter is); pin the JVM default so
-		// assertions are deterministic across CI hosts.
-		savedDefault = TimeZone.getDefault();
-		TimeZone.setDefault(GtfsRtTestSupport.AGENCY_TZ);
-	}
-
-	@AfterClass
-	public static void restoreTimezone() {
-		if (savedDefault != null) {
-			TimeZone.setDefault(savedDefault);
-		}
-	}
+	@ClassRule
+	public static final GtfsRtTestSupport.AgencyTimezone AGENCY_TZ =
+			new GtfsRtTestSupport.AgencyTimezone();
 
 	private GtfsRtVehicleFeed feed() {
-		return new GtfsRtVehicleFeed(GtfsRtTestSupport.AGENCY, () -> FIXED_TIME_MS);
+		return new GtfsRtVehicleFeed(GtfsRtTestSupport.AGENCY,
+				new SettableSystemTime(FIXED_TIME_MS));
 	}
 
 	private IpcVehicleGtfsRealtime baseVehicle(String id) {
-		IpcVehicleGtfsRealtime v = mock(IpcVehicleGtfsRealtime.class);
-		// IpcVehicle parent state
-		lenient().when(v.getId()).thenReturn(id);
-		lenient().when(v.getLicensePlate()).thenReturn("PLATE-" + id);
-		lenient().when(v.getLatitude()).thenReturn(38.9f);
-		lenient().when(v.getLongitude()).thenReturn(-77.0f);
-		lenient().when(v.getHeading()).thenReturn(Float.NaN);
-		lenient().when(v.getSpeed()).thenReturn(Float.NaN);
-		lenient().when(v.getGpsTime()).thenReturn(FIXED_TIME_MS);
-		// Trip / route
-		lenient().when(v.getRouteId()).thenReturn("5A");
-		lenient().when(v.getTripId()).thenReturn("trip-001");
-		lenient().when(v.getTripStartEpochTime()).thenReturn(FIXED_TIME_MS);
-		lenient().when(v.getFreqStartTime()).thenReturn(0L);
-		lenient().when(v.isCanceled()).thenReturn(false);
-		lenient().when(v.isTripUnscheduled()).thenReturn(false);
-		// Stop info
-		lenient().when(v.getAtOrNextStopId()).thenReturn("STOP-1");
-		lenient().when(v.getAtOrNextGtfsStopSeq()).thenReturn(7);
-		// Predictability
-		lenient().when(v.isPredictable()).thenReturn(true);
-		lenient().when(v.isAtStop()).thenReturn(false);
-		return v;
+		return GtfsRtTestSupport.mockVehicle(id, FIXED_TIME_MS);
 	}
 
 	@Test
@@ -115,7 +78,6 @@ public class GtfsRtVehicleFeedTest {
 	@Test
 	public void predictableInTransitProducesInTransitToStatus() {
 		IpcVehicleGtfsRealtime v = baseVehicle("V2");
-		when(v.isAtStop()).thenReturn(false);
 
 		FeedMessage msg = feed().createMessage(Collections.singletonList(v));
 
@@ -143,10 +105,9 @@ public class GtfsRtVehicleFeedTest {
 
 		FeedMessage msg = feed().createMessage(Collections.singletonList(v));
 
-		// isCanceled is applied before the SCHEDULED/UNSCHEDULED branch in the
-		// producer, so SCHEDULED ends up overriding CANCELED. This test pins
-		// the current behavior so future rewrites preserve or knowingly change
-		// it.
+		// isCanceled is applied before the SCHEDULED/UNSCHEDULED branch in
+		// the producer, so SCHEDULED ends up overriding CANCELED. Pin the
+		// current behavior so future rewrites preserve or knowingly change it.
 		assertThat(msg.getEntity(0).getVehicle().getTrip().getScheduleRelationship())
 				.isEqualTo(ScheduleRelationship.SCHEDULED);
 	}
@@ -169,8 +130,7 @@ public class GtfsRtVehicleFeedTest {
 
 		FeedMessage msg = feed().createMessage(Collections.singletonList(v));
 
-		// HH:mm:ss in the agency timezone (America/New_York at 2023-11-14
-		// 22:13:20Z is 17:13:20 EST).
+		// 2023-11-14 22:13:20 UTC → 17:13:20 EST in America/New_York.
 		assertThat(msg.getEntity(0).getVehicle().getTrip().getStartTime())
 				.isEqualTo("17:13:20");
 		assertThat(msg.getEntity(0).getVehicle().getTrip().getStartDate())
@@ -181,8 +141,7 @@ public class GtfsRtVehicleFeedTest {
 	public void headingAndSpeedAreOmittedWhenNaN() {
 		FeedMessage msg = feed().createMessage(Collections.singletonList(baseVehicle("V7")));
 
-		com.google.transit.realtime.GtfsRealtime.Position pos =
-				msg.getEntity(0).getVehicle().getPosition();
+		Position pos = msg.getEntity(0).getVehicle().getPosition();
 		assertThat(pos.hasBearing()).isFalse();
 		assertThat(pos.hasSpeed()).isFalse();
 	}
@@ -195,8 +154,7 @@ public class GtfsRtVehicleFeedTest {
 
 		FeedMessage msg = feed().createMessage(Collections.singletonList(v));
 
-		com.google.transit.realtime.GtfsRealtime.Position pos =
-				msg.getEntity(0).getVehicle().getPosition();
+		Position pos = msg.getEntity(0).getVehicle().getPosition();
 		assertThat(pos.getBearing()).isEqualTo(123.4f);
 		assertThat(pos.getSpeed()).isEqualTo(8.5f);
 	}
@@ -227,6 +185,6 @@ public class GtfsRtVehicleFeedTest {
 		FeedMessage msg = feed().createMessage(Collections.singletonList(baseVehicle("V10")));
 
 		assertThat(msg.getEntity(0).getVehicle().getTimestamp())
-				.isEqualTo(FIXED_TIME_MS / 1_000L);
+				.isEqualTo(FIXED_TIME_MS / Time.MS_PER_SEC);
 	}
 }

@@ -104,5 +104,6 @@ After **each phase**, in order:
 6. Open the webapp map view in a browser — confirm vehicles render (the JSTL/JSP path Phase B is most likely to silently break).
 7. `mvn -pl transitclockPipelineTests -am -P include-pipeline-tests test` — pipeline tests against the upgraded stack must still pass.
 8. `mvn -pl transitclockIntegration -am -P include-integration-tests test` — integration tests (excluding the `@Ignore`d `PredictionAccuracyIntegrationTest` per CLAUDE.md) must pass.
+9. Compact the conversation. Each task's PR is self-contained — once it's merged into upgrades, the per-task tool output, intermediate diffs, and exploratory reads are no longer load-bearing. The next task starts from a clean slate: tasks.md, the migration plan, and the now-current upgrades branch.
 
 If any step fails, fix forward — do not split the Phase B PR.

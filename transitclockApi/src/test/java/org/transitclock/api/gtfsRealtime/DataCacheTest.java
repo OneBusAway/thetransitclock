@@ -10,9 +10,9 @@ package org.transitclock.api.gtfsRealtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.junit.Test;
+import org.transitclock.utils.SettableSystemTime;
+import org.transitclock.utils.Time;
 
 import com.google.transit.realtime.GtfsRealtime.FeedHeader;
 import com.google.transit.realtime.GtfsRealtime.FeedHeader.Incrementality;
@@ -22,6 +22,7 @@ public class DataCacheTest {
 
 	private static final String AGENCY = "wmata";
 	private static final int CACHE_SECS = 15;
+	private static final long T0 = 1_000_000L;
 
 	private FeedMessage canned() {
 		return FeedMessage.newBuilder()
@@ -39,8 +40,7 @@ public class DataCacheTest {
 
 	@Test
 	public void putThenGetReturnsCachedValue() {
-		AtomicLong now = new AtomicLong(1_000_000L);
-		DataCache cache = new DataCache(now::get);
+		DataCache cache = new DataCache(new SettableSystemTime(T0));
 		FeedMessage msg = canned();
 
 		cache.put(AGENCY, msg);
@@ -50,35 +50,34 @@ public class DataCacheTest {
 
 	@Test
 	public void getWithinTtlReturnsCachedValue() {
-		AtomicLong now = new AtomicLong(1_000_000L);
-		DataCache cache = new DataCache(now::get);
+		SettableSystemTime clock = new SettableSystemTime(T0);
+		DataCache cache = new DataCache(clock);
 		cache.put(AGENCY, canned());
 
-		now.addAndGet((CACHE_SECS - 1) * 1000L);
+		clock.set(T0 + (CACHE_SECS - 1) * Time.MS_PER_SEC);
 
 		assertThat(cache.get(AGENCY, CACHE_SECS)).isNotNull();
 	}
 
 	@Test
 	public void getAfterTtlEvictsAndReturnsNull() {
-		AtomicLong now = new AtomicLong(1_000_000L);
-		DataCache cache = new DataCache(now::get);
+		SettableSystemTime clock = new SettableSystemTime(T0);
+		DataCache cache = new DataCache(clock);
 		cache.put(AGENCY, canned());
 
-		now.addAndGet((CACHE_SECS + 1) * 1000L);
+		clock.set(T0 + (CACHE_SECS + 1) * Time.MS_PER_SEC);
 
 		assertThat(cache.get(AGENCY, CACHE_SECS)).isNull();
-		// Subsequent reads at the same wall-clock should not resurrect.
 		assertThat(cache.get(AGENCY, CACHE_SECS)).isNull();
 	}
 
 	@Test
 	public void putOverwritesExpiredEntry() {
-		AtomicLong now = new AtomicLong(1_000_000L);
-		DataCache cache = new DataCache(now::get);
+		SettableSystemTime clock = new SettableSystemTime(T0);
+		DataCache cache = new DataCache(clock);
 		cache.put(AGENCY, canned());
 
-		now.addAndGet((CACHE_SECS + 1) * 1000L);
+		clock.set(T0 + (CACHE_SECS + 1) * Time.MS_PER_SEC);
 		FeedMessage fresh = canned();
 		cache.put(AGENCY, fresh);
 
@@ -87,8 +86,7 @@ public class DataCacheTest {
 
 	@Test
 	public void cacheIsKeyedByAgency() {
-		AtomicLong now = new AtomicLong(1_000_000L);
-		DataCache cache = new DataCache(now::get);
+		DataCache cache = new DataCache(new SettableSystemTime(T0));
 		FeedMessage a = canned();
 		FeedMessage b = canned();
 

@@ -19,8 +19,10 @@ package org.transitclock.api.gtfsRealtime;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.LongSupplier;
 
+import org.transitclock.utils.SettableSystemTime;
+import org.transitclock.utils.SystemCurrentTime;
+import org.transitclock.utils.SystemTime;
 import org.transitclock.utils.Time;
 
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -36,7 +38,7 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 public class DataCache {
 
     private Map<String, CacheEntry> cacheMap = new HashMap<String, CacheEntry>();
-    private final LongSupplier currentTimeMillisSupplier;
+    private final SystemTime systemTime;
 
     /********************** Member Functions **************************/
 
@@ -46,20 +48,20 @@ public class DataCache {
     }
 
     public DataCache() {
-	this(System::currentTimeMillis);
+	this(new SystemCurrentTime());
     }
 
     // Package-private clock-injection seam used by tests so TTL eviction can
-    // be exercised without sleeping.
-    DataCache(LongSupplier currentTimeMillisSupplier) {
-	this.currentTimeMillisSupplier = currentTimeMillisSupplier;
+    // be exercised without sleeping. Pair with a {@link SettableSystemTime}.
+    DataCache(SystemTime systemTime) {
+	this.systemTime = systemTime;
     }
 
     public FeedMessage get(String agencyId, int maxCacheSeconds) {
 	CacheEntry cacheEntry = cacheMap.get(agencyId);
 	if (cacheEntry == null)
 	    return null;
-	if (cacheEntry.timeCreated < currentTimeMillisSupplier.getAsLong() - maxCacheSeconds * Time.MS_PER_SEC) {
+	if (cacheEntry.timeCreated < systemTime.get() - maxCacheSeconds * Time.MS_PER_SEC) {
 	    cacheMap.remove(agencyId);
 	    return null;
 	}
@@ -68,7 +70,7 @@ public class DataCache {
 
     public void put(String agencyId, FeedMessage feedMessage) {
 	CacheEntry cacheEntry = new CacheEntry();
-	cacheEntry.timeCreated = currentTimeMillisSupplier.getAsLong();
+	cacheEntry.timeCreated = systemTime.get();
 	cacheEntry.cachedFeedMessage = feedMessage;
 	cacheMap.put(agencyId, cacheEntry);
     }
