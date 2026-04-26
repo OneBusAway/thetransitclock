@@ -36,7 +36,7 @@ Add green coverage of every layer the upgrade will touch on the current `javax` 
 
 ### Task 5 — Phase 0.5: RMI smoke test
 
-- **Status:** pending
+- **Status:** in progress
 - **Blocked by:** —
 - **Description:** One test in `transitclockPipelineTests` that boots the full RMI surface via `CoreHarness` (registry + `VehiclesServer`, `PredictionsServer`, `ConfigServer`, `CommandsServer`) and exercises a client → server round-trip per interface using the existing `*InterfaceFactory.get()` clients. Pure `java.rmi.*` should sail through Java 21, but a smoke test makes that a fact.
 
