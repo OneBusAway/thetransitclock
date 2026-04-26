@@ -1,29 +1,63 @@
-This is the a REST service which provides the information required to run a web application or mobile application based on TheTransitClock.
+# `transitclockApi` — REST API WAR
 
-This can be built on its own by 
-```
+JAX-RS API backing TheTransitClock's user-facing webapp and any third-party
+integrations. Produces a GTFS-RT TripUpdates feed from the live predictions
+that a running `Core` JVM exposes over RMI.
+
+```bash
 cd transitclockApi
-mvn install
+mvn install -DskipTests
 ```
 
-This will produce a api.war file which can be deployed on Tomcat. 
+This produces `target/api.war`, suitable for deployment into Tomcat 9.
+Tomcat 10+ will refuse the WAR — it's still `javax.servlet`, not the
+Jakarta `jakarta.servlet` namespace Tomcat 10 requires.
 
-You will need to configure the location of the transitclockConfig.xml file as a command line argument:
+## Runtime requirements
 
-`-Dtransitclock.configFiles=/path/to/your/transitclockConfig.xml`
+The API talks to two things:
 
-The exact place to do this depends on how you're running TheTransitClock. In Eclipse, add this as a VM argument in the run configuration for Tomcat. In a bash script, add it to `CATALINA_OPTS` before Tomcat starts up.
+1. A running `Core` JVM, over RMI on port **2099** (primary) and **2098** (secondary).
+2. The **`web`** database, where it reads the `WebAgency` registry (to find each agency's RMI host) and the `ApiKey` table (to authenticate REST callers).
 
-This server talks to core using RMI calls to get the information to support the REST service calls.
+So Tomcat needs the same DB credentials and config file Core uses. Set
+`CATALINA_OPTS` before starting Tomcat:
 
-To access the service a key is required to be provided in the URL. This key is compared against a key in the database. You can use the CreateAPIKey application in TheTransitClock to create a test/demo key.
-
-The tables that store this information are create by running the ddl_xxxx_org_transitime_db_webstructs.sql in the database. (Where xxxx is the type of database you are using)
+```bash
+CATALINA_OPTS="\
+  -Dtransitclock.configFiles=/etc/transitclock/transitclockConfig.xml \
+  -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
+  -Dtransitclock.db.dbType=postgresql \
+  -Dtransitclock.db.dbHost=localhost \
+  -Dtransitclock.db.dbName=web \
+  -Dtransitclock.db.dbUserName=transitclock \
+  -Dtransitclock.db.dbPassword=changeme"
 ```
-Example URLs
 
-http://[server]:[port]/v1/transitime/key/[Key from CreateAPIKey]/agency/[agency id]/command/gtfs-rt/tripUpdates?format=human
+`-Dtransitclock.db.dbName=web` is what makes the API read the `WebAgency`
+registry from the right database. Without it, the registry lookup runs with
+`dbName=null`, the JDBC URL ends in `/null`, and the connection fails — the
+API will serve "no agencies" until you set it.
 
-http://127.0.0.1:8093/v1/transitime/key/8a3273b0/agency/02/command/gtfs-rt/tripUpdates?format=human
+## API keys
+
+REST calls authenticate via a key supplied as a URL segment. Mint one with
+`CreateAPIKey.jar` (see `transitclock/README.md`); the row lives in the `web`
+database.
+
+## Sample request
+
+```bash
+curl "http://<host>:<port>/api/v1/key/<API_KEY>/agency/<agencyId>/command/gtfs-rt/tripUpdates?format=human"
 ```
-The comments in the supporting classes are the best source of information for RESTFul calls.
+
+Drop `?format=human` for the binary protobuf feed. The full set of resources
+(predictions, vehicles, route config, GTFS-RT TripUpdates, SIRI, commands,
+cache queries) is defined by the JAX-RS classes under
+`org.transitclock.api.rootResources`; the user-facing resources are rooted
+at `/api/v1/key/{key}/agency/{agencyId}/...`.
+
+## Full setup runbook
+
+See [../docs/setup.md](../docs/setup.md) for the end-to-end deployment flow
+(database provisioning, GTFS import, Core launch, WAR deployment).

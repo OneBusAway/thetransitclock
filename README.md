@@ -4,37 +4,51 @@ This is a fork of TheTransitClock, a [GTFS-RT Trip Updates](https://gtfs.org/doc
 
 [TheTransitClock](https://thetransitclock.github.io) was developed by Sean Óg Crudden and Simon J. Berrebi, Ph.D., itself a fork of [Swiftly Transitime](https://transitime.github.io/core/).
 
-## About this Repo
+## About this repo
 
 The complete core Java software for the Transitime real-time transit information project. The purpose of the software is to use any type of real-time GPS data to generate useful public transportation information, namely a GTFS-RT Trip Updates feed.
 
-The system is for both letting passengers know the status of their vehicles and helping agencies more effectively manage their systems. By providing a complete open-source system, agencies can have a cost effective system and have full ownership of it. 
+The system is for both letting passengers know the status of their vehicles and helping agencies more effectively manage their systems. By providing a complete open-source system, agencies can have a cost-effective system and have full ownership of it.
 
-## Build
+## Modules
 
-The software is made up of three modules which can each be built with maven. See [BUILD.md](./BUILD.md).
+| Module | Role |
+|---|---|
+| `transitclock` | Core engine (Java). Houses the matchers, prediction generators, Hibernate entities, RMI servers, and every `main` class under `org.transitclock.applications` (`Core`, `GtfsFileProcessor`, `SchemaGenerator`, `CreateWebAgency`, `CreateAPIKey`, `RmiQuery`, …). Builds shaded JARs into `transitclock/target/`. |
+| `transitclockApi` | JAX-RS REST API WAR. Talks to a running Core over RMI; produces the GTFS-RT TripUpdates output. |
+| `transitclockWebapp` | User-facing web UI WAR. Consumes the REST API. |
+| `transitclockQuickStart` | Single-process launcher bundling Core + API + Webapp. Convenient for local experimentation. Production deployments should run each tier as its own process — see the setup guide. |
+| `transitclockBarefootClient`, `transitclockTraccarClient` | Thin clients for Barefoot map-matching and Traccar GPS, depended on by Core. |
+| `transitclockIntegration`, `transitclockPipelineTests` | Opt-in test modules (see [docs/integration-tests.md](docs/integration-tests.md) and the profiles below). |
+| `coverage-report` | JaCoCo aggregate report (no sources of its own). |
 
-The core functionality is in the transitime project. The REST api is in transitimeApi and the user Web applicaton is in transitimeWebapp.
+## Building
 
-## Setup
+From the repo root:
 
-The main module is transitTime. This has several standalone programs in the org.transitime.applications package.
+```bash
+mvn install -DskipTests
+```
 
-SchemaGenerator.java will generate the SQL to create the database structures you need to run on.<br/>
-DBTest.java can be used to test that the database can be connected to.<br/>
-GTFSFileProcessor.java will read a GTFS file into this database structure.<br/>
-Core.java is as the name implies is the workhorse of the system. <br/>
-RmiQuery.java allows you make queries to the server run in core from the command line.<br/>
-CreateAPIKey.java a test app to allow you create test/demo key to access REST api webapp.<br/>
-CreateWebAgency.java is used to create and agency that will work in transitimeWebapp.<br/>
+This produces:
 
-Details on how to run each of these and their respective parameters are in the README for the transitime module.
+- Shaded executable JARs in `transitclock/target/` (`Core.jar`, `GtfsFileProcessor.jar`, `SchemaGenerator.jar`, `CreateWebAgency.jar`, `CreateAPIKey.jar`, `RmiQuery.jar`, `UpdateTravelTimes.jar`, `ScheduleGenerator.jar`).
+- `transitclockApi/target/api.war` and `transitclockWebapp/target/web.war` for Tomcat.
 
-Once this is set up the next step is to set up the transitimeApi which is a RESTful API. This API makes RMI calls to the RMI Server started by Core.java to provide results. This is a war file which can be deployed into Tomcat.  
+There is no lint step.
 
-The transitimeWebapp in turn is a web application which uses the transitTimeAPI to provided a user interface. This is a war file which can be deployed into Tomcat. This connects to the database and the connection information is configured in hibernate.cfg.xml in the src/main/resources directory. Currently this needs to be deployed on the same server as the API.
+## Production setup
 
-The transitimeQuickStart can be built with mvn install and ran using java -jar transitimeQuickStart it is currently a work in progress but the gui elements can be seen.
+End-to-end runbook for standing up Core against a GTFS-realtime feed, with the
+API and webapp on Tomcat: **[docs/setup.md](docs/setup.md)**.
+
+It covers:
+
+- The external data you need (GTFS static, GTFS-RT VehiclePositions, Postgres, JDK, Tomcat) and where to source it.
+- Database provisioning and DDL generation.
+- Config files (a working sample is in [`docs/examples/`](docs/examples)).
+- Running every shaded JAR with the right system properties.
+- Deploying `api.war` and `web.war` and minting an API key.
 
 ## Running tests
 

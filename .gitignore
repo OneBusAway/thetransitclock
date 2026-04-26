@@ -19,3 +19,10 @@ settings.local.json
 /tools/wmata_capture/.env
 
 __pycache__/
+.deploy/
+.playwright-mcp/
+map-fixed.png
+
+# Top-level docker-stack secrets (DB password, API key). .env.example is
+# committed as a template; .env is per-deployment.
+/.env
