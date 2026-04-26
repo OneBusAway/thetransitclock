@@ -15,10 +15,14 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.TimeZone;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.junit.rules.ExternalResource;
 import org.transitclock.api.utils.AgencyTimezoneCache;
 import org.transitclock.db.webstructs.ApiKey;
 import org.transitclock.db.webstructs.ApiKeyManager;
+import org.transitclock.db.webstructs.WebAgency;
 import org.transitclock.ipc.data.IpcPrediction;
 import org.transitclock.ipc.data.IpcVehicleGtfsRealtime;
 
@@ -205,6 +209,53 @@ public final class GtfsRtTestSupport {
 	public static void clearProducerCaches() {
 		clearStaticDataCache(GtfsRtVehicleFeed.class, "vehicleFeedDataCache");
 		clearStaticDataCache(GtfsRtTripFeed.class, "tripFeedDataCache");
+	}
+
+	/**
+	 * Seeds {@link WebAgency}'s static cache so resource handlers that call
+	 * {@link WebAgency#getCachedOrderedListOfWebAgencies()} short-circuit
+	 * past the DB read. Pinning {@code webAgencyMapCacheReadTime} to
+	 * {@link Long#MAX_VALUE} makes {@code updateCacheIfShould} treat the
+	 * cache as freshly-read forever, so {@code getMapFromDb()} is never
+	 * invoked.
+	 */
+	public static void seedWebAgencies(List<WebAgency> webAgencies) {
+		// Resolve all three fields up front so a NoSuchFieldException
+		// fails fast without leaving the cache half-mutated.
+		Field mapField = webAgencyField("webAgencyMapCache");
+		Field readField = webAgencyField("webAgencyMapCacheReadTime");
+		Field orderedField = webAgencyField("webAgencyOrderedList");
+		try {
+			mapField.set(null, Collections.emptyMap());
+			readField.setLong(null, Long.MAX_VALUE);
+			orderedField.set(null, webAgencies);
+		} catch (IllegalAccessException e) {
+			throw new IllegalStateException("Could not seed WebAgency cache", e);
+		}
+	}
+
+	public static void clearWebAgencies() {
+		Field mapField = webAgencyField("webAgencyMapCache");
+		Field readField = webAgencyField("webAgencyMapCacheReadTime");
+		Field orderedField = webAgencyField("webAgencyOrderedList");
+		try {
+			mapField.set(null, null);
+			orderedField.set(null, null);
+			readField.setLong(null, 0L);
+		} catch (IllegalAccessException e) {
+			throw new IllegalStateException("Could not clear WebAgency cache", e);
+		}
+	}
+
+	private static Field webAgencyField(String name) {
+		try {
+			Field f = WebAgency.class.getDeclaredField(name);
+			f.setAccessible(true);
+			return f;
+		} catch (NoSuchFieldException e) {
+			throw new IllegalStateException(
+					"WebAgency." + name + " no longer exists", e);
+		}
 	}
 
 	private static void clearStaticDataCache(Class<?> producer, String fieldName) {
