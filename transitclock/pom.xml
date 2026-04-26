@@ -371,6 +371,24 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- Strip JAR-signature files from every shaded uber-jar.
+					     Without this, JDK 21's "Invalid signature file digest
+					     for Manifest main attributes" SecurityException kills
+					     Core.jar at boot when a signed transitive (e.g.
+					     bcprov, mail) ends up bundled. -->
+					<filters>
+						<filter>
+							<artifact>*:*</artifact>
+							<excludes>
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+								<exclude>module-info.class</exclude>
+							</excludes>
+						</filter>
+					</filters>
+				</configuration>
 				<executions>
 					<execution>
 						<id>shade-UpdateTravelTimes</id>

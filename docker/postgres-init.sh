@@ -24,15 +24,16 @@ psql -v ON_ERROR_STOP=1 \
      --dbname "$POSTGRES_DB" \
      --set "transitclock_password=$TRANSITCLOCK_DB_PASSWORD" \
      <<-'SQL'
-DO $do$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'transitclock') THEN
-    EXECUTE format('CREATE ROLE transitclock LOGIN PASSWORD %L', :'transitclock_password');
-  ELSE
-    EXECUTE format('ALTER ROLE transitclock WITH PASSWORD %L', :'transitclock_password');
-  END IF;
-END
-$do$;
+-- :'transitclock_password' is a psql-side variable substitution and only
+-- works at the top level of the script — psql does not parse colon-prefixed
+-- variables inside dollar-quoted blocks, so we use \if instead of DO.
+SELECT NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'transitclock')
+       AS need_create_role \gset
+\if :need_create_role
+  CREATE ROLE transitclock LOGIN PASSWORD :'transitclock_password';
+\else
+  ALTER ROLE transitclock WITH PASSWORD :'transitclock_password';
+\endif
 
 GRANT ALL PRIVILEGES ON DATABASE wmata TO transitclock;
 ALTER DATABASE wmata OWNER TO transitclock;
