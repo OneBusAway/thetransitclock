@@ -30,8 +30,6 @@ import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import jakarta.persistence.Transient;
 
-
-
 import org.hibernate.CallbackException;
 import org.hibernate.HibernateException;
 import org.hibernate.query.Query;

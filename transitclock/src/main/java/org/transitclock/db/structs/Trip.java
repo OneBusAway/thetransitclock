@@ -17,7 +17,6 @@
 package org.transitclock.db.structs;
 
 import java.io.Serializable;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -1190,9 +1189,17 @@ public class Trip implements Lifecycle, Serializable {
       Object raw = query.uniqueResult();
       if (raw instanceof Number) {
         count = ((Number) raw).longValue();
+      } else {
+        Core.getLogger().warn(
+            "countTravelTimesForTrips(rev={}) returned non-Number result: {} "
+                + "(class={}). Returning null.",
+            travelTimesRev, raw,
+            raw == null ? "null" : raw.getClass().getName());
       }
     } catch (HibernateException e) {
-      Core.getLogger().error("exception querying for metrics", e);
+      Core.getLogger().error(
+          "Exception querying TravelTimesForTrips count for rev={}",
+          travelTimesRev, e);
     }
     return count;
   }

@@ -222,12 +222,7 @@ public class PredictionForStopPath implements Serializable{
 		if (stopPathIndex != null) query.setParameter("stopPathIndex", stopPathIndex);
 		if (beginTime != null) query.setParameter("beginTime", beginTime);
 		if (endTime != null) query.setParameter("endTime", endTime);
-		List<PredictionForStopPath> results = query.getResultList();
-		if(results.size()>0)
-		{
-			System.out.println("Got some results");
-		}
-		return results;				
+		return query.getResultList();
 	}
 
 	public PredictionForStopPath() {

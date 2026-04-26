@@ -75,13 +75,17 @@ import org.transitclock.config.StringConfigValue;
  */
 public class JMSWrapper {
 	
-	// Parameter that specifies URL of where to find the hornetq server
-	private static StringConfigValue hornetqServerURL = 
-			new StringConfigValue("transitclock.ipc.hornetqServerURL", 
+	// URL of the JMS broker. Default is the Artemis JBoss-Naming address kept
+	// from the HornetQ era so existing operator config files continue to load;
+	// the JNDI bootstrap below is itself HornetQ-style and is scheduled to be
+	// rewritten to Artemis-native ConnectionFactory lookup as part of the
+	// Artemis in-process broker test (Phase B follow-up).
+	private static StringConfigValue jmsServerUrl =
+			new StringConfigValue("transitclock.ipc.jmsServerURL",
 					"jnp://localhost:1099",
-					"The URL of the Hornet JMS service to use.");
-	public static String getHornetqServerURL() {
-		return hornetqServerURL.getValue();
+					"URL of the Artemis JMS broker the AVL JMS feed connects to.");
+	public static String getJmsServerUrl() {
+		return jmsServerUrl.getValue();
 	}
 	
 	// Regular member variables
@@ -122,7 +126,7 @@ public class JMSWrapper {
 				"org.jnp.interfaces.NamingContextFactory");
 		p.put(javax.naming.Context.URL_PKG_PREFIXES,
 				"org.jboss.naming:org.jnp.interfaces");			
-		p.put(javax.naming.Context.PROVIDER_URL, getHornetqServerURL());
+		p.put(javax.naming.Context.PROVIDER_URL, getJmsServerUrl());
 		
 		// Initialize the member variables so that have a session that can reuse
 		initialContext = new InitialContext(p);

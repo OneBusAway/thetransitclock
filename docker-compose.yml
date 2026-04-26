@@ -123,9 +123,9 @@ services:
       start_period: 30s
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Tomcat 11 + JDK 21. WARs are jakarta.servlet (Phase B) and class-file
-  # 65 (Java 21), so the runtime stack must be Tomcat 10+ (jakarta) and
-  # JDK 21+. Hosts api.war and web.war.
+  # Tomcat 11 + JDK 21. WARs are jakarta.servlet 6.1 (Phase B) and
+  # class-file 65 (Java 21), so the runtime stack must be Tomcat 11+
+  # (Servlet 6.1 / Jakarta EE 11) and JDK 21+. Hosts api.war and web.war.
   # ──────────────────────────────────────────────────────────────────────────
   tomcat:
     build:

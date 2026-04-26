@@ -1053,11 +1053,13 @@ public class DbConfig {
 					query.list();
 					logger.debug("session test success");
 				} catch (Throwable t) {
-					logger.error("session test failure: {} {}", t, t);
-					// the only reason this validate query should fail is if
-					// our db connnection is invalid 
-					// log the issue for now
-					// eventually flush connection pool or give other hints
+					// Pass the throwable as the last arg so SLF4J emits a
+					// stack trace; the previous "{} {}", t, t pattern only
+					// printed the message twice and dropped the trace.
+					logger.error("session test failure: {}", t.getMessage(), t);
+					// The only reason this validate query should fail is if
+					// our db connection is invalid. Log the issue for now;
+					// eventually flush connection pool or give other hints.
 				}
 				
 			}

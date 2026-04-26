@@ -27,6 +27,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -80,14 +81,18 @@ public class SchemaGenerator {
 			LoggerFactory.getLogger(SchemaGenerator.class);
 	
 	/**
-	 * Historical note: this used to subclass {@link MySQLDialect} and call
+	 * Empty subclass kept for the {@link Dialect#MYSQL} enum binding only.
+	 *
+	 * <p>Historical note: this used to call
 	 * {@code registerColumnType(Types.TIMESTAMP, "datetime(3)")} so the DDL
 	 * emitted millisecond-precision timestamps for MySQL. Hibernate 6.x
 	 * removed the {@code Dialect.registerColumnType(int, String)} hook in
-	 * favor of {@code DdlTypeRegistry}. Connector/J 8 + MySQL 5.6.4+ now
-	 * default to fractional-second precision when the column is declared
-	 * via {@code @Temporal(TemporalType.TIMESTAMP)}, so this dialect
-	 * subclass is no longer needed.
+	 * favor of {@code DdlTypeRegistry}, and Connector/J 8 + MySQL 5.6.4+
+	 * default to fractional-second precision when columns use
+	 * {@code @Temporal(TemporalType.TIMESTAMP)} — so the override is no
+	 * longer needed. The class itself is retained because the {@code MYSQL}
+	 * enum constant references it by fully-qualified name; deleting it
+	 * would silently break MySQL DDL generation.
 	 */
 	public static class ImprovedMySQLDialect extends MySQLDialect {
 	}
@@ -163,8 +168,7 @@ public class SchemaGenerator {
 				writer.write("\n");
 			}
 		} catch (IOException e) {
-			System.err.println("Could not trim cruft from file "
-					+ outputFilename + " . " + e.getMessage());
+			logger.error("Could not trim cruft from file {}", outputFilename, e);
 		} finally {
 			try {
 				if (reader != null)
@@ -182,8 +186,8 @@ public class SchemaGenerator {
 					StandardCopyOption.REPLACE_EXISTING);
 			Files.delete(new File(tmpFileName).toPath());
 		} catch (IOException e) {
-			System.err.println("Could not rename file " + tmpFileName + " to "
-					+ outputFilename);
+			logger.error("Could not rename file {} to {}",
+					tmpFileName, outputFilename, e);
 		}
 
 	}
@@ -193,7 +197,7 @@ public class SchemaGenerator {
 	 * 
 	 * @param dbDialect to use
 	 */
-	private void generate(Dialect dialect) {
+	void generate(Dialect dialect) {
 		// Determine file name. Use "ddl_" plus dialect name such as mysql or
 		// oracle plus the package name with "_" replacing "." such as
 		// org_transitime_db_structs .
@@ -218,7 +222,7 @@ public class SchemaGenerator {
 		ServiceRegistry serviceRegistry =
 				new StandardServiceRegistryBuilder().applySettings(settings).build();
 
-		System.out.println("Writing file " + outputFilename);
+		logger.info("Writing schema file {}", outputFilename);
 
 		MetadataSources metadatasource = new MetadataSources(serviceRegistry);
 		for (Class<Object> annotatedClass : classList) {
@@ -230,6 +234,35 @@ public class SchemaGenerator {
 
 		// Get rid of unneeded SQL for dropping tables and keys and such
 		trimCruftFromFile(outputFilename);
+
+		// Hibernate's schema-generation SPI does not surface failures: if the
+		// metadata had no @Entity classes, or the script writer hit an IO
+		// error, we silently end up with a missing or empty file. Verify the
+		// post-condition explicitly so callers see a useful error instead of
+		// a successful build that ships an empty DDL artifact.
+		verifyDdlWritten(outputFilename);
+	}
+
+	private static void verifyDdlWritten(String outputFilename) {
+		File outFile = new File(outputFilename);
+		if (!outFile.exists() || outFile.length() == 0) {
+			throw new IllegalStateException("DDL generation produced no output at "
+					+ outputFilename + " — expected at least one 'create table' "
+					+ "statement. Likely cause: no @Entity classes were found in "
+					+ "the configured package.");
+		}
+		String contents;
+		try {
+			contents = Files.readString(outFile.toPath(), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			throw new IllegalStateException("Failed to read generated DDL at "
+					+ outputFilename, e);
+		}
+		if (!contents.toLowerCase().contains("create table")) {
+			throw new IllegalStateException("DDL at " + outputFilename
+					+ " is non-empty but contains no 'create table' statement; "
+					+ "schema generation likely failed silently.");
+		}
 	}
 
 	/**
@@ -263,9 +296,10 @@ public class SchemaGenerator {
 	/**
 	 * Holds the class names of hibernate dialects for easy reference.
 	 */
-	private static enum Dialect {
-		ORACLE("org.hibernate.dialect.Oracle10gDialect"), 
-		// Note that using special ImprovedMySqlDialect
+	static enum Dialect {
+		ORACLE("org.hibernate.dialect.Oracle10gDialect"),
+		// MySQL maps to ImprovedMySQLDialect — see its javadoc for why the
+		// otherwise-empty subclass exists.
 		MYSQL("org.transitclock.applications.SchemaGenerator$ImprovedMySQLDialect"),
 		POSTGRES("org.hibernate.dialect.PostgreSQLDialect"),
 		HSQL("org.hibernate.dialect.HSQLDialect");

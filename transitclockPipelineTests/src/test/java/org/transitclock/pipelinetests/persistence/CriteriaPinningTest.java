@@ -48,12 +48,53 @@ public class CriteriaPinningTest {
 	private static final Date WINDOW_END = new Date(1_466_500_000_000L);   // 2016-06-21T11:46:40Z
 
 	// ----- ArrivalDeparture: tripId+serviceId variant -----
-	// Shape-only: Arrival/Departure constructors require a Block, which only
-	// exists once a Core has matched a vehicle to a route. Seeding inside this
-	// test would mean replaying an AVL through AvlProcessor — out of scope here
-	// (DbPersistenceBehaviorTest already does that). The pinning value of these
-	// tests is "the legacy Criteria API call still compiles and executes
-	// without throwing"; the rewrite must preserve the same query shape.
+	// The protected ArrivalDeparture constructors require a fully-populated
+	// Block, which only exists once a Core has matched a vehicle to a route.
+	// Seeding via the constructor would mean replaying an AVL through
+	// AvlProcessor — that path is exercised by DbPersistenceBehaviorTest.
+	// Here we go around the constructors with a raw INSERT so a "predicate
+	// dropped" regression in the rewrite shows up as wrong row count rather
+	// than as a silent pass.
+
+	private static void seedArrivalDeparture(Session s, String vehicleId,
+			Date time, String tripId, String serviceId, String stopId) {
+		// ArrivalDeparture uses single-table inheritance with subclasses
+		// Arrival/Departure, so DTYPE is NOT NULL. We seed as 'Arrival'.
+		s.createNativeMutationQuery(
+				"insert into ArrivalsDepartures "
+				+ "(dtype, vehicleId, time, stopId, gtfsStopSeq, isArrival, "
+				+ " tripId, serviceId, configRev, tripIndex, stopPathIndex, "
+				+ " stopPathLength) "
+				+ "values ('Arrival', :vid, :t, :stop, 0, true, :trip, :svc, "
+				+ "        0, 0, 0, 0.0)")
+				.setParameter("vid", vehicleId)
+				.setParameter("t", time)
+				.setParameter("stop", stopId)
+				.setParameter("trip", tripId)
+				.setParameter("svc", serviceId)
+				.executeUpdate();
+	}
+
+	@Test
+	public void arrivalDepartureTripIdFilterIsApplied() {
+		String matchTrip = "trip-ad-match";
+		String otherTrip = "trip-ad-other";
+		Date inWindow = new Date(WINDOW_BEGIN.getTime() + 1_000L);
+
+		inSessionWithCommit(s -> {
+			seedArrivalDeparture(s, "v-ad-1", inWindow, matchTrip, "svc-1", "stop-A");
+			seedArrivalDeparture(s, "v-ad-2", inWindow, otherTrip, "svc-1", "stop-B");
+			return null;
+		});
+
+		try (Session session = PersistenceTestSupport.openSession()) {
+			List<ArrivalDeparture> rows = ArrivalDeparture.getArrivalsDeparturesFromDb(
+					session, WINDOW_BEGIN, WINDOW_END, matchTrip, "svc-1");
+			assertThat(rows).hasSizeGreaterThanOrEqualTo(1);
+			assertThat(rows).allMatch(ad -> matchTrip.equals(ad.getTripId()),
+					"every row matches the requested tripId");
+		}
+	}
 
 	@Test
 	public void arrivalDepartureByTripAndService() {
@@ -134,13 +175,83 @@ public class CriteriaPinningTest {
 	}
 
 	// ----- TravelTimesForTrip -----
+	// Seed two rows with different travelTimesRev so a "predicate dropped"
+	// regression in the rewrite returns wrong row count, not silent pass.
 
 	@Test
-	public void travelTimesForTripsByRevisionReturnsMap() {
+	public void travelTimesForTripsByRevisionFiltersByRev() {
+		int matchRev = 9991;
+		int otherRev = 9992;
+		String matchPattern = "pattern-pin-match";
+		String otherPattern = "pattern-pin-other";
+
+		inSessionWithCommit(s -> {
+			s.createNativeMutationQuery(
+					"insert into TravelTimesForTrips "
+					+ "(id, travelTimesRev, configRev, tripPatternId, tripCreatedForId) "
+					+ "values (:id, :rev, 0, :pat, :trip)")
+					.setParameter("id", 999_991)
+					.setParameter("rev", matchRev)
+					.setParameter("pat", matchPattern)
+					.setParameter("trip", "trip-ttft-match")
+					.executeUpdate();
+			s.createNativeMutationQuery(
+					"insert into TravelTimesForTrips "
+					+ "(id, travelTimesRev, configRev, tripPatternId, tripCreatedForId) "
+					+ "values (:id, :rev, 0, :pat, :trip)")
+					.setParameter("id", 999_992)
+					.setParameter("rev", otherRev)
+					.setParameter("pat", otherPattern)
+					.setParameter("trip", "trip-ttft-other")
+					.executeUpdate();
+			return null;
+		});
+
 		try (Session session = PersistenceTestSupport.openSession()) {
 			Map<String, List<TravelTimesForTrip>> map =
-					TravelTimesForTrip.getTravelTimesForTrips(session, 0);
-			assertThat(map).isNotNull();
+					TravelTimesForTrip.getTravelTimesForTrips(session, matchRev);
+			assertThat(map).containsKey(matchPattern);
+			assertThat(map).doesNotContainKey(otherPattern);
+		}
+	}
+
+	@Test
+	public void travelTimesForTripsByRevisionReturnsEmptyMapForUnknownRev() {
+		try (Session session = PersistenceTestSupport.openSession()) {
+			Map<String, List<TravelTimesForTrip>> map =
+					TravelTimesForTrip.getTravelTimesForTrips(session, -1);
+			assertThat(map).isEmpty();
+		}
+	}
+
+	// ----- ScheduleAdherenceController / AvlJsonQuery time-cast portability ---
+	// These reports filter ArrivalsDepartures by `cast(time as time) between
+	// :start and :end` so the WHERE clause works on Postgres, MySQL, and
+	// HSQL. The earlier MySQL-only `time(time)` form would silently parse on
+	// HSQL but error on Postgres. Smoke-execute the SQL-standard cast here
+	// so a regression to a vendor-specific function is caught at test time.
+
+	@Test
+	public void castTimeAsTimeIsAcceptedByHsql() {
+		Date inWindow = new Date(WINDOW_BEGIN.getTime() + 5_000L);
+		inSessionWithCommit(s -> {
+			seedArrivalDeparture(s, "v-time-1", inWindow,
+					"trip-time-1", "svc-time-1", "stop-T");
+			return null;
+		});
+
+		// HSQL strict typing requires HH:MM:SS; Postgres/MySQL accept HH:MM
+		// too. The production callers (ScheduleAdherenceController /
+		// AvlJsonQuery) target Postgres and MySQL, so the controller-side
+		// HH:MM format is fine in production — the cast itself is the
+		// portability fix being pinned here.
+		try (Session session = PersistenceTestSupport.openSession()) {
+			Number count = (Number) session.createNativeQuery(
+					"select count(*) from ArrivalsDepartures "
+					+ "where cast(time as time) between "
+					+ "cast('00:00:00' as time) and cast('23:59:59' as time)")
+					.uniqueResult();
+			assertThat(count.intValue()).isGreaterThanOrEqualTo(1);
 		}
 	}
 

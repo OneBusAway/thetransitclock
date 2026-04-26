@@ -14,7 +14,6 @@
 	</parent>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<javax.activation.version>1.2.0</javax.activation.version>
 		<jaxb.api.version>3.0.2</jaxb.api.version>
 		<lombok.version>1.18.24</lombok.version>
 		<hibernate.version>5.4..Final</hibernate.version>
@@ -30,12 +29,6 @@
 
 	</pluginRepositories>
 	<dependencies>
-		<dependency>
-			<groupId>com.sun.activation</groupId>
-			<artifactId>javax.activation</artifactId>
-			<version>${javax.activation.version}</version>
-		</dependency>
-
 
 <!-- Jakarta XML Bind 4.0 (Jakarta EE 10) — Phase B namespace migration. -->
 <dependency>
@@ -89,10 +82,12 @@
                 <version>42.6.0</version>
          </dependency>
 
-		<!-- Hibernate ORM 6.5 — Jakarta-namespace line. The hibernate-platform
-		     BOM keeps transitive versions (jpa-api 3.1, byte-buddy, etc.) aligned
-		     per the Hibernate docs. groupId moved from org.hibernate to
-		     org.hibernate.orm at the 6.x line. -->
+		<!-- Hibernate ORM 6.5 — Jakarta-namespace line. groupId moved from
+		     org.hibernate to org.hibernate.orm at the 6.x line. The
+		     jpa-api / transaction-api versions below are the ones pulled
+		     transitively by hibernate-core 6.5.3 — declared explicitly so
+		     a future Hibernate bump that drifts the API version trips a
+		     dep-resolver conflict instead of going unnoticed. -->
 		<dependency>
 		    <groupId>org.hibernate.orm</groupId>
 		    <artifactId>hibernate-core</artifactId>
@@ -246,11 +241,18 @@
 			<version>1.9.2</version>
 		</dependency>
 
-		<!-- So can send out monitoring related e-mails -->
+		<!-- Jakarta Mail 2.x — the jakarta-namespace successor to
+		     javax.mail:mail. EmailSender uses it to send monitoring alerts. -->
 		<dependency>
-			<groupId>javax.mail</groupId>
-			<artifactId>mail</artifactId>
-			<version>1.4.7</version>
+			<groupId>jakarta.mail</groupId>
+			<artifactId>jakarta.mail-api</artifactId>
+			<version>2.1.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.angus</groupId>
+			<artifactId>angus-mail</artifactId>
+			<version>2.0.3</version>
+			<scope>runtime</scope>
 		</dependency>
 
 		<dependency>
