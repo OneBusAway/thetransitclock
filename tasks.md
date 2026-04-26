@@ -54,7 +54,7 @@ Small, isolated, low-risk. Single PR. Exit gate: green on `Java 21 + Tomcat 9 + 
 
 ### Task 7 — Phase A: Java 21 toolchain bump
 
-- **Status:** pending
+- **Status:** in progress
 - **Blocked by:** Task 6
 - **Description:**
   - All poms: `<source>17</source>`/`<target>17</target>` → `<release>21</release>` on `maven-compiler-plugin`; bump plugin to `3.13.0`.
