@@ -24,7 +24,7 @@ Add green coverage of every layer the upgrade will touch on the current `javax` 
 
 ### Task 3 — Phase 0.3: Hibernate entity round-trip + Criteria pinning tests
 
-- **Status:** pending
+- **Status:** in progress
 - **Blocked by:** —
 - **Description:** Round-trip test per `@Entity` in `db/structs/` and `db/webstructs/` via `DbQueue` (the actual write path used by `DataDbLogger`), under `transitclockPipelineTests/src/test/java/org/transitclock/pipelinetests/persistence/`. Reuse `CoreHarness`. Plus pinning tests for the 8+ legacy Criteria API call sites under `core/dataCache/` (`StopArrivalDepartureCacheInterface`, `VehicleDataCache`, `dataCache/ehcache/StopArrivalDepartureCache`, `dataCache/jcs/scheduled/TripDataHistoryCache`, `misc/HibernateTest`, etc.). The legacy Criteria API was **removed in Hibernate 6.0**; these pinning tests become the spec for the JPA Criteria rewrite.
 
