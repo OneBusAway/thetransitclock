@@ -19,16 +19,13 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.jersey.server.ResourceConfig;
-import org.junit.After;
 import org.junit.Test;
-import org.transitclock.api.gtfsRealtime.GtfsRtTestSupport;
 import org.transitclock.ipc.clients.CacheQueryInterfaceFactory;
 import org.transitclock.ipc.interfaces.CacheQueryInterface;
 
 /**
- * Smoke for {@link CacheApi}: hits {@code /command/kalmanerrorcachekeys} as
- * a representative GET in JSON and XML form. The endpoint exercises the
- * resource → CacheQueryInterface → JAXB serialization path.
+ * Smoke for {@link CacheApi}: hits {@code /command/kalmanerrorcachekeys}
+ * in JSON and XML form.
  */
 public class CacheApiSmokeTest extends JaxRsResourceSmokeBase {
 
@@ -42,25 +39,13 @@ public class CacheApiSmokeTest extends JaxRsResourceSmokeBase {
 		super.setUp();
 		CacheQueryInterface cacheIface = mock(CacheQueryInterface.class);
 		when(cacheIface.getKalmanErrorCacheKeys()).thenReturn(Collections.emptyList());
-		GtfsRtTestSupport.seedFactoryMap(CacheQueryInterfaceFactory.class,
-				"cachequeryInterfaceMap", AGENCY, cacheIface);
-	}
-
-	@After
-	@Override
-	public void tearDown() throws Exception {
-		try {
-			GtfsRtTestSupport.clearFactoryMap(CacheQueryInterfaceFactory.class,
-					"cachequeryInterfaceMap");
-		} finally {
-			super.tearDown();
-		}
+		registerFactoryMock(CacheQueryInterfaceFactory.class,
+				"cachequeryInterfaceMap", cacheIface);
 	}
 
 	@Test
 	public void kalmanErrorCacheKeysAsJson() {
-		Response r = target("/key/" + KEY + "/agency/" + AGENCY
-				+ "/command/kalmanerrorcachekeys")
+		Response r = agencyCommand("kalmanerrorcachekeys")
 				.request(MediaType.APPLICATION_JSON).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
@@ -70,8 +55,7 @@ public class CacheApiSmokeTest extends JaxRsResourceSmokeBase {
 
 	@Test
 	public void kalmanErrorCacheKeysAsXml() {
-		Response r = target("/key/" + KEY + "/agency/" + AGENCY
-				+ "/command/kalmanerrorcachekeys")
+		Response r = agencyCommand("kalmanerrorcachekeys")
 				.request(MediaType.APPLICATION_XML).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);

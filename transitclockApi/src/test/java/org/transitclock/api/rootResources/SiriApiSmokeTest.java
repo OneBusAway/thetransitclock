@@ -19,16 +19,14 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.jersey.server.ResourceConfig;
-import org.junit.After;
 import org.junit.Test;
-import org.transitclock.api.gtfsRealtime.GtfsRtTestSupport;
 import org.transitclock.ipc.clients.VehiclesInterfaceFactory;
 import org.transitclock.ipc.interfaces.VehiclesInterface;
 
 /**
  * Smoke for {@link SiriApi}: hits {@code /command/siri/vehicleMonitoring}
  * with empty vehicle data so the SIRI XML/JSON wrapper still serializes
- * cleanly. Uses both JSON and XML accept variants.
+ * cleanly.
  */
 public class SiriApiSmokeTest extends JaxRsResourceSmokeBase {
 
@@ -42,25 +40,12 @@ public class SiriApiSmokeTest extends JaxRsResourceSmokeBase {
 		super.setUp();
 		VehiclesInterface vehiclesIface = mock(VehiclesInterface.class);
 		when(vehiclesIface.getComplete()).thenReturn(Collections.emptyList());
-		GtfsRtTestSupport.seedFactoryMap(VehiclesInterfaceFactory.class,
-				"vehiclesInterfaceMap", AGENCY, vehiclesIface);
-	}
-
-	@After
-	@Override
-	public void tearDown() throws Exception {
-		try {
-			GtfsRtTestSupport.clearFactoryMap(VehiclesInterfaceFactory.class,
-					"vehiclesInterfaceMap");
-		} finally {
-			super.tearDown();
-		}
+		registerFactoryMock(VehiclesInterfaceFactory.class, "vehiclesInterfaceMap", vehiclesIface);
 	}
 
 	@Test
 	public void vehicleMonitoringAsJson() {
-		Response r = target("/key/" + KEY + "/agency/" + AGENCY
-				+ "/command/siri/vehicleMonitoring")
+		Response r = agencyCommand("siri/vehicleMonitoring")
 				.request(MediaType.APPLICATION_JSON).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
@@ -70,13 +55,11 @@ public class SiriApiSmokeTest extends JaxRsResourceSmokeBase {
 
 	@Test
 	public void vehicleMonitoringAsXml() {
-		Response r = target("/key/" + KEY + "/agency/" + AGENCY
-				+ "/command/siri/vehicleMonitoring")
+		Response r = agencyCommand("siri/vehicleMonitoring")
 				.request(MediaType.APPLICATION_XML).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
 		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_XML);
-		String body = r.readEntity(String.class);
-		assertThat(body).startsWith("<?xml");
+		assertThat(r.readEntity(String.class)).startsWith("<?xml");
 	}
 }

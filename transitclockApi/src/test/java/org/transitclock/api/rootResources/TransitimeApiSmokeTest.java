@@ -20,16 +20,13 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.glassfish.jersey.server.ResourceConfig;
-import org.junit.After;
 import org.junit.Test;
-import org.transitclock.api.gtfsRealtime.GtfsRtTestSupport;
 import org.transitclock.ipc.clients.ConfigInterfaceFactory;
 import org.transitclock.ipc.interfaces.ConfigInterface;
 
 /**
- * Smoke for {@link TransitimeApi}: hits {@code /command/vehicleIds} (a
- * representative GET) with both JSON and XML accept variants. The endpoint
- * exercises the resource → ConfigInterface → JAXB serialization path.
+ * Smoke for {@link TransitimeApi}: hits {@code /command/vehicleIds} with
+ * both JSON and XML accept variants.
  */
 public class TransitimeApiSmokeTest extends JaxRsResourceSmokeBase {
 
@@ -44,25 +41,12 @@ public class TransitimeApiSmokeTest extends JaxRsResourceSmokeBase {
 		List<String> vehicleIds = Arrays.asList("V1", "V2", "V3");
 		ConfigInterface configIface = mock(ConfigInterface.class);
 		when(configIface.getVehicleIds()).thenReturn(vehicleIds);
-		GtfsRtTestSupport.seedFactoryMap(ConfigInterfaceFactory.class,
-				"configInterfaceMap", AGENCY, configIface);
-	}
-
-	@After
-	@Override
-	public void tearDown() throws Exception {
-		try {
-			GtfsRtTestSupport.clearFactoryMap(ConfigInterfaceFactory.class,
-					"configInterfaceMap");
-		} finally {
-			super.tearDown();
-		}
+		registerFactoryMock(ConfigInterfaceFactory.class, "configInterfaceMap", configIface);
 	}
 
 	@Test
 	public void vehicleIdsAsJson() {
-		Response r = target("/key/" + KEY + "/agency/" + AGENCY + "/command/vehicleIds")
-				.request(MediaType.APPLICATION_JSON).get();
+		Response r = agencyCommand("vehicleIds").request(MediaType.APPLICATION_JSON).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
 		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_JSON);
@@ -72,8 +56,7 @@ public class TransitimeApiSmokeTest extends JaxRsResourceSmokeBase {
 
 	@Test
 	public void vehicleIdsAsXml() {
-		Response r = target("/key/" + KEY + "/agency/" + AGENCY + "/command/vehicleIds")
-				.request(MediaType.APPLICATION_XML).get();
+		Response r = agencyCommand("vehicleIds").request(MediaType.APPLICATION_XML).get();
 
 		assertThat(r.getStatus()).isEqualTo(200);
 		assertThat(r.getMediaType().toString()).startsWith(MediaType.APPLICATION_XML);
