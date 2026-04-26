@@ -23,22 +23,11 @@ FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /workspace
 
-# Pre-warm the dependency cache by copying the reactor poms first. This means
-# changing source code doesn't reinvalidate the dependency download layer.
-COPY pom.xml ./
-COPY transitclock/pom.xml                    transitclock/pom.xml
-COPY transitclockApi/pom.xml                 transitclockApi/pom.xml
-COPY transitclockWebapp/pom.xml              transitclockWebapp/pom.xml
-COPY transitclockQuickStart/pom.xml          transitclockQuickStart/pom.xml
-COPY transitclockBarefootClient/pom.xml      transitclockBarefootClient/pom.xml
-COPY transitclockTraccarClient/pom.xml       transitclockTraccarClient/pom.xml
-COPY transitclockIntegration/pom.xml         transitclockIntegration/pom.xml
-COPY transitclockPipelineTests/pom.xml       transitclockPipelineTests/pom.xml
-COPY coverage-report/pom.xml                 coverage-report/pom.xml
-
-# go-offline can fail in this codebase due to plugins that need real sources,
-# so we just let the actual build below pull what's missing into the cache.
-
+# We don't pre-warm the dependency cache by copying poms first because
+# `mvn dependency:go-offline` doesn't work cleanly in this reactor (some
+# plugins resolve based on real sources). Without that, copying poms
+# separately just wastes a cache slot — every source change still
+# invalidates the COPY below. Keep it simple.
 COPY . .
 
 # No --mount=type=cache here on purpose: a BuildKit cache mount lives outside

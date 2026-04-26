@@ -31,48 +31,66 @@ single docker network. The build is a multi-stage `docker/Dockerfile`:
 - **tomcat-runtime** — Tomcat 9 + JDK 17 + `api.war`/`web.war` (copied
   from builder).
 
-Per-deployment files live in `.deploy/` (gitignored):
+Per-deployment secrets live in a top-level `.env` (gitignored), and
+the rest of the per-deployment files live in `.deploy/` (also gitignored):
 
 ```
+.env                                     (cp from .env.example;
+                                          TRANSITCLOCK_DB_PASSWORD now,
+                                          TRANSITCLOCK_APIKEY after step 7)
 .deploy/
 ├── conf/
-│   ├── transitclockConfig.xml          (copy of docs/examples/, with your
-│   │                                    AVL feed URL filled in)
-│   ├── postgres_hibernate.cfg.xml      (copy of docs/examples/)
-│   └── tomcat.env                      (CATALINA_OPTS, including the
-│                                        minted API key from step 7)
-├── ddl/                                 (SchemaGenerator output — applied
-│                                        to the `web` and per-agency DBs)
-├── logs/                                (mounted into Core)
+│   ├── transitclockConfig.xml           (copy of docs/examples/, with
+│   │                                     your AVL feed URL filled in)
+│   └── postgres_hibernate.cfg.xml       (copy of docs/examples/)
+├── ddl/                                  (SchemaGenerator output — applied
+│                                         to the `web` and per-agency DBs)
+├── logs/                                 (mounted into Core)
 └── <your-gtfs>.zip
 ```
 
 The flow then is just the §1–§9 flow run inside containers:
 
 ```bash
+# 0. Set up the top-level .env. TRANSITCLOCK_DB_PASSWORD now,
+#    TRANSITCLOCK_APIKEY after step 7. compose substitutes both into the
+#    services that need them and refuses to start a service whose
+#    required value is unset (with a one-line message pointing here).
+cp .env.example .env
+$EDITOR .env
+
 # 1+2. Build all images (builder runs once, runtime stages copy from it).
 docker compose build
 
-# 3. Start Postgres. The init script in docker/postgres-init.sql creates
-#    the `web` database and the `transitclock` role; POSTGRES_DB creates
-#    the per-agency database.
+# 3. Start Postgres. docker/postgres-init.sh creates the `web` database
+#    and the `transitclock` role (using TRANSITCLOCK_DB_PASSWORD from
+#    .env); POSTGRES_DB creates the per-agency database.
 docker compose up -d db
 
 # 4. Generate DDL via mvn exec:java in the tools container, then apply it
 #    to the right databases via psql (also in the tools container).
-docker compose run --rm tools bash -c "
-  cd /workspace/transitclock &&
+#
+#    The `bash -euo pipefail -c` form makes a failure anywhere in the chain
+#    abort the whole step (otherwise psql/mvn errors after the first &&
+#    can be silently lost). `psql -v ON_ERROR_STOP=1` does the same on
+#    psql's side — without it, psql continues past CREATE TABLE failures
+#    and exits 0, which can leave half-applied schemas.
+docker compose run --rm tools bash -euo pipefail -c "
+  cd /workspace/transitclock
   mvn -q exec:java \
     -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
-    -Dexec.args='-o /deploy/ddl -p org.transitclock.db.structs' &&
+    -Dexec.args='-o /deploy/ddl -p org.transitclock.db.structs'
   mvn -q exec:java \
     -Dexec.mainClass=org.transitclock.applications.SchemaGenerator \
-    -Dexec.args='-o /deploy/ddl -p org.transitclock.db.webstructs'"
+    -Dexec.args='-o /deploy/ddl -p org.transitclock.db.webstructs'
+  test -s /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql
+  test -s /deploy/ddl/ddl_postgres_org_transitclock_db_webstructs.sql
+  grep -c 'CREATE TABLE' /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql"
 
-docker compose run --rm tools bash -c "
-  psql -h db -U transitclock -d <agency-db> \
-       -f /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql &&
-  psql -h db -U transitclock -d web \
+docker compose run --rm tools bash -euo pipefail -c "
+  psql -v ON_ERROR_STOP=1 -h db -U transitclock -d <agency-db> \
+       -f /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql
+  psql -v ON_ERROR_STOP=1 -h db -U transitclock -d web \
        -f /deploy/ddl/ddl_postgres_org_transitclock_db_webstructs.sql"
 
 # 5. Drop your transitclockConfig.xml + postgres_hibernate.cfg.xml into
@@ -80,7 +98,7 @@ docker compose run --rm tools bash -c "
 #    every container.
 
 # 6. Import GTFS.
-docker compose run --rm tools bash -c "java -Xmx2g \
+docker compose run --rm tools bash -euo pipefail -c "java -Xmx2g \
   -Dtransitclock.core.agencyId=<id> \
   -Dtransitclock.db.dbType=postgresql \
   -Dtransitclock.db.dbHost=db \
@@ -93,9 +111,12 @@ docker compose run --rm tools bash -c "java -Xmx2g \
   -gtfsZipFileName /deploy/<your-gtfs>.zip \
   -storeNewRevs"
 
-# 7. CreateWebAgency: hostName MUST be `core` (the docker network DNS
-#    name of the core service) so the API resolves it inside the network.
-docker compose run --rm tools bash -c "java \
+# 7. CreateWebAgency takes the DB target from positional args, so it
+#    doesn't need -Dtransitclock.db.dbName=web. CreateAPIKey *does* need
+#    it (see the comment on the next block). hostName MUST be `core` (the
+#    docker network DNS name of the core service) so the API resolves it
+#    inside the network.
+docker compose run --rm tools bash -euo pipefail -c "java \
   -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
   -Dtransitclock.db.dbType=postgresql -Dtransitclock.db.dbHost=db \
   -Dtransitclock.db.dbUserName=transitclock -Dtransitclock.db.dbPassword=changeme \
@@ -104,7 +125,7 @@ docker compose run --rm tools bash -c "java \
 
 # Mint the API key. Note -Dtransitclock.db.dbName=web — see §7 below
 # for why CreateAPIKey crashes without it.
-docker compose run --rm tools bash -c "java \
+docker compose run --rm tools bash -euo pipefail -c "java \
   -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml \
   -Dtransitclock.db.dbType=postgresql -Dtransitclock.db.dbHost=db \
   -Dtransitclock.db.dbName=web \
@@ -113,16 +134,38 @@ docker compose run --rm tools bash -c "java \
   -c /etc/transitclock/transitclockConfig.xml \
   -n 'ops' -u 'http://localhost' -e 'ops@example.org' -p '555-0100' -d 'Ops key'"
 
-# Save the printed key into .deploy/conf/tomcat.env on a single line:
-#   CATALINA_OPTS=-Dtransitclock.configFiles=... -Dtransitclock.apikey=<key>
+# Add the printed key to .env:
+#   TRANSITCLOCK_APIKEY=<the key>
+# (docker compose substitutes it into tomcat's CATALINA_OPTS at boot.
+# Without it tomcat refuses to start with a helpful error message.)
 
-# 8+9. Start Core and Tomcat. Both pull JVM properties from
-# docker-compose.yml (core) and .deploy/conf/tomcat.env (tomcat).
+# 8+9. Start Core and Tomcat. Both pull DB credentials and the API key
+# from .env via docker-compose.yml's interpolation.
 docker compose up -d core tomcat
 
 # Smoke test:
 curl "http://localhost:8080/api/v1/key/<API_KEY>/agency/<id>/command/gtfs-rt/tripUpdates?format=human"
 ```
+
+If that curl returns a non-empty TripUpdates protobuf within a minute or
+two of starting Core, **you're done**. The §1–§9 sections below are the
+bare-metal equivalent of what §0 just walked through and aren't required
+reading; jump to **§10 Updating GTFS** for the day-2 workflow.
+
+If the smoke test returns empty / errors, the most common causes are:
+
+- **Empty protobuf:** Core hasn't completed a full AVL polling cycle yet
+  (default 5s, but matchers need 1–2 cycles before predictions land).
+  Tail `docker compose logs core | grep -i prediction` and
+  `.deploy/logs/<agencyId>/core/.../avl.log.gz`.
+- **`apiKey="null"` / 401 on every page:** `transitclock.apikey` in
+  `tomcat.env` doesn't match the key minted in step 7. See §10.
+- **"no agencies" / RMI timeouts:** the WebAgency row's `hostName`
+  doesn't match the docker network DNS name (must be `core`), or
+  `transitclock.db.dbName=web` is missing from `CATALINA_OPTS`. See §10.
+- **No tables / DDL incomplete:** confirm with
+  `docker compose exec db psql -U transitclock -d <agency-db> -c '\dt' | wc -l`.
+  Should be 30+.
 
 A couple of Docker-specific gotchas worth knowing:
 
@@ -140,13 +183,35 @@ A couple of Docker-specific gotchas worth knowing:
   `command:` in compose** — Java will try to load `sh` as a main class.
   Set `entrypoint: ["sh", "-c"]` in compose and put the full `java …`
   invocation in `command:` instead, which is what we do.
-- **Custom HTTP headers on the AVL feed:** `PollUrlAvlModule` only supports
-  HTTP basic auth via `transitclock.avl.authenticationUser` /
+- **Custom HTTP headers on the AVL feed:** `PollUrlAvlModule` only
+  supports HTTP basic auth via `transitclock.avl.authenticationUser` /
   `authenticationPassword`. If your provider needs a different header
   (WMATA: `api_key: <key>`) and accepts the same value as a query-string
   parameter, embed it in `gtfsRealtimeFeedURI` — that path requires no
-  code changes. Note the URL ends up in `core.log` on every poll, so
-  treat the log directory as sensitive if you go that route.
+  code changes, but **the secret will leak**:
+    - `PollUrlAvlModule.getAndProcessData()` logs the full URL at INFO
+      on every poll, so the key ends up in
+      `${transitclock.logging.dir}/<agencyId>/core/.../avl.log.gz` and
+      `core.log.gz`, rotated and gzipped but unencrypted.
+    - `RmiQuery -c config` returns every config value (including
+      `transitclock.avl.gtfsRealtimeFeedURI`) over RMI without any
+      authentication, so anyone who can reach Core's RMI ports can read
+      the key.
+    - Pasting a `core.log` snippet into a GitHub issue or chat
+      guarantees a leak.
+
+  Concrete mitigations, in order of effort:
+    1. Strip the parameter before sharing logs:
+       `gunzip -c core.log.gz | sed -E 's/api_key=[^& ]+/api_key=REDACTED/g'`.
+    2. `chmod 0700` `${transitclock.logging.dir}` and own it as the Core
+       service user only.
+    3. Don't expose the RMI ports (2099/2098) past localhost / the
+       docker network.
+    4. Subclass `PollUrlAvlModule` with a ~10-line override of
+       `setRequestHeaders(URLConnection)` that reads the secret from a
+       `StringConfigValue` you mark as `secret=true`, then register the
+       subclass in `transitclock.modules.optionalModulesList`. This is
+       the only path that keeps the secret out of `core.log` entirely.
 
 ## 1. What you need to source externally
 
