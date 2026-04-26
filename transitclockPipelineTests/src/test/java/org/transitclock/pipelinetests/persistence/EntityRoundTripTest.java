@@ -9,18 +9,15 @@
 package org.transitclock.pipelinetests.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.transitclock.pipelinetests.persistence.PersistenceTestSupport.inSession;
+import static org.transitclock.pipelinetests.persistence.PersistenceTestSupport.inSessionWithCommit;
 
 import java.util.Date;
 import java.util.List;
-import java.util.function.Function;
 
-import org.hibernate.Session;
-import org.hibernate.Transaction;
 import org.hibernate.criterion.Restrictions;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.transitclock.configData.AgencyConfig;
-import org.transitclock.db.hibernate.HibernateUtils;
 import org.transitclock.db.structs.Headway;
 import org.transitclock.db.structs.HoldingTime;
 import org.transitclock.db.structs.MeasuredArrivalTime;
@@ -30,42 +27,29 @@ import org.transitclock.pipelinetests.CoreHarness;
 
 /**
  * Save → flush → fresh-session-read for a representative subset of
- * {@code @Entity} classes. Catches Hibernate-6 type-mapping regressions
- * (boolean/enum/temporal) on the entities the runtime writes.
+ * runtime-writable {@code @Entity} classes:
+ * {@code ApiKey}, {@code Headway}, {@code HoldingTime},
+ * {@code PredictionForStopPath}, {@code MeasuredArrivalTime}.
+ * Catches Hibernate-6 type-mapping regressions
+ * (boolean / temporal / integer column types) on entities the existing
+ * pipeline tests don't already touch.
  *
  * <p>{@code DbPersistenceBehaviorTest} already round-trips {@code AvlReport}
- * and {@code ArrivalDeparture} through {@code DataDbLogger}; GTFS-config
- * entities ({@code Route}, {@code Stop}, {@code Trip}, etc.) are loaded by
- * {@link CoreHarness} as part of the WMATA 5A fixture import, which is
- * itself a round-trip exercising those mappings. This class fills the gap.
+ * and {@code ArrivalDeparture} through the {@code DataDbLogger} pipeline.
+ * GTFS-config entities ({@code Route}, {@code Stop}, {@code Trip}, etc.) are
+ * loaded by {@link CoreHarness} as part of the WMATA 5A fixture import,
+ * which is itself a round-trip exercising those mappings.
  */
 public class EntityRoundTripTest {
 
 	@ClassRule
 	public static final CoreHarness CORE = CoreHarness.withWmata5A();
 
-	private static <T> T inSessionWithCommit(Function<Session, T> body) {
-		try (Session session = HibernateUtils.getSession(AgencyConfig.getAgencyId())) {
-			Transaction tx = session.beginTransaction();
-			try {
-				T result = body.apply(session);
-				tx.commit();
-				return result;
-			} catch (RuntimeException e) {
-				tx.rollback();
-				throw e;
-			}
-		}
-	}
-
-	private static <T> T inSession(Function<Session, T> body) {
-		try (Session session = HibernateUtils.getSession(AgencyConfig.getAgencyId())) {
-			return body.apply(session);
-		}
-	}
-
 	@Test
 	public void apiKeyRoundTrip() {
+		// The @Id is applicationKey (a 20-char column), not a generated
+		// surrogate. nanoTime hex suffix avoids PK collision if the fixture
+		// or another test in this class persists an "applicationKey" first.
 		String key = "k-" + Long.toHexString(System.nanoTime());
 		ApiKey toSave = new ApiKey("test-app", key,
 				"https://example.com", "owner@example.com", "555-1234", "description");
@@ -102,7 +86,6 @@ public class EntityRoundTripTest {
 
 		Long id = inSessionWithCommit(s -> {
 			s.save(toSave);
-			s.flush();
 			return toSave.getId();
 		});
 
