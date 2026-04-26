@@ -33,9 +33,10 @@ Practical implications:
   directly; don't skimp on them just because the page-rendering JSPs don't.
 - It additionally needs `-Dtransitclock.apikey=<key>` set in `CATALINA_OPTS`.
   `template/includes.jsp` reads it via
-  `System.getProperty("transitclock.apikey")` and bakes it into the
-  `apiUrlPrefix` JavaScript variable. Without it the JSP renders
-  `apiKey="null"` and every API call 401s. Mint the key with
+  `System.getProperty("transitclock.apikey")` and bakes it into a JavaScript
+  `apiKey` variable, which `apiUrlPrefix` then concatenates into the
+  `/api/v1/key/<key>/agency/<id>/...` URL segment. Without the property the
+  JSP renders `apiKey="null"` and every API call 401s. Mint the key with
   `CreateAPIKey.jar` (see [`transitclock/README.md`](../transitclock/README.md))
   and reuse the same key here.
 

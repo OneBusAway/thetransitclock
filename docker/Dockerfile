@@ -62,7 +62,15 @@ WORKDIR /opt/transitclock
 # via volumes, so we create them up-front.
 COPY --from=builder /workspace/transitclock/target/Core.jar ./Core.jar
 
-RUN mkdir -p /var/log/transitclock /var/run/transitclock
+# Run as a non-root user so a Core compromise can't trivially write outside
+# its own directories. UID 10001 is high enough not to collide with anything
+# the base image creates and stable enough that bind-mounted host volumes
+# (e.g. .deploy/logs) can be chowned to it deterministically.
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin transitclock \
+ && mkdir -p /var/log/transitclock /var/run/transitclock \
+ && chown -R 10001:10001 /opt/transitclock /var/log/transitclock /var/run/transitclock
+
+USER 10001
 
 EXPOSE 2099 2098
 
@@ -82,5 +90,13 @@ RUN rm -rf /usr/local/tomcat/webapps/ROOT
 
 COPY --from=builder /workspace/transitclockApi/target/api.war        /usr/local/tomcat/webapps/api.war
 COPY --from=builder /workspace/transitclockWebapp/target/web.war     /usr/local/tomcat/webapps/web.war
+
+# Same hardening as core-runtime: non-root service account. Tomcat needs to
+# write into /usr/local/tomcat/{logs,temp,work,webapps} (catalina.sh creates
+# log files, deploys explode there), so chown the whole directory.
+RUN useradd --system --uid 10002 --no-create-home --shell /usr/sbin/nologin tomcat-runtime \
+ && chown -R 10002:10002 /usr/local/tomcat
+
+USER 10002
 
 EXPOSE 8080

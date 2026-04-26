@@ -34,7 +34,7 @@ single docker network. The build is a multi-stage `docker/Dockerfile`:
 Per-deployment secrets live in a top-level `.env` (gitignored), and
 the rest of the per-deployment files live in `.deploy/` (also gitignored):
 
-```
+```text
 .env                                     (cp from .env.example;
                                           TRANSITCLOCK_DB_PASSWORD now,
                                           TRANSITCLOCK_APIKEY after step 7)
@@ -183,6 +183,12 @@ A couple of Docker-specific gotchas worth knowing:
   `command:` in compose** — Java will try to load `sh` as a main class.
   Set `entrypoint: ["sh", "-c"]` in compose and put the full `java …`
   invocation in `command:` instead, which is what we do.
+- **Non-root runtime users on Linux hosts:** `core-runtime` runs as
+  UID `10001` and `tomcat-runtime` as UID `10002`, so the bind-mounted
+  `.deploy/logs/` directory has to be writable by UID `10001`. macOS
+  Docker Desktop's VirtioFS makes this transparent; on a Linux host
+  you'll want `sudo chown -R 10001:10001 .deploy/logs` once before
+  the first `docker compose up -d core`.
 - **Custom HTTP headers on the AVL feed:** `PollUrlAvlModule` only
   supports HTTP basic auth via `transitclock.avl.authenticationUser` /
   `authenticationPassword`. If your provider needs a different header
@@ -218,7 +224,7 @@ A couple of Docker-specific gotchas worth knowing:
 | Input | Purpose | Where to get it |
 |---|---|---|
 | **GTFS static feed** (`.zip`) | Routes, stops, trips, schedule, shapes — the static skeleton TheTransitClock matches AVL onto. | Your transit agency's open-data portal, [Mobility Database](https://database.mobilitydata.org/), or [transit.land](https://www.transit.land/feeds). Must be GTFS, not GTFS-Flex. |
-| **GTFS-realtime VehiclePositions feed** (URL) | Live AVL stream. Must be a [VehiclePositions](https://gtfs.org/documentation/realtime/feed-entities/vehicle-positions/) feed (not TripUpdates / Alerts). | Same agency or aggregator. The URL is polled every 5 s by default. HTTP basic auth and headers are supported. |
+| **GTFS-realtime VehiclePositions feed** (URL) | Live AVL stream. Must be a [VehiclePositions](https://gtfs.org/documentation/realtime/feed-entities/vehicle-positions/) feed (not TripUpdates / Alerts). | Same agency or aggregator. The URL is polled every 5 s by default. HTTP basic auth is supported via `transitclock.avl.authenticationUser` / `…Password`; arbitrary custom headers (e.g. WMATA's `api_key:`) require subclassing `PollUrlAvlModule` or embedding the secret in the URL — see the AVL-feed gotcha further down. |
 | **PostgreSQL 16+** | Persists config, GTFS, AVL, predictions, arrivals/departures, web agency registry, and API keys. | Any standard install. The shipped `docker-compose.yml` pins Postgres 17. MySQL also works (`-Dtransitclock.db.dbType=mysql`); HSQLDB is for tests only. |
 | **JDK 17** | Runtime. | Any LTS distribution. |
 | **Tomcat 9** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 10+ won't work** — both WARs are still on `javax.servlet`, and Tomcat 10 switched to the Jakarta `jakarta.servlet` namespace. | Apache Tomcat distribution. |
@@ -523,11 +529,16 @@ WARs into Tomcat's `webapps/`.
 
 The API needs `transitclock.configFiles` and the same DB-related properties as
 Core, because it reads the `WebAgency` and `ApiKey` tables out of the `web`
-database to validate keys and route RMI lookups. The webapp doesn't open a DB
-session of its own, but it needs `transitclock.apikey` set: every page renders
-JavaScript that reads the key out of `System.getProperty("transitclock.apikey")`
-and uses it as a URL segment for API calls. Without it the JSP ships
-`apiKey="null"` and every request 401s. Use the key minted in step 7.
+database to validate keys and route RMI lookups. The webapp shares the same
+JVM and reuses those DB credentials for the report tier
+(`org.transitclock.reports`, which queries the per-agency database directly
+via Hibernate); the page-rendering JSPs themselves don't open a DB session,
+but the report endpoints will 500 if the credentials are missing. The webapp
+additionally needs `transitclock.apikey` set: every page renders JavaScript
+that reads the key out of `System.getProperty("transitclock.apikey")` into
+a JS `apiKey` variable and uses it as a URL segment for API calls. Without
+it the JSP ships `apiKey="null"` and every request 401s. Use the key minted
+in step 7.
 
 `/etc/default/tomcat9` (or wherever you set `CATALINA_OPTS`):
 
