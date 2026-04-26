@@ -15,10 +15,14 @@ import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.TimeZone;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.junit.rules.ExternalResource;
 import org.transitclock.api.utils.AgencyTimezoneCache;
 import org.transitclock.db.webstructs.ApiKey;
 import org.transitclock.db.webstructs.ApiKeyManager;
+import org.transitclock.db.webstructs.WebAgency;
 import org.transitclock.ipc.data.IpcPrediction;
 import org.transitclock.ipc.data.IpcVehicleGtfsRealtime;
 
@@ -205,6 +209,44 @@ public final class GtfsRtTestSupport {
 	public static void clearProducerCaches() {
 		clearStaticDataCache(GtfsRtVehicleFeed.class, "vehicleFeedDataCache");
 		clearStaticDataCache(GtfsRtTripFeed.class, "tripFeedDataCache");
+	}
+
+	/**
+	 * Seeds {@link WebAgency}'s static cache so resource handlers that call
+	 * {@link WebAgency#getCachedOrderedListOfWebAgencies()} short-circuit
+	 * past the DB read.
+	 */
+	public static void seedWebAgencies(List<WebAgency> webAgencies) {
+		try {
+			Field map = WebAgency.class.getDeclaredField("webAgencyMapCache");
+			map.setAccessible(true);
+			map.set(null, Collections.emptyMap());
+
+			Field read = WebAgency.class.getDeclaredField("webAgencyMapCacheReadTime");
+			read.setAccessible(true);
+			read.setLong(null, Long.MAX_VALUE);
+
+			Field ordered = WebAgency.class.getDeclaredField("webAgencyOrderedList");
+			ordered.setAccessible(true);
+			ordered.set(null, webAgencies);
+		} catch (ReflectiveOperationException e) {
+			throw new IllegalStateException("Could not seed WebAgency cache", e);
+		}
+	}
+
+	public static void clearWebAgencies() {
+		try {
+			for (String f : new String[] { "webAgencyMapCache", "webAgencyOrderedList" }) {
+				Field field = WebAgency.class.getDeclaredField(f);
+				field.setAccessible(true);
+				field.set(null, null);
+			}
+			Field read = WebAgency.class.getDeclaredField("webAgencyMapCacheReadTime");
+			read.setAccessible(true);
+			read.setLong(null, 0L);
+		} catch (ReflectiveOperationException e) {
+			throw new IllegalStateException("Could not clear WebAgency cache", e);
+		}
 	}
 
 	private static void clearStaticDataCache(Class<?> producer, String fieldName) {
