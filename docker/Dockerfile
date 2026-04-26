@@ -72,8 +72,8 @@ COPY --from=builder /workspace/transitclock/target/Core.jar ./Core.jar
 # the base image creates and stable enough that bind-mounted host volumes
 # (e.g. .deploy/logs) can be chowned to it deterministically.
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin transitclock \
- && mkdir -p /var/log/transitclock /var/run/transitclock \
- && chown -R 10001:10001 /opt/transitclock /var/log/transitclock /var/run/transitclock
+ && mkdir -p /var/log/transitclock /var/run/transitclock /usr/local/transitclock/cache \
+ && chown -R 10001:10001 /opt/transitclock /var/log/transitclock /var/run/transitclock /usr/local/transitclock
 
 USER 10001
 
