@@ -25,7 +25,7 @@
   <script src="javascript/map.js"></script>
   
   <!-- Load in JQuery -->
-  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+  <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 
   <!--  Override the body style from the includes.jsp/general.css files -->
   <style>

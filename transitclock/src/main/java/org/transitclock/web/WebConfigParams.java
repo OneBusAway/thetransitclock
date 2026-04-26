@@ -33,10 +33,18 @@ public class WebConfigParams {
 			new StringConfigValue("transitclock.web.mapTileUrl",
 					"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
 					"Specifies the URL used by Leaflet maps to fetch map "
-					+ "tiles. Default is the OpenStreetMap public tile "
-					+ "server, which is fine for development but is rate-"
-					+ "limited and asks heavy users to switch to a paid "
-					+ "provider or self-host. Override for production.");
+					+ "tiles. The default points at the OpenStreetMap "
+					+ "public tile server. This is fine for development "
+					+ "and trial deployments, but the OSMF Tile Usage "
+					+ "Policy "
+					+ "(https://operations.osmfoundation.org/policies/tiles/) "
+					+ "explicitly forbids using OSM's public tiles as the "
+					+ "default for an app with end-users, requires an "
+					+ "identifying User-Agent, and reserves the right to "
+					+ "block heavy traffic. Production deployments must "
+					+ "override this with a paid tile provider (Mapbox, "
+					+ "MapTiler, Thunderforest, …) or a self-hosted tile "
+					+ "server.");
 
 	public static String getMapTileCopyright() {
 		return mapTileCopyright.getValue();
