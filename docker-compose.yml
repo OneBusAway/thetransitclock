@@ -94,7 +94,7 @@ services:
       - ./.deploy/logs:/var/log/transitclock
     environment:
       JAVA_OPTS: >-
-        -Xmx4g -server
+        -Xmx6g -server
         -Dtransitclock.core.agencyId=1
         -Dtransitclock.configFiles=/etc/transitclock/transitclockConfig.xml
         -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml
