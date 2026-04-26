@@ -20,8 +20,8 @@ package org.transitclock.avl;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import javax.jms.JMSException;
-import javax.jms.MessageConsumer;
+import jakarta.jms.JMSException;
+import jakarta.jms.MessageConsumer;
 import javax.naming.NamingException;
 
 import org.slf4j.Logger;

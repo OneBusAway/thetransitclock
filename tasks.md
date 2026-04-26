@@ -72,7 +72,7 @@ Unavoidable big-bang. Don't ship in pieces — partial Jakarta is undefined beha
 
 ### Task 8 — Phase B: Jakarta + Tomcat 11 big-bang migration
 
-- **Status:** pending
+- **Status:** completed
 - **Blocked by:** Task 7
 - **Description:**
   - **Namespace migration:** Eclipse Transformer in-place across `transitclock/`, `transitclockApi/`, `transitclockWebapp/`, `transitclockTraccarClient/`, `transitclockBarefootClient/`, `transitclockIntegration/`, `transitclockPipelineTests/`. Skip `transitclockQuickStart/` (out of scope per user decision).

@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.HibernateException;
-import org.hibernate.SQLQuery;
 import org.hibernate.Session;
+import org.hibernate.query.NativeQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.applications.Core;
@@ -1049,7 +1049,7 @@ public class DbConfig {
 			while (!Thread.interrupted()) {
 				Time.sleep(60 * 1000);
 				try {
-					SQLQuery query = service.getGlobalSession().createSQLQuery(dbConfig.getValidateTestQuery());
+					NativeQuery<?> query = service.getGlobalSession().createNativeQuery(dbConfig.getValidateTestQuery(), Object.class);
 					query.list();
 					logger.debug("session test success");
 				} catch (Throwable t) {

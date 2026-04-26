@@ -4,22 +4,20 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Index;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
-import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.criterion.Restrictions;
 import org.transitclock.db.hibernate.HibernateUtils;
 /**
  * @author Sean Og Crudden
@@ -211,19 +209,20 @@ public class PredictionForStopPath implements Serializable{
 			Integer stopPathIndex)
 	{
 		Session session = HibernateUtils.getSession();
-		Criteria criteria = session.createCriteria(PredictionForStopPath.class);
-		
-		if(algorithm!=null&&algorithm.length()>0)
-			criteria.add(Restrictions.eq("algorithm", algorithm));
-		if(tripId!=null)
-			criteria.add(Restrictions.eq("tripId", tripId));
-		if(stopPathIndex!=null)
-			criteria.add(Restrictions.eq("stopPathIndex", stopPathIndex));			
-		if(beginTime!=null)
-			criteria.add(Restrictions.gt("creationTime", beginTime));
-		if(endTime!=null)
-			criteria.add(Restrictions.lt("creationTime", endTime));		
-		List<PredictionForStopPath> results=criteria.list();
+		StringBuilder hql = new StringBuilder("from PredictionForStopPath where 1=1");
+		if (algorithm != null && algorithm.length() > 0) hql.append(" and algorithm = :algorithm");
+		if (tripId != null) hql.append(" and tripId = :tripId");
+		if (stopPathIndex != null) hql.append(" and stopPathIndex = :stopPathIndex");
+		if (beginTime != null) hql.append(" and creationTime > :beginTime");
+		if (endTime != null) hql.append(" and creationTime < :endTime");
+		org.hibernate.query.Query<PredictionForStopPath> query =
+				session.createQuery(hql.toString(), PredictionForStopPath.class);
+		if (algorithm != null && algorithm.length() > 0) query.setParameter("algorithm", algorithm);
+		if (tripId != null) query.setParameter("tripId", tripId);
+		if (stopPathIndex != null) query.setParameter("stopPathIndex", stopPathIndex);
+		if (beginTime != null) query.setParameter("beginTime", beginTime);
+		if (endTime != null) query.setParameter("endTime", endTime);
+		List<PredictionForStopPath> results = query.getResultList();
 		if(results.size()>0)
 		{
 			System.out.println("Got some results");

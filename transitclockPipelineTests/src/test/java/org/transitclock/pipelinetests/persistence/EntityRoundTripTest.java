@@ -15,7 +15,6 @@ import static org.transitclock.pipelinetests.persistence.PersistenceTestSupport.
 import java.util.Date;
 import java.util.List;
 
-import org.hibernate.criterion.Restrictions;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.db.structs.Headway;
@@ -60,11 +59,11 @@ public class EntityRoundTripTest {
 		});
 
 		// Java field is applicationKey; the public getter is getKey().
-		@SuppressWarnings("unchecked")
-		List<ApiKey> rows = (List<ApiKey>) inSession(s ->
-				s.createCriteria(ApiKey.class)
-						.add(Restrictions.eq("applicationKey", key))
-						.list());
+		List<ApiKey> rows = inSession(s ->
+				s.createQuery(
+						"from ApiKey where applicationKey = :key", ApiKey.class)
+						.setParameter("key", key)
+						.getResultList());
 
 		assertThat(rows).hasSize(1);
 		ApiKey loaded = rows.get(0);
@@ -112,11 +111,11 @@ public class EntityRoundTripTest {
 			return null;
 		});
 
-		@SuppressWarnings("unchecked")
-		List<HoldingTime> rows = (List<HoldingTime>) inSession(s ->
-				s.createCriteria(HoldingTime.class)
-						.add(Restrictions.eq("vehicleId", "v-hold"))
-						.list());
+		List<HoldingTime> rows = inSession(s ->
+				s.createQuery(
+						"from HoldingTime where vehicleId = :vehicleId", HoldingTime.class)
+						.setParameter("vehicleId", "v-hold")
+						.getResultList());
 
 		assertThat(rows).hasSize(1);
 		HoldingTime loaded = rows.get(0);
@@ -136,11 +135,12 @@ public class EntityRoundTripTest {
 			return null;
 		});
 
-		@SuppressWarnings("unchecked")
-		List<PredictionForStopPath> rows = (List<PredictionForStopPath>) inSession(s ->
-				s.createCriteria(PredictionForStopPath.class)
-						.add(Restrictions.eq("vehicleId", "v-rt"))
-						.list());
+		List<PredictionForStopPath> rows = inSession(s ->
+				s.createQuery(
+						"from PredictionForStopPath where vehicleId = :vehicleId",
+						PredictionForStopPath.class)
+						.setParameter("vehicleId", "v-rt")
+						.getResultList());
 
 		assertThat(rows).hasSize(1);
 		PredictionForStopPath loaded = rows.get(0);
@@ -162,11 +162,12 @@ public class EntityRoundTripTest {
 
 		// MeasuredArrivalTime has no public getters (it's written by the
 		// website via raw SQL). Pin the round-trip by row count alone.
-		@SuppressWarnings("unchecked")
-		List<MeasuredArrivalTime> rows = (List<MeasuredArrivalTime>) inSession(s ->
-				s.createCriteria(MeasuredArrivalTime.class)
-						.add(Restrictions.eq("stopId", "stop-mat"))
-						.list());
+		List<MeasuredArrivalTime> rows = inSession(s ->
+				s.createQuery(
+						"from MeasuredArrivalTime where stopId = :stopId",
+						MeasuredArrivalTime.class)
+						.setParameter("stopId", "stop-mat")
+						.getResultList());
 
 		assertThat(rows).hasSize(1);
 		assertThat(rows.get(0)).isNotNull();

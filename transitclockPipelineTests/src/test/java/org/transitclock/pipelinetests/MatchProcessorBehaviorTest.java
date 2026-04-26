@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import org.hibernate.Session;
-import org.hibernate.criterion.Restrictions;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.configData.AgencyConfig;
@@ -69,12 +68,13 @@ public class MatchProcessorBehaviorTest {
 		return state;
 	}
 
-	@SuppressWarnings("unchecked")
 	private static List<Prediction> queryPredictionsForVehicle(String vehicleId) {
 		try (Session session = HibernateUtils.getSession(AgencyConfig.getAgencyId())) {
-			return session.createCriteria(Prediction.class)
-					.add(Restrictions.eq("vehicleId", vehicleId))
-					.list();
+			return session.createQuery(
+					"from Prediction where vehicleId = :vehicleId",
+					Prediction.class)
+					.setParameter("vehicleId", vehicleId)
+					.getResultList();
 		}
 	}
 

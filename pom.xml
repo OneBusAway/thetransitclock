@@ -18,6 +18,44 @@
     <module>transitclockBarefootClient</module>
     <module>coverage-report</module>
   </modules>
+
+  <!-- Pin transitives that otherwise resolve to JAXB 2.x build POMs from
+       the long-decommissioned jvnet-nexus / java.net repositories. Those
+       POMs reference broken parent coordinates and ${tools.jar} system
+       paths that fail under modern Maven; pinning these to current
+       Jakarta-line versions forces clean resolution. Hibernate 6.5 +
+       jakarta.xml.bind 4.0.2 is the source of truth for the runtime
+       stack — these are belt-and-suspenders for transitives. -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>jakarta.xml.bind</groupId>
+        <artifactId>jakarta.xml.bind-api</artifactId>
+        <version>4.0.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jaxb</groupId>
+        <artifactId>jaxb-runtime</artifactId>
+        <version>4.0.5</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jaxb</groupId>
+        <artifactId>jaxb-core</artifactId>
+        <version>4.0.5</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.istack</groupId>
+        <artifactId>istack-commons-runtime</artifactId>
+        <version>4.1.2</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.xml.fastinfoset</groupId>
+        <artifactId>FastInfoset</artifactId>
+        <version>2.1.1</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
     <build>
         <plugins>
             <plugin>

@@ -20,7 +20,7 @@ package org.transitclock.api.data.siri;
 import java.text.DateFormat;
 import java.util.Date;
 
-import javax.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElement;
 
 import org.transitclock.ipc.data.IpcPrediction;
 import org.transitclock.ipc.data.IpcVehicleComplete;

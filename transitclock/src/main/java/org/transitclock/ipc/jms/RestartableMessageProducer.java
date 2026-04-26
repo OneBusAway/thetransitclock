@@ -18,11 +18,11 @@ package org.transitclock.ipc.jms;
 
 import java.io.Serializable;
 
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.MessageProducer;
-import javax.jms.ObjectMessage;
-import javax.jms.TextMessage;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.ObjectMessage;
+import jakarta.jms.TextMessage;
 import javax.naming.NamingException;
 
 import org.slf4j.Logger;

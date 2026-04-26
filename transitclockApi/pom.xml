@@ -11,30 +11,60 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<!-- Jersey 2.35 ships ASM 9.0, which fails with
-		     "Unsupported class file major version 65" when its annotation
-		     scanner walks Java-21 (.class major 65) WAR classes at servlet
-		     init. 2.42 was the first 2.x release to bundle ASM 9.6
-		     (class-file 65 support); 2.43 is the stable Mar-2024 follow-up.
-		     Jersey 2.x stays on javax — 3.x is the jakarta fork — so this
-		     is still a Phase A bump. -->
-		<jersey.version>2.43</jersey.version>
+		<!-- Jersey 3.1.x is the jakarta-namespace line implementing
+		     Jakarta REST 3.1 / Jakarta EE 10. Minimum JDK is 11; runs
+		     cleanly on 21. 3.1.7 is the stable Mar-2024 release. -->
+		<jersey.version>3.1.7</jersey.version>
 	</properties>
+
+	<!-- See root pom.xml: pins JAXB 2.x build-POM transitives to working
+	     Jakarta-line versions so dep resolution doesn't try retired
+	     jvnet-nexus repositories. Duplicated here because this module
+	     does not declare <parent>. -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>jakarta.xml.bind</groupId>
+				<artifactId>jakarta.xml.bind-api</artifactId>
+				<version>4.0.2</version>
+			</dependency>
+			<dependency>
+				<groupId>org.glassfish.jaxb</groupId>
+				<artifactId>jaxb-runtime</artifactId>
+				<version>4.0.5</version>
+			</dependency>
+			<dependency>
+				<groupId>org.glassfish.jaxb</groupId>
+				<artifactId>jaxb-core</artifactId>
+				<version>4.0.5</version>
+			</dependency>
+			<dependency>
+				<groupId>com.sun.istack</groupId>
+				<artifactId>istack-commons-runtime</artifactId>
+				<version>4.1.2</version>
+			</dependency>
+			<dependency>
+				<groupId>com.sun.xml.fastinfoset</groupId>
+				<artifactId>FastInfoset</artifactId>
+				<version>2.1.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 
 
 		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>javax.servlet-api</artifactId>
-			<version>3.0.1</version>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>6.1.0</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- jax-rs 2.0 -->
+		<!-- Jakarta REST 3.1 -->
 		<dependency>
-			<groupId>javax.ws.rs</groupId>
-			<artifactId>javax.ws.rs-api</artifactId>
-			<version>2.0</version>
+			<groupId>jakarta.ws.rs</groupId>
+			<artifactId>jakarta.ws.rs-api</artifactId>
+			<version>3.1.0</version>
 		</dependency>
 		<!-- jersey implementation library -->
 		<dependency>
@@ -83,29 +113,19 @@
 			<artifactId>guava</artifactId>
 			<version>20.0</version>
 		</dependency>
-		<dependency>
-			<groupId>org.glassfish.jersey.bundles.repackaged</groupId>
-			<artifactId>jersey-guava</artifactId>
-			<version>2.6</version>
-		</dependency>
-		<!--SWAGGER DOCS -->
-
-		<!-- https://mvnrepository.com/artifact/io.swagger/swagger-jaxrs -->
-		<!-- https://mvnrepository.com/artifact/io.swagger/swagger-jersey2-jaxrs -->
-		<!-- <dependency> <groupId>io.swagger</groupId> <artifactId>swagger-jersey2-jaxrs</artifactId> 
-			<version>1.5.20</version> </dependency> -->
-		<!-- https://mvnrepository.com/artifact/io.swagger.core.v3/swagger-jaxrs2 -->
+		<!-- Swagger Core (Jakarta line). The "-jakarta" artifact id is the
+		     jakarta.* equivalent of swagger-jaxrs2, paired with Jersey 3.1
+		     and jakarta.ws.rs-api 3.1. -->
 		<dependency>
 			<groupId>io.swagger.core.v3</groupId>
-			<artifactId>swagger-jaxrs2</artifactId>
-			<version>2.0.2</version>
+			<artifactId>swagger-jaxrs2-jakarta</artifactId>
+			<version>2.2.22</version>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.webjars/swagger-ui -->
 		<dependency>
 			<groupId>org.webjars</groupId>
 			<artifactId>swagger-ui</artifactId>
-			<version>3.17.1</version>
+			<version>5.17.14</version>
 		</dependency>
 
 		<!-- Test scope -->
@@ -129,18 +149,34 @@
 		</dependency>
 		<!-- Jersey Test Framework: spins the JAX-RS resources in-process on
 		     a Grizzly2 HTTP container so the resource layer can be exercised
-		     end-to-end without Tomcat. -->
+		     end-to-end without Tomcat. The 3.1.x line transitively pulls
+		     junit-jupiter, which causes surefire's auto-discovery to crash
+		     ("TestEngine 'junit-jupiter' failed to discover tests") in this
+		     JUnit 4-only module. Exclude jupiter; vintage / junit:junit
+		     handle our @Test annotations. -->
 		<dependency>
 			<groupId>org.glassfish.jersey.test-framework</groupId>
 			<artifactId>jersey-test-framework-core</artifactId>
 			<version>${jersey.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.jupiter</groupId>
+					<artifactId>junit-jupiter</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.test-framework.providers</groupId>
 			<artifactId>jersey-test-framework-provider-grizzly2</artifactId>
 			<version>${jersey.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.jupiter</groupId>
+					<artifactId>junit-jupiter</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 	</dependencies>

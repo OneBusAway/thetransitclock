@@ -25,14 +25,8 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Session;
-import org.hibernate.criterion.DetachedCriteria;
-import org.hibernate.criterion.Projection;
-import org.hibernate.criterion.ProjectionList;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
-import org.hibernate.type.DoubleType;
-import org.hibernate.type.StringType;
-import org.hibernate.type.Type;
+import org.hibernate.query.NativeQuery;
+import org.hibernate.transform.AliasToEntityMapResultTransformer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.config.BooleanConfigValue;
@@ -73,13 +67,12 @@ public class ScheduleAdherenceController {
 	         Boolean.FALSE,
 	         "use the allowable early/late report params or use configured schedule limits");
 	 
-	private static final String ADHERENCE_SQL = "(time - scheduledTime) AS scheduleAdherence";
-	private static final Projection ADHERENCE_PROJECTION = Projections.sqlProjection(
-			ADHERENCE_SQL, new String[] { "scheduleAdherence" },
-			new Type[] { DoubleType.INSTANCE });
-	private static final Projection AVG_ADHERENCE_PROJECTION = Projections.sqlProjection(
-			"avg" + ADHERENCE_SQL, new String[] { "scheduleAdherence" },
-			new Type[] { DoubleType.INSTANCE });
+	// adherence is the delta between actual time and scheduledTime, in
+	// milliseconds. AVG version is the per-group average; non-AVG is the
+	// per-row value. Used by groupScheduleAdherence below as native SQL
+	// fragments under the ArrivalsDepartures table alias `ad`.
+	private static final String ADHERENCE_SQL = "(time - scheduledTime)";
+	private static final String AVG_ADHERENCE_SQL = "avg(time - scheduledTime)";
 	
 	public static List<Object> stopScheduleAdherence(Date startDate,
 			int numDays,
@@ -152,39 +145,60 @@ public class ScheduleAdherenceController {
 				if (!StringUtils.isBlank(id)) {
 					ids.add(id);
 				}
-		
+
 		Date endDate = new Date(startDate.getTime() + (numDays * Time.MS_PER_DAY));
 
-		ProjectionList proj = Projections.projectionList();
+		// Hibernate 6 dropped the legacy DetachedCriteria + Projections /
+		// Restrictions APIs that this report originally used to compose its
+		// query. Replace with a native SQL build-up: the projection set is
+		// either {group, count(*), avg(adherence)} when byGroup is true,
+		// or {routeId, stopId, tripId, adherence} otherwise. The
+		// ArrivalsDepartures table is queried directly because the
+		// adherence projection mixes a SQL expression (avg(time -
+		// scheduledTime)) with grouping.
+		StringBuilder select = new StringBuilder("select ");
+		if (byGroup) {
+			select.append(groupName).append(" as ").append(groupName).append(", ");
+			select.append("count(*) as count, ");
+			select.append(AVG_ADHERENCE_SQL).append(" as scheduleAdherence");
+		} else {
+			select.append("routeId as routeId, stopId as stopId, tripId as tripId, ");
+			select.append(ADHERENCE_SQL).append(" as scheduleAdherence");
+		}
 
-		if (byGroup)
-			proj.add(Projections.groupProperty(groupName), groupName).add(Projections.rowCount(), "count");
-		else
-			proj.add(Projections.property("routeId"), "routeId").add(Projections.property("stopId"), "stopId")
-					.add(Projections.property("tripId"), "tripId");
+		StringBuilder where = new StringBuilder(
+				" from ArrivalsDepartures where time between :startDate and :endDate"
+						+ " and scheduledTime is not null"
+						+ " and time(time) between :startTimeStr and :endTimeStr");
+		if ("arrival".equals(datatype)) {
+			where.append(" and isArrival = true");
+		} else if ("departure".equals(datatype)) {
+			where.append(" and isArrival = false");
+		}
+		if (!ids.isEmpty()) {
+			where.append(" and ").append(groupName).append(" in (:ids)");
+		}
+		if (byGroup) {
+			where.append(" group by ").append(groupName);
+		}
 
-		proj.add(byGroup ? AVG_ADHERENCE_PROJECTION : ADHERENCE_PROJECTION, "scheduleAdherence");
-
-		DetachedCriteria criteria = DetachedCriteria.forClass(ArrivalDeparture.class)
-				.add(Restrictions.between("time", startDate, endDate)).add(Restrictions.isNotNull("scheduledTime"));
-
-		if ("arrival".equals(datatype))
-			criteria.add(Restrictions.eq("isArrival", true));
-		else if ("departure".equals(datatype))
-			criteria.add(Restrictions.eq("isArrival", false));
-		
-		String sql = "time({alias}.time) between ? and ?";
-		String[] values = { startTime, endTime };
-		Type[] types = { StringType.INSTANCE, StringType.INSTANCE };
-		criteria.add(Restrictions.sqlRestriction(sql, values, types));
-
-		criteria.setProjection(proj).setResultTransformer(DetachedCriteria.ALIAS_TO_ENTITY_MAP);
-		
-		if (ids != null && ids.size() > 0)
-			criteria.add(Restrictions.in(groupName, ids));
-
-		return dbify(criteria);
-
+		Session session = HibernateUtils.getSession();
+		try {
+			NativeQuery<?> q = session.createNativeQuery(select.toString() + where.toString(), Object.class)
+					.setParameter("startDate", startDate)
+					.setParameter("endDate", endDate)
+					.setParameter("startTimeStr", startTime)
+					.setParameter("endTimeStr", endTime);
+			if (!ids.isEmpty()) {
+				q.setParameter("ids", ids);
+			}
+			q.setTupleTransformer(AliasToEntityMapResultTransformer.INSTANCE);
+			@SuppressWarnings("unchecked")
+			List<Object> results = (List<Object>) q.list();
+			return results;
+		} finally {
+			session.close();
+		}
 	}
 
 	 private static Date endOfDay(Date endDate) {
@@ -197,13 +211,4 @@ public class ScheduleAdherenceController {
 	}
 
 	 
-	private static List<Object> dbify(DetachedCriteria criteria) {
-		 Session session = HibernateUtils.getSession();
-		 try {
-			 return criteria.getExecutableCriteria(session).list();
-		 }
-		 finally {
-			 session.close();
-		 }
-	 }
 }

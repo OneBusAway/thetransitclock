@@ -123,9 +123,9 @@ services:
       start_period: 30s
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Tomcat 9 + JDK 21 (Tomcat 10 doesn't work — the WARs are still
-  # javax.servlet, not jakarta.servlet). The WARs ship class-file 65
-  # (Java 21), so the runtime JRE must be ≥21. Hosts api.war and web.war.
+  # Tomcat 11 + JDK 21. WARs are jakarta.servlet (Phase B) and class-file
+  # 65 (Java 21), so the runtime stack must be Tomcat 10+ (jakarta) and
+  # JDK 21+. Hosts api.war and web.war.
   # ──────────────────────────────────────────────────────────────────────────
   tomcat:
     build:

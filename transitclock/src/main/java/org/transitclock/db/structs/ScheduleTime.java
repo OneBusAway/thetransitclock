@@ -16,7 +16,7 @@
  */
 package org.transitclock.db.structs;
 
-import javax.persistence.Embeddable;
+import jakarta.persistence.Embeddable;
 
 import org.transitclock.utils.Time;
 

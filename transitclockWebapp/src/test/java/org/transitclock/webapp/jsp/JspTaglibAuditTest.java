@@ -27,23 +27,20 @@ import org.junit.Test;
 
 /**
  * Audits every JSP in {@code src/main/webapp} for {@code <%@ taglib %>} URIs
- * and asserts each one is in the project's expected set. Catches the JSTL
- * URI rewrite regression that lands in Phase B of the Jakarta migration:
- * Tomcat 11 ships Jakarta Tags 3.0 which only resolves {@code jakarta.tags.core}
- * and {@code jakarta.tags.fmt}. The legacy URIs ({@code http://java.sun.com/jsp/jstl/core}
- * and {@code .../fmt}) silently fail to resolve — pages render blank without
- * an exception — so a CI-time text audit is the only practical defense.
- *
- * <p>When Phase B rewrites the URIs, update {@link #EXPECTED_URIS} to the
- * jakarta.tags.* set. Any JSP whose URI didn't get migrated will fail.
+ * and asserts each one is in the project's expected set. Tomcat 11 ships
+ * Jakarta Tags 3.0 which only resolves {@code jakarta.tags.core} and
+ * {@code jakarta.tags.fmt}. The legacy {@code http://java.sun.com/jsp/jstl/*}
+ * URIs silently fail to resolve — pages render blank without an exception —
+ * so a CI-time text audit is the only practical defense if a JSP regresses
+ * back to the old namespace.
  */
 public class JspTaglibAuditTest {
 
-	/** URIs the project currently uses. Update at Phase B. */
+	/** URIs the project currently uses (Phase B: Jakarta Tags 3.0). */
 	private static final Set<String> EXPECTED_URIS = new HashSet<>();
 	static {
-		EXPECTED_URIS.add("http://java.sun.com/jsp/jstl/core");
-		EXPECTED_URIS.add("http://java.sun.com/jsp/jstl/fmt");
+		EXPECTED_URIS.add("jakarta.tags.core");
+		EXPECTED_URIS.add("jakarta.tags.fmt");
 	}
 
 	/** Pattern matching {@code <%@ taglib prefix="..." uri="..." %>}. */
@@ -72,8 +69,10 @@ public class JspTaglibAuditTest {
 		}
 
 		assertThat(violations)
-				.as("JSPs declaring taglib URIs not in EXPECTED_URIS — update "
-						+ "EXPECTED_URIS to jakarta.tags.* at Phase B")
+				.as("JSPs declaring taglib URIs not in EXPECTED_URIS — Tomcat 11 "
+						+ "Jakarta Tags 3.0 only resolves jakarta.tags.core / "
+						+ "jakarta.tags.fmt; legacy http://java.sun.com/jsp/jstl/* "
+						+ "would render blank pages")
 				.isEmpty();
 	}
 

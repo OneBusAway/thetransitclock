@@ -11,7 +11,7 @@ three tiers into a single launcher; everything below runs each tier as its own
 process, which is what you want in production.
 
 > **Docker shortcut.** The repo ships a `docker-compose.yml` plus
-> `docker/Dockerfile` that bundle Postgres 17, the build, Core, and Tomcat 9
+> `docker/Dockerfile` that bundle Postgres 17, the build, Core, and Tomcat 11
 > + JDK 21 into one stack. If you're standing up a fresh deployment, jump to
 > [§0 Containerized deployment](#0-containerized-deployment) — every step
 > below is wired up there. The detailed §1–§10 flow is the bare-metal
@@ -28,7 +28,7 @@ single docker network. The build is a multi-stage `docker/Dockerfile`:
   --rm tools <cmd>` for SchemaGenerator, GtfsFileProcessor, CreateWebAgency,
   CreateAPIKey, RmiQuery — i.e. every one-shot admin command in §4–§7.
 - **core-runtime** — JDK 21 + `Core.jar` (copied from builder).
-- **tomcat-runtime** — Tomcat 9 + JDK 21 + `api.war`/`web.war` (copied
+- **tomcat-runtime** — Tomcat 11 + JDK 21 + `api.war`/`web.war` (copied
   from builder).
 
 Per-deployment secrets live in a top-level `.env` (gitignored), and
@@ -227,7 +227,7 @@ A couple of Docker-specific gotchas worth knowing:
 | **GTFS-realtime VehiclePositions feed** (URL) | Live AVL stream. Must be a [VehiclePositions](https://gtfs.org/documentation/realtime/feed-entities/vehicle-positions/) feed (not TripUpdates / Alerts). | Same agency or aggregator. The URL is polled every 5 s by default. HTTP basic auth is supported via `transitclock.avl.authenticationUser` / `…Password`; arbitrary custom headers (e.g. WMATA's `api_key:`) require subclassing `PollUrlAvlModule` or embedding the secret in the URL — see the AVL-feed gotcha further down. |
 | **PostgreSQL 16+** | Persists config, GTFS, AVL, predictions, arrivals/departures, web agency registry, and API keys. | Any standard install. The shipped `docker-compose.yml` pins Postgres 17. MySQL also works (`-Dtransitclock.db.dbType=mysql`); HSQLDB is for tests only. |
 | **JDK 21** | Runtime. The WARs are compiled with `--release 21` so the deployed JRE must be ≥21. | Any LTS distribution. |
-| **Tomcat 9** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 10+ won't work** — both WARs are still on `javax.servlet`, and Tomcat 10 switched to the Jakarta `jakarta.servlet` namespace. | Apache Tomcat distribution. |
+| **Tomcat 11** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 9 will not work** — both WARs target the Jakarta `jakarta.servlet` namespace as of Phase B. | Apache Tomcat 11 distribution (Servlet 6.1 / Jakarta EE 11). |
 
 Optional: a writable log directory (default `/Logs`, override with
 `-Dtransitclock.logging.dir=...`), and a writable PID directory (default
@@ -523,9 +523,9 @@ Valid `-c` values are `vehicles`, `preds`, `routeConfig`, `config`,
 
 ## 9. Deploy the API and web WARs
 
-Both WARs target Tomcat 9 (`javax.servlet`); **Tomcat 10+ won't work** because
-those releases switched to the Jakarta `jakarta.servlet` namespace. Drop the
-WARs into Tomcat's `webapps/`.
+Both WARs target Tomcat 11 (`jakarta.servlet`); **Tomcat 9 will not work** —
+Phase B migrated the WARs to the Jakarta namespace. Drop the WARs into
+Tomcat 11's `webapps/`.
 
 The API needs `transitclock.configFiles` and the same DB-related properties as
 Core, because it reads the `WebAgency` and `ApiKey` tables out of the `web`

@@ -29,9 +29,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.sql.Types;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,12 +44,8 @@ import org.apache.commons.cli.ParseException;
 import org.hibernate.boot.Metadata;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.cfg.Configuration;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.service.ServiceRegistry;
-import org.hibernate.tool.hbm2ddl.SchemaExport;
-import org.hibernate.tool.hbm2ddl.SchemaExport.Action;
-import org.hibernate.tool.schema.TargetType;
 
 import com.google.common.reflect.ClassPath;
 
@@ -86,21 +80,16 @@ public class SchemaGenerator {
 			LoggerFactory.getLogger(SchemaGenerator.class);
 	
 	/**
-	 * MySQL handles fractional seconds differently from PostGRES and other
-	 * DBs. Need to use "datetime(3)" for fractional seconds whereas with 
-	 * PostGRES can use the default "timestamp" type. In order to handle
-	 * this properly in the generated ddl schema files need to not use
-	 * @Column(columnDefinition="datetime(3)") in the Java class that defines
-	 * the db object. Instead need to use this special ImprovedMySQLDialect
-	 * as the Dialect.
+	 * Historical note: this used to subclass {@link MySQLDialect} and call
+	 * {@code registerColumnType(Types.TIMESTAMP, "datetime(3)")} so the DDL
+	 * emitted millisecond-precision timestamps for MySQL. Hibernate 6.x
+	 * removed the {@code Dialect.registerColumnType(int, String)} hook in
+	 * favor of {@code DdlTypeRegistry}. Connector/J 8 + MySQL 5.6.4+ now
+	 * default to fractional-second precision when the column is declared
+	 * via {@code @Temporal(TemporalType.TIMESTAMP)}, so this dialect
+	 * subclass is no longer needed.
 	 */
 	public static class ImprovedMySQLDialect extends MySQLDialect {
-		public ImprovedMySQLDialect() {
-			super();
-			// Specify special SQL type for MySQL for timestamps so that get
-			// fractions seconds.
-			registerColumnType(Types.TIMESTAMP, "datetime(3)");
-		}
 	}
 
 
@@ -205,40 +194,40 @@ public class SchemaGenerator {
 	 * @param dbDialect to use
 	 */
 	private void generate(Dialect dialect) {
-		
-		Map<String, String> settings = new HashMap<>();
-		settings.put("hibernate.dialect",  dialect.getDialectClass());
-		
-		ServiceRegistry serviceRegistry = 
-			      new StandardServiceRegistryBuilder().applySettings(settings).build();
-		
 		// Determine file name. Use "ddl_" plus dialect name such as mysql or
 		// oracle plus the package name with "_" replacing "." such as
 		// org_transitime_db_structs .
-		String packeNameSuffix = 
-				packageName.replace(".", "_");
-		String outputFilename = (outputDirectory!=null?outputDirectory+"/" : "") + 
-				"ddl_" + dialect.name().toLowerCase() + 
+		String packeNameSuffix = packageName.replace(".", "_");
+		String outputFilename = (outputDirectory!=null?outputDirectory+"/" : "") +
+				"ddl_" + dialect.name().toLowerCase() +
 				"_" + packeNameSuffix + ".sql";
-		
-		// Export, but only to an SQL file. Don't actually modify the database
-		System.out.println("Writing file " + outputFilename);		
-		
+
+		// Hibernate 6 dropped the org.hibernate.tool.hbm2ddl.SchemaExport
+		// public class. The Jakarta-standard replacement is to drive the
+		// schema-tooling SPI via jakarta.persistence properties: setting the
+		// scripts-action + scripts-create-target on a Hibernate
+		// SessionFactory triggers DDL emission to file when the factory
+		// builds. No live DB connection is needed since the action is
+		// "create" and the target is a script (not "database").
+		Map<String, Object> settings = new HashMap<>();
+		settings.put("hibernate.dialect", dialect.getDialectClass());
+		settings.put("jakarta.persistence.schema-generation.scripts.action", "create");
+		settings.put("jakarta.persistence.schema-generation.scripts.create-target", outputFilename);
+		settings.put("hibernate.hbm2ddl.delimiter", ";");
+
+		ServiceRegistry serviceRegistry =
+				new StandardServiceRegistryBuilder().applySettings(settings).build();
+
+		System.out.println("Writing file " + outputFilename);
+
 		MetadataSources metadatasource = new MetadataSources(serviceRegistry);
-							
-		for(Class<Object> annotatedClass:classList)
-		{
-			metadatasource.addAnnotatedClass( annotatedClass);
+		for (Class<Object> annotatedClass : classList) {
+			metadatasource.addAnnotatedClass(annotatedClass);
 		}
-		
-		Metadata metadata =metadatasource.buildMetadata();
-		
-	    new SchemaExport().setDelimiter(";") //
-	            .setOutputFile(outputFilename)
-	            .create(EnumSet.of(TargetType.SCRIPT), metadata);
-	 
-	    metadata.buildSessionFactory().close();
-		
+
+		Metadata metadata = metadatasource.buildMetadata();
+		metadata.buildSessionFactory().close();
+
 		// Get rid of unneeded SQL for dropping tables and keys and such
 		trimCruftFromFile(outputFilename);
 	}

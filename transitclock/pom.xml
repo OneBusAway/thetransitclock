@@ -27,7 +27,7 @@
 
 	<pluginRepositories>
 
-	
+
 	</pluginRepositories>
 	<dependencies>
 		<dependency>
@@ -37,40 +37,20 @@
 		</dependency>
 
 
-<!-- JAXB API v3.0.1 -->
+<!-- Jakarta XML Bind 4.0 (Jakarta EE 10) — Phase B namespace migration. -->
 <dependency>
     <groupId>jakarta.xml.bind</groupId>
     <artifactId>jakarta.xml.bind-api</artifactId>
-    <version>3.0.1</version>
+    <version>4.0.2</version>
 </dependency>
 
-<!-- JAXB v3.0.2 reference implementation (curiously with com.sun coordinates) -->
+<!-- Glassfish JAXB 4.0 reference implementation, replaces com.sun.xml.bind:jaxb-impl. -->
 <dependency>
-    <groupId>com.sun.xml.bind</groupId>
-    <artifactId>jaxb-impl</artifactId>
-    <version>3.0.2</version>
+    <groupId>org.glassfish.jaxb</groupId>
+    <artifactId>jaxb-runtime</artifactId>
+    <version>4.0.5</version>
     <scope>runtime</scope>
 </dependency>
-
-<!-- 
-		<dependency>
-			<groupId>javax.xml.bind</groupId>
-			<artifactId>jaxb-api</artifactId>
-			<version>${jaxb.api.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.sun.xml.bind</groupId>
-			<artifactId>jaxb-core</artifactId>
-			<version>${jaxb.api.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.sun.xml.bind</groupId>
-			<artifactId>jaxb-impl</artifactId>
-			<version>${jaxb.api.version}</version>
-		</dependency>
- -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -109,13 +89,24 @@
                 <version>42.6.0</version>
          </dependency>
 
-		<!-- hibernate -->
-	
-	<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-core -->
+		<!-- Hibernate ORM 6.5 — Jakarta-namespace line. The hibernate-platform
+		     BOM keeps transitive versions (jpa-api 3.1, byte-buddy, etc.) aligned
+		     per the Hibernate docs. groupId moved from org.hibernate to
+		     org.hibernate.orm at the 6.x line. -->
 		<dependency>
-		    <groupId>org.hibernate</groupId>
+		    <groupId>org.hibernate.orm</groupId>
 		    <artifactId>hibernate-core</artifactId>
-		    <version>5.5.7.Final</version>
+		    <version>6.5.3.Final</version>
+		</dependency>
+		<dependency>
+		    <groupId>jakarta.persistence</groupId>
+		    <artifactId>jakarta.persistence-api</artifactId>
+		    <version>3.1.0</version>
+		</dependency>
+		<dependency>
+		    <groupId>jakarta.transaction</groupId>
+		    <artifactId>jakarta.transaction-api</artifactId>
+		    <version>2.0.1</version>
 		</dependency>
 
 
@@ -152,11 +143,23 @@
 			<scope>compile</scope>
 		</dependency>
 
-		<!-- So can use Amazon API for archiving files and such -->
+		<!-- So can use Amazon API for archiving files and such. The 1.10
+		     line transitively pulls jackson-module-jaxb-annotations:2.8.9,
+		     whose pom references retired jvnet-nexus repositories for
+		     jaxb-api/jaxb-runtime — those URLs are dead and break dep
+		     resolution under the modern Maven http blocker. We don't use
+		     the jaxb-annotations bridge directly (no JaxbAnnotation*
+		     references in our sources), so excluding it is safe. -->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk</artifactId>
 			<version>1.10.16</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.module</groupId>
+					<artifactId>jackson-module-jaxb-annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- For many java utilities, such as StringEscapeUtils -->
 		<dependency>
@@ -189,16 +192,18 @@
 		<!-- I believe not needed <dependency> <groupId>org.apache.lucene</groupId> 
 			<artifactId>lucene-core</artifactId> <version>3.6.2</version> </dependency> -->
 
-		<!-- For JMS for fancy handling of AVL feeds -->
+		<!-- ActiveMQ Artemis JMS client — successor to HornetQ (same lineage,
+		     supports jakarta.jms). Used by the optional JMS AVL feed module
+		     under org.transitclock.avl/. -->
 		<dependency>
-			<groupId>org.hornetq</groupId>
-			<artifactId>hornetq-core-client</artifactId>
-			<version>2.3.25.Final</version>
+			<groupId>jakarta.jms</groupId>
+			<artifactId>jakarta.jms-api</artifactId>
+			<version>3.1.0</version>
 		</dependency>
 		<dependency>
-			<groupId>org.hornetq</groupId>
-			<artifactId>hornetq-jms-client</artifactId>
-			<version>2.3.25.Final</version>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>artemis-jakarta-client</artifactId>
+			<version>2.33.0</version>
 		</dependency>
 
 		<!-- For Amigocloud web sockets AVL feed -->
@@ -262,17 +267,9 @@
 			<version>4.13.2</version>
 			<scope>test</scope>
 		</dependency>
-		<!-- Mockito 5.x uses the inline mock-maker by default, so
-		     mockStatic / final-class mocking work with just mockito-core.
-		     Hibernate 5.5 pulls in byte-buddy 1.11 at compile scope, which
-		     wins classpath order over Mockito's newer byte-buddy and fails
-		     at runtime ("NoClassDefFoundError: GraalImageCode"). Pin to a
-		     newer byte-buddy explicitly; Hibernate is backward-compatible. -->
-		<dependency>
-			<groupId>net.bytebuddy</groupId>
-			<artifactId>byte-buddy</artifactId>
-			<version>1.14.15</version>
-		</dependency>
+		<!-- Mockito 5.x uses the inline mock-maker by default. Hibernate 6.5
+		     brings a recent-enough byte-buddy transitively, so the explicit
+		     pin from Phase A (needed under Hibernate 5.5) is gone. -->
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
@@ -297,7 +294,8 @@
 		<dependency>
 			<groupId>org.ehcache</groupId>
 			<artifactId>ehcache</artifactId>
-			<version>3.4.0</version>
+			<version>3.10.8</version>
+			<classifier>jakarta</classifier>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
@@ -319,11 +317,12 @@
 			<version>2.2</version>
 		</dependency>
 
-		<!-- Servlet related functionality -->
+		<!-- Jakarta Servlet 6.1 — Tomcat 11 baseline. Provided scope: the
+		     servlet container supplies the runtime impl. -->
 		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>javax.servlet-api</artifactId>
-			<version>3.0.1</version>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>6.1.0</version>
 			<scope>provided</scope>
 		</dependency>
 

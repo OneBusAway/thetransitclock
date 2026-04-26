@@ -25,17 +25,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 import net.jcip.annotations.Immutable;
 
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.DynamicUpdate;
 import org.slf4j.Logger;
@@ -208,7 +208,7 @@ public class Calendar implements Serializable {
 				"    WHERE configRev = :configRev" +
 				" ORDER BY serviceId";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
+		query.setParameter("configRev", configRev);
 		return query.list();
 	}
 

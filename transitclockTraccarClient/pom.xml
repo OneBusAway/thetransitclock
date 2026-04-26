@@ -145,10 +145,25 @@
 			<artifactId>jackson-databind</artifactId>
 			<version>${jackson-version}</version>
 		</dependency>
+		<!-- jackson-jaxrs-json-provider 2.8.9 transitively pulls
+		     jackson-module-jaxb-annotations:2.8.9, whose
+		     com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule imports
+		     javax.xml.bind classes that no longer exist on the Phase B
+		     classpath (jakarta.xml.bind only). Hibernate 6.5's Jackson
+		     auto-discovery picks the module up via ServiceLoader and
+		     blows up at SessionFactory boot. Excluding the legacy
+		     annotations module is safe here — this generated client's
+		     JSON layer doesn't need JAXB-style binding. -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.jaxrs</groupId>
 			<artifactId>jackson-jaxrs-json-provider</artifactId>
 			<version>${jackson-version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.module</groupId>
+					<artifactId>jackson-module-jaxb-annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Joda time: if you use it -->

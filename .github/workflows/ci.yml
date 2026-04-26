@@ -56,23 +56,27 @@ jobs:
         run: mvn -B -ntp -pl transitclockIntegration -am -P include-integration-tests test
 
       # Builds the tomcat-runtime image, boots it, and pokes the JAX-RS
-      # servlet to exercise the two layers that mvn verify cannot reach:
+      # servlet to exercise the layers that mvn verify cannot reach:
       #
       #  1. JVM class-loader. The WARs are compiled with --release 21, so
       #     a Tomcat base image on JDK <21 produces UnsupportedClassVersionError
       #     at servlet load.
-      #  2. Jersey ASM scanner. Jersey's annotation discovery is lazy — it
+      #  2. Servlet namespace. Phase B migrated the WARs to jakarta.servlet,
+      #     so Tomcat 9 (javax.servlet) won't deploy them and Tomcat 11
+      #     (jakarta.servlet) is required. Catches a regression of either
+      #     a WAR module that didn't get the namespace migration or a
+      #     Dockerfile bump back to Tomcat 9.
+      #  3. Jersey JAX-RS init. Jersey's annotation discovery is lazy — it
       #     fires on the first request to the servlet, not at deploy time.
-      #     A Jersey/ASM combo that predates the project's class-file level
-      #     (e.g. Jersey 2.35 ships ASM 9.0 — class-file 60 max — but our
-      #     WARs are class-file 65) throws "Unsupported class file major
-      #     version N" out of jersey.repackaged.org.objectweb.asm.ClassReader
-      #     on that first request and the JAX-RS resources never come up.
+      #     A Jersey/ASM combo that can't read the WAR's class file level
+      #     throws "Unsupported class file major version N" out of the ASM
+      #     ClassReader on first request; this step also flags any
+      #     Servlet.init() failure on org.transitclock.api.ApiApplication.
       #
       # mvn verify never boots Tomcat, and the JaxRsResourceSmokeBase tests
       # register resources directly on a Jersey ResourceConfig (no
       # classpath scan), so neither path catches these. This step fails
-      # fast on both.
+      # fast on all three.
       - name: Smoke-test docker tomcat-runtime image
         run: |
           set -euo pipefail

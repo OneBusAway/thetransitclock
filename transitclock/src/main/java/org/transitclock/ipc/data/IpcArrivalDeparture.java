@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Date;
 
-import javax.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlAttribute;
 
 import org.apache.commons.beanutils.BeanUtils;
 import org.transitclock.core.TemporalDifference;

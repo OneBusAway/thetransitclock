@@ -15,9 +15,6 @@ import org.ehcache.CacheManager;
 import org.ehcache.Status;
 import org.ehcache.config.builders.CacheManagerBuilder;
 import org.ehcache.xml.XmlConfiguration;
-import org.hibernate.Criteria;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Restrictions;
 import org.hibernate.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,10 +143,12 @@ public class StopArrivalDepartureCache extends StopArrivalDepartureCacheInterfac
 	}
 
 	public void populateCacheFromDb(Session session, Date startDate, Date endDate) {
-		Criteria criteria = session.createCriteria(ArrivalDeparture.class);
-
-		@SuppressWarnings("unchecked")
-		List<ArrivalDeparture> results = criteria.add(Restrictions.between("time", startDate, endDate)).addOrder(Order.asc("time")).list();	
+		List<ArrivalDeparture> results = session.createQuery(
+				"from ArrivalDeparture where time between :start and :end order by time asc",
+				ArrivalDeparture.class)
+				.setParameter("start", startDate)
+				.setParameter("end", endDate)
+				.getResultList();
 
 		for (ArrivalDeparture result : results) {
 			StopArrivalDepartureCacheFactory.getInstance().putArrivalDeparture(result);

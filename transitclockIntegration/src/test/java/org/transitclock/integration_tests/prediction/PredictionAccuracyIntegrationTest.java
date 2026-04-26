@@ -55,7 +55,8 @@ public class PredictionAccuracyIntegrationTest {
     	
     	// Fill CombinedPredictionAccuracy objects with stop information
     	Session session = HibernateUtils.getSession();
-    	List<ArrivalDeparture> ads = session.createCriteria(ArrivalDeparture.class).list();
+    	List<ArrivalDeparture> ads = session.createQuery(
+    			"from ArrivalDeparture", ArrivalDeparture.class).getResultList();
     	for (ArrivalDeparture ad : ads) {
     		CombinedPredictionAccuracy o = new CombinedPredictionAccuracy(ad);
     		predsByStopAndCreationTime.put(o.getKey(), o);
@@ -77,7 +78,8 @@ public class PredictionAccuracyIntegrationTest {
 		}
 		
 		// Fill new predictions
-		List<Prediction> newPreds = session.createCriteria(Prediction.class).list();
+		List<Prediction> newPreds = session.createQuery(
+				"from Prediction", Prediction.class).getResultList();
 		for (Prediction p : newPreds) {
 			long prediction = p.getPredictionTime().getTime();
 			Triple<Integer, ArrivalOrDeparture, Long> key = createKeyFromPrediction(p);

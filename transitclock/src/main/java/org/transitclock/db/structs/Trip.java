@@ -23,24 +23,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.OrderColumn;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.CallbackException;
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.collection.internal.PersistentList;
+import org.hibernate.collection.spi.PersistentList;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.classic.Lifecycle;
@@ -473,7 +473,7 @@ public class Trip implements Lifecycle, Serializable {
 		String hql = "FROM Trip " +
 				"    WHERE configRev = :configRev";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
+		query.setParameter("configRev", configRev);
 
 		// Actually perform the query
 		List<Trip> tripsList = query.list();
@@ -504,8 +504,8 @@ public class Trip implements Lifecycle, Serializable {
 				"    WHERE t.configRev = :configRev" +
 				"      AND tripId = :tripId";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
-		query.setString("tripId", tripId);
+		query.setParameter("configRev", configRev);
+		query.setParameter("tripId", tripId);
 		
 		// Actually perform the query
 		Trip trip = (Trip) query.uniqueResult();
@@ -533,8 +533,8 @@ public class Trip implements Lifecycle, Serializable {
 				"    WHERE t.configRev = :configRev" +
 				"      AND t.tripShortName = :tripShortName";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
-		query.setString("tripShortName", tripShortName);
+		query.setParameter("configRev", configRev);
+		query.setParameter("tripShortName", tripShortName);
 		
 		// Actually perform the query
 		@SuppressWarnings("unchecked")
@@ -555,7 +555,7 @@ public class Trip implements Lifecycle, Serializable {
 			throws HibernateException {
 		int rowsUpdated = 0;
 		rowsUpdated += session.
-				createSQLQuery("DELETE FROM Trips WHERE configRev=" 
+				createNativeQuery("DELETE FROM Trips WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		return rowsUpdated;
@@ -1179,23 +1179,18 @@ public class Trip implements Lifecycle, Serializable {
   public static Long countTravelTimesForTrips(Session session,
       int travelTimesRev) {
     String sql = "Select count(*) from TravelTimesForTrips where travelTimesRev=:rev";
-    
-    Query query = session.createSQLQuery(sql);
-    query.setInteger("rev", travelTimesRev);
+
+    Query query = session.createNativeQuery(sql);
+    query.setParameter("rev", travelTimesRev);
     Long count = null;
     try {
- 
-      Integer bcount;  
-      if(query.uniqueResult() instanceof BigInteger)
-      {
-    	  bcount = ((BigInteger)query.uniqueResult()).intValue();
-      }else
-      {
-          bcount = (Integer) query.uniqueResult();
+      // Hibernate 6 / HSQL returns count(*) as java.lang.Long; older
+      // dialects could yield BigInteger or Integer. Coerce through
+      // java.lang.Number to handle all of them without ClassCastException.
+      Object raw = query.uniqueResult();
+      if (raw instanceof Number) {
+        count = ((Number) raw).longValue();
       }
-  
-      if (bcount != null)
-        count = bcount.longValue();
     } catch (HibernateException e) {
       Core.getLogger().error("exception querying for metrics", e);
     }

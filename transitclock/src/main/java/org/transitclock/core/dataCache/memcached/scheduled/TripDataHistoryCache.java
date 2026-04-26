@@ -11,9 +11,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.lang3.time.DateUtils;
-import org.hibernate.Criteria;
 import org.hibernate.Session;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.transitclock.applications.Core;
 import org.transitclock.config.IntegerConfigValue;
@@ -103,10 +101,12 @@ public class TripDataHistoryCache implements TripDataHistoryCacheInterface {
 
 	@Override
 	public void populateCacheFromDb(Session session, Date startDate, Date endDate) {
-		Criteria criteria =session.createCriteria(ArrivalDeparture.class);				
-		
-		@SuppressWarnings("unchecked")
-		List<ArrivalDeparture> results=criteria.add(Restrictions.between("time", startDate, endDate)).list();
+		List<ArrivalDeparture> results = session.createQuery(
+				"from ArrivalDeparture where time between :start and :end",
+				ArrivalDeparture.class)
+				.setParameter("start", startDate)
+				.setParameter("end", endDate)
+				.getResultList();
 						
 		for(ArrivalDeparture result : results)		
 		{						

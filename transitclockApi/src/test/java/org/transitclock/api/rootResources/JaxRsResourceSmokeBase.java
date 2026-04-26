@@ -11,7 +11,7 @@ package org.transitclock.api.rootResources;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.ws.rs.client.WebTarget;
+import jakarta.ws.rs.client.WebTarget;
 
 import org.glassfish.jersey.test.JerseyTest;
 import org.junit.After;

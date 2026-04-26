@@ -11,12 +11,12 @@
 #   core-runtime  — JDK 21 (not JRE — Core needs the `tools.jar`/`rmiregistry`
 #                   path on some flows). Carries Core.jar and the other
 #                   shaded JARs the `tools` stage uses for admin work.
-#   tomcat-runtime — Tomcat 9 + JDK 21 (Temurin) with api.war and web.war
-#                   preinstalled. The WARs are compiled with --release 21,
-#                   so the runtime JRE must be ≥21 or class loading fails
-#                   with UnsupportedClassVersionError. The WARs are still
-#                   on javax.servlet so we stay on Tomcat 9 (pre-jakarta);
-#                   Phase B replaces this with tomcat:11.0-jdk21-temurin.
+#   tomcat-runtime — Tomcat 11 + JDK 21 (Temurin) with api.war and web.war
+#                   preinstalled. The WARs are compiled with --release 21
+#                   and now target the jakarta.* namespace (Phase B), so
+#                   they require Tomcat 10+. We use Tomcat 11.0 (the
+#                   Servlet 6.1 / Jakarta EE 11 line) to align with the
+#                   Jersey 3.1, Hibernate 6.5, JAXB 4.0 stack.
 #
 # The two runtime stages copy from `builder`; nothing in the runtime images
 # touches the local filesystem, which is what the user asked for.
@@ -87,7 +87,7 @@ CMD ["-jar", "/opt/transitclock/Core.jar"]
 # ----------------------------------------------------------------------------
 # Stage 4: tomcat-runtime
 # ----------------------------------------------------------------------------
-FROM tomcat:9.0-jdk21-temurin AS tomcat-runtime
+FROM tomcat:11.0-jdk21-temurin AS tomcat-runtime
 
 # Drop the default ROOT app — we don't need it, and leaving it confuses people
 # who hit http://localhost:8080/ expecting the transitclock UI.

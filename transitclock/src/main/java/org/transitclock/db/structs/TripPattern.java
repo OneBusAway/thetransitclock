@@ -22,21 +22,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.Column;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.JoinColumn;
-import javax.persistence.OneToMany;
-import javax.persistence.OrderColumn;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.CallbackException;
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
@@ -281,15 +281,15 @@ public class TripPattern implements Serializable, Lifecycle {
 		// key to the StopPath table, 
 		int rowsUpdated = 0;
 		rowsUpdated += session.
-				createSQLQuery("DELETE FROM TripPattern_to_Path_joinTable "
+				createNativeQuery("DELETE FROM TripPattern_to_Path_joinTable "
 						+ "WHERE TripPatterns_configRev=" + configRev).
 				executeUpdate();
 		rowsUpdated += session.
-				createSQLQuery("DELETE FROM StopPaths WHERE configRev=" 
+				createNativeQuery("DELETE FROM StopPaths WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		rowsUpdated += session.
-				createSQLQuery("DELETE FROM TripPatterns WHERE configRev=" 
+				createNativeQuery("DELETE FROM TripPatterns WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		return rowsUpdated;
@@ -342,7 +342,7 @@ public class TripPattern implements Serializable, Lifecycle {
 		String hql = "FROM TripPattern " +
 				"    WHERE configRev = :configRev";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
+		query.setParameter("configRev", configRev);
 		return query.list();
 	}
 

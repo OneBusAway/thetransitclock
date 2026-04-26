@@ -24,10 +24,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-import org.hibernate.Criteria;
 import org.hibernate.Session;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.core.BlocksInfo;
@@ -392,10 +389,11 @@ public class VehiclesServer extends AbstractServer
             throws RemoteException {
 
         Session session = HibernateUtils.getSession();
-        Criteria criteria = session.createCriteria(Route.class)
-            .add(Restrictions.eq("name", routeName))
-            .setProjection(Projections.groupProperty("id"));
-        List<String> routeIds = criteria.list();
+        List<String> routeIds = session.createQuery(
+                "select distinct r.id from Route r where r.name = :name",
+                String.class)
+                .setParameter("name", routeName)
+                .getResultList();
         session.close();
         
         return getActiveBlocksAndVehiclesByRouteId(routeIds, allowableBeforeTimeSecs);

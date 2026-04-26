@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import org.hibernate.Session;
-import org.hibernate.criterion.Restrictions;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.configData.AgencyConfig;
@@ -71,21 +70,23 @@ public class DbPersistenceBehaviorTest {
 		AvlProcessor.getInstance().processAvlReport(second);
 	}
 
-	@SuppressWarnings("unchecked")
 	private static List<ArrivalDeparture> queryArrivalDeparturesForVehicle(String vehicleId) {
 		try (Session session = HibernateUtils.getSession(AgencyConfig.getAgencyId())) {
-			return session.createCriteria(ArrivalDeparture.class)
-					.add(Restrictions.eq("vehicleId", vehicleId))
-					.list();
+			return session.createQuery(
+					"from ArrivalDeparture where vehicleId = :vehicleId",
+					ArrivalDeparture.class)
+					.setParameter("vehicleId", vehicleId)
+					.getResultList();
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private static List<AvlReport> queryAvlReportsForVehicle(String vehicleId) {
 		try (Session session = HibernateUtils.getSession(AgencyConfig.getAgencyId())) {
-			return session.createCriteria(AvlReport.class)
-					.add(Restrictions.eq("vehicleId", vehicleId))
-					.list();
+			return session.createQuery(
+					"from AvlReport where vehicleId = :vehicleId",
+					AvlReport.class)
+					.setParameter("vehicleId", vehicleId)
+					.getResultList();
 		}
 	}
 

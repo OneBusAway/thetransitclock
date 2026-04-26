@@ -147,8 +147,9 @@ public class CriteriaPinningTest {
 	@SuppressWarnings("unused")
 	private static <T> T loadOne(Class<T> entity) {
 		return inSession(s -> {
-			@SuppressWarnings("unchecked")
-			List<T> rows = s.createCriteria(entity).list();
+			List<T> rows = s.createQuery(
+					"from " + entity.getSimpleName(), entity)
+					.getResultList();
 			return rows.isEmpty() ? null : rows.get(0);
 		});
 	}
