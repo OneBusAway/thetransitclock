@@ -30,7 +30,7 @@ Add green coverage of every layer the upgrade will touch on the current `javax` 
 
 ### Task 4 — Phase 0.4: JSP / servlet smoke suite
 
-- **Status:** in progress
+- **Status:** completed
 - **Blocked by:** —
 - **Description:** Render the 5–10 most-trafficked JSPs (those under `transitclockWebapp/src/main/webapp/maps/`, `reports/`, `welcome/`, plus the `template/includes.jsp` shared header) via embedded Tomcat or Jetty in tests; assert HTTP 200 + non-error markup. New tests under `transitclockWebapp/src/test/java/`. Catches the JSTL URI rewrite regression in CI — the change from `http://java.sun.com/jsp/jstl/core` → `jakarta.tags.core` would otherwise blow up silently in the browser.
 
