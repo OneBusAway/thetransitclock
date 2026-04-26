@@ -42,7 +42,7 @@ Add green coverage of every layer the upgrade will touch on the current `javax` 
 
 ### Task 6 — Phase 0.6: Wire new tests into CI
 
-- **Status:** in progress
+- **Status:** completed
 - **Blocked by:** Tasks 1, 2, 3, 4, 5
 - **Description:** Add the new test sources to `.github/workflows/ci.yml` so they run on every PR. Run them under both `mvn verify` and `mvn install -P run-all-tests` to confirm both profiles pick them up. Consider a separate `gtfs-rt-tests` job that runs in parallel with `pipeline-tests` to keep wall time down.
 
