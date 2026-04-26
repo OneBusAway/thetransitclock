@@ -55,6 +55,85 @@ jobs:
       - name: Run integration tests
         run: mvn -B -ntp -pl transitclockIntegration -am -P include-integration-tests test
 
+      # Builds the tomcat-runtime image, boots it, and pokes the JAX-RS
+      # servlet to exercise the two layers that mvn verify cannot reach:
+      #
+      #  1. JVM class-loader. The WARs are compiled with --release 21, so
+      #     a Tomcat base image on JDK <21 produces UnsupportedClassVersionError
+      #     at servlet load.
+      #  2. Jersey ASM scanner. Jersey's annotation discovery is lazy — it
+      #     fires on the first request to the servlet, not at deploy time.
+      #     A Jersey/ASM combo that predates the project's class-file level
+      #     (e.g. Jersey 2.35 ships ASM 9.0 — class-file 60 max — but our
+      #     WARs are class-file 65) throws "Unsupported class file major
+      #     version N" out of jersey.repackaged.org.objectweb.asm.ClassReader
+      #     on that first request and the JAX-RS resources never come up.
+      #
+      # mvn verify never boots Tomcat, and the JaxRsResourceSmokeBase tests
+      # register resources directly on a Jersey ResourceConfig (no
+      # classpath scan), so neither path catches these. This step fails
+      # fast on both.
+      - name: Smoke-test docker tomcat-runtime image
+        run: |
+          set -euo pipefail
+          docker build -f docker/Dockerfile --target tomcat-runtime -t transitclock-tomcat-smoke .
+          # Boot Tomcat with no Core/RMI backend (we only need Jersey to
+          # initialize the JAX-RS application; downstream RMI errors are
+          # expected and ignored). Bind 8080 to the host so curl can hit it.
+          cid=$(docker run -d --rm -p 8080:8080 -e TRANSITCLOCK_APIKEY=ci-smoke transitclock-tomcat-smoke catalina.sh run)
+          trap 'docker logs "$cid" 2>&1 | tail -100; docker stop "$cid" >/dev/null 2>&1 || true' EXIT
+
+          fail() { echo "FAIL: $1"; exit 1; }
+
+          # Phase 1: wait for both WARs to deploy (or for a class-version
+          # error to appear). 60s budget; both signals normally arrive in <30s.
+          for i in $(seq 1 60); do
+            logs=$(docker logs "$cid" 2>&1 || true)
+            if echo "$logs" | grep -q "UnsupportedClassVersionError"; then
+              fail "tomcat cannot load WAR classes (class-file/runtime mismatch)"
+            fi
+            api_done=$(echo "$logs" | grep -cE "Deployment of web application archive .*api\.war.* has finished" || true)
+            web_done=$(echo "$logs" | grep -cE "Deployment of web application archive .*web\.war.* has finished" || true)
+            if [ "$api_done" -gt 0 ] && [ "$web_done" -gt 0 ]; then
+              break
+            fi
+            sleep 1
+          done
+          [ "${api_done:-0}" -gt 0 ] || fail "api.war did not finish deploying within 60s"
+          [ "${web_done:-0}" -gt 0 ] || fail "web.war did not finish deploying within 60s"
+          echo "OK: both WARs deployed without class-version errors"
+
+          # Phase 2: hit the JAX-RS servlet so Jersey actually initializes
+          # its ResourceConfig and the ASM annotation scanner walks the
+          # WAR classes. Any HTTP response (200/4xx/500 with a
+          # missing-config message) is fine — what we want to catch is
+          # Jersey itself dying with "Unsupported class file major version
+          # N" out of jersey.repackaged.org.objectweb.asm.ClassReader.
+          # Tomcat reports that class as a Servlet.init() exception with
+          # the trace inlined into the HTTP response *body*, not into
+          # stderr, so grep the response — checking docker logs alone
+          # would miss it.
+          resp_body=/tmp/smoke-resp.html
+          for i in $(seq 1 30); do
+            if curl -sS -o "$resp_body" --max-time 5 "http://localhost:8080/api/v1/key/ci-smoke/agency/1/command/routes"; then
+              break
+            fi
+            sleep 1
+          done
+          [ -s "$resp_body" ] || fail "Jersey servlet did not respond at all within 30s"
+          if grep -q "Unsupported class file major version" "$resp_body" \
+             || docker logs "$cid" 2>&1 | grep -q "Unsupported class file major version"; then
+            echo "--- offending response body ---"
+            head -c 4000 "$resp_body"
+            fail "Jersey ASM scanner cannot read WAR classes (Jersey/ASM vs class-file mismatch)"
+          fi
+          if grep -q "Servlet.init() for servlet \[org.transitclock.api.ApiApplication\] threw" "$resp_body"; then
+            echo "--- offending response body ---"
+            head -c 4000 "$resp_body"
+            fail "Jersey JAX-RS application failed to initialize (ApiApplication.init threw)"
+          fi
+          echo "OK: Jersey JAX-RS servlet initialized without ASM class-file errors"
+
       - name: Upload JaCoCo aggregate report
         if: always()
         uses: actions/upload-artifact@v4

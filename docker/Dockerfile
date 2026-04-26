@@ -11,9 +11,11 @@
 #   core-runtime  — JDK 21 (not JRE — Core needs the `tools.jar`/`rmiregistry`
 #                   path on some flows). Carries Core.jar and the other
 #                   shaded JARs the `tools` stage uses for admin work.
-#   tomcat-runtime — Tomcat 9 + JDK 17 with api.war and web.war preinstalled
-#                   (Tomcat 9 has no -jdk21 image; the WAR is still on
-#                   javax.servlet so we cannot move to Tomcat 10/11 yet).
+#   tomcat-runtime — Tomcat 9 + JDK 21 (Temurin) with api.war and web.war
+#                   preinstalled. The WARs are compiled with --release 21,
+#                   so the runtime JRE must be ≥21 or class loading fails
+#                   with UnsupportedClassVersionError. The WARs are still
+#                   on javax.servlet so we stay on Tomcat 9 (pre-jakarta);
 #                   Phase B replaces this with tomcat:11.0-jdk21-temurin.
 #
 # The two runtime stages copy from `builder`; nothing in the runtime images
@@ -85,7 +87,7 @@ CMD ["-jar", "/opt/transitclock/Core.jar"]
 # ----------------------------------------------------------------------------
 # Stage 4: tomcat-runtime
 # ----------------------------------------------------------------------------
-FROM tomcat:9.0-jdk17-temurin AS tomcat-runtime
+FROM tomcat:9.0-jdk21-temurin AS tomcat-runtime
 
 # Drop the default ROOT app — we don't need it, and leaving it confuses people
 # who hit http://localhost:8080/ expecting the transitclock UI.

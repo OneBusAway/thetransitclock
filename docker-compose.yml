@@ -45,7 +45,7 @@ services:
       retries: 10
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Admin tools (Maven + JDK 17 + psql). Used only via `docker compose run`.
+  # Admin tools (Maven + JDK 21 + psql). Used only via `docker compose run`.
   # Mounts .deploy/ so the host can hand the container the GTFS zip, read
   # the generated DDL files back, etc.
   # ──────────────────────────────────────────────────────────────────────────
@@ -123,8 +123,9 @@ services:
       start_period: 30s
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Tomcat 9 + JDK 17 (Tomcat 10 doesn't work — the WARs are still
-  # javax.servlet, not jakarta.servlet). Hosts api.war and web.war.
+  # Tomcat 9 + JDK 21 (Tomcat 10 doesn't work — the WARs are still
+  # javax.servlet, not jakarta.servlet). The WARs ship class-file 65
+  # (Java 21), so the runtime JRE must be ≥21. Hosts api.war and web.war.
   # ──────────────────────────────────────────────────────────────────────────
   tomcat:
     build:

@@ -18,7 +18,7 @@
 package org.transitclock.monitoring;
 
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.Method;
+import com.sun.management.OperatingSystemMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.config.LongConfigValue;
@@ -75,30 +75,40 @@ public class SystemMemoryMonitor extends MonitorBase {
 	}
 
 	/**
-	 * Invokes a method on the platform {@link com.sun.management.OperatingSystemMXBean}
-	 * by name. The method is public on the Sun extension interface, so no
-	 * {@code setAccessible(true)} is required (which Java 17+ warns on and a
-	 * future JDK will deny).
+	 * Returns the platform {@link OperatingSystemMXBean} cast to the Sun
+	 * extension interface, or {@code null} on a non-HotSpot JVM that does
+	 * not implement it (logged once per call). Callers must null-check.
 	 */
-	public static Object getOperatingSystemValue(String methodName) {
+	private static OperatingSystemMXBean sunOsBean() {
 		java.lang.management.OperatingSystemMXBean bean =
 				ManagementFactory.getOperatingSystemMXBean();
-		if (!(bean instanceof com.sun.management.OperatingSystemMXBean)) {
-			logger.error("Platform OperatingSystemMXBean is not a "
-					+ "com.sun.management.OperatingSystemMXBean; "
-					+ "cannot read {}.", methodName);
-			return null;
+		if (bean instanceof OperatingSystemMXBean sun) {
+			return sun;
 		}
-		try {
-			Method method = com.sun.management.OperatingSystemMXBean.class
-					.getMethod(methodName);
-			return method.invoke(bean);
-		} catch (ReflectiveOperationException e) {
-			logger.error("Could not execute "
-					+ "OperatingSystemMXBean.{}(). {}",
-					methodName, e.getMessage());
-			return null;
-		}
+		logger.error("Platform OperatingSystemMXBean is not a "
+				+ "com.sun.management.OperatingSystemMXBean; "
+				+ "system metrics are unavailable on this JVM.");
+		return null;
+	}
+
+	/**
+	 * Free physical memory in bytes, or {@code null} on a JVM that does not
+	 * expose the Sun extension interface.
+	 */
+	public static Long getFreePhysicalMemoryBytes() {
+		OperatingSystemMXBean bean = sunOsBean();
+		return bean == null ? null : bean.getFreeMemorySize();
+	}
+
+	/**
+	 * Recent system CPU load in {@code [0.0, 1.0]} (or {@code -1.0} if not
+	 * yet available), or {@code null} on a JVM that does not expose the Sun
+	 * extension interface.
+	 */
+	@SuppressWarnings("deprecation") // getSystemCpuLoad replaced by getCpuLoad in JDK 14; switch is a Phase B item
+	public static Double getSystemCpuLoad() {
+		OperatingSystemMXBean bean = sunOsBean();
+		return bean == null ? null : bean.getSystemCpuLoad();
 	}
 	
 	/* (non-Javadoc)
@@ -114,34 +124,31 @@ public class SystemMemoryMonitor extends MonitorBase {
 	 */
 	@Override
 	protected boolean triggered() {
-		Object resultObject = getOperatingSystemValue("getFreeMemorySize");
-		if (resultObject != null) {
-			long freePhysicalMemory = (Long) resultObject;
-				
-			// Provide message explaining situation
-			setMessage("Free physical memory is " 
-					+ StringUtils.memoryFormat(freePhysicalMemory) 
-					+ " while the limit is " 
-					+ StringUtils.memoryFormat(
-							availableFreePhysicalMemoryThreshold.getValue())
-					+ ".",
-					freePhysicalMemory);
-			
-			// Determine the threshold for triggering. If already triggered
-			// then raise the threshold by availableFreePhysicalMemoryThresholdGap
-			// in order to prevent lots of e-mail being sent out if the value
-			// is dithering around availableFreePhysicalMemoryThreshold.
-			long threshold = availableFreePhysicalMemoryThreshold.getValue();
-			if (wasTriggered())
-				threshold += availableFreePhysicalMemoryThresholdGap.getValue();
+		Long freePhysicalMemory = getFreePhysicalMemoryBytes();
+		if (freePhysicalMemory == null) {
+			// Could not determine available memory so have to return false
+			return false;
+		}
 
-			// Return true if problem detected
-			return freePhysicalMemory < threshold;
-		} 
-		
-		// Could not determine available memory so have to return false
-		return false;
+		// Provide message explaining situation
+		setMessage("Free physical memory is "
+				+ StringUtils.memoryFormat(freePhysicalMemory)
+				+ " while the limit is "
+				+ StringUtils.memoryFormat(
+						availableFreePhysicalMemoryThreshold.getValue())
+				+ ".",
+				freePhysicalMemory);
 
+		// Determine the threshold for triggering. If already triggered
+		// then raise the threshold by availableFreePhysicalMemoryThresholdGap
+		// in order to prevent lots of e-mail being sent out if the value
+		// is dithering around availableFreePhysicalMemoryThreshold.
+		long threshold = availableFreePhysicalMemoryThreshold.getValue();
+		if (wasTriggered())
+			threshold += availableFreePhysicalMemoryThresholdGap.getValue();
+
+		// Return true if problem detected
+		return freePhysicalMemory < threshold;
 	}
 
 	/* (non-Javadoc)

@@ -11,7 +11,14 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+		<!-- Jersey 2.35 ships ASM 9.0, which fails with
+		     "Unsupported class file major version 65" when its annotation
+		     scanner walks Java-21 (.class major 65) WAR classes at servlet
+		     init. 2.42 was the first 2.x release to bundle ASM 9.6
+		     (class-file 65 support); 2.43 is the stable Mar-2024 follow-up.
+		     Jersey 2.x stays on javax — 3.x is the jakarta fork — so this
+		     is still a Phase A bump. -->
+		<jersey.version>2.43</jersey.version>
 	</properties>
 
 	<dependencies>
@@ -33,7 +40,7 @@
 		<dependency>
 			<groupId>org.glassfish.jersey.media</groupId>
 			<artifactId>jersey-media-moxy</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -45,12 +52,12 @@
 		<dependency>
 			<groupId>org.glassfish.jersey.containers</groupId>
 			<artifactId>jersey-container-servlet</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.inject</groupId>
 			<artifactId>jersey-hk2</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>TheTransitClock</groupId>
@@ -126,13 +133,13 @@
 		<dependency>
 			<groupId>org.glassfish.jersey.test-framework</groupId>
 			<artifactId>jersey-test-framework-core</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.test-framework.providers</groupId>
 			<artifactId>jersey-test-framework-provider-grizzly2</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 			<scope>test</scope>
 		</dependency>
 

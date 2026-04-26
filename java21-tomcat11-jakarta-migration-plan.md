@@ -75,7 +75,7 @@ Small, isolated, low risk. Should be achievable in a single PR.
 ### A.1 Toolchain bumps
 
 - Root `pom.xml` and per-module poms: change `<source>17</source>`/`<target>17</target>` → `<release>21</release>` on `maven-compiler-plugin`. Bump the plugin to `3.13.0`.
-- `docker/Dockerfile`: `maven:3.9-eclipse-temurin-17` → `maven:3.9-eclipse-temurin-21`; `eclipse-temurin:17-jdk` → `eclipse-temurin:21-jdk`. Leave `tomcat:9.0-jdk17-temurin` alone for now (Tomcat 9 doesn't ship a `-jdk21` tag — use a multi-stage image with `eclipse-temurin:21-jdk` + a manual Tomcat 9 install, or accept JDK 17 at the Tomcat layer until Phase B).
+- `docker/Dockerfile`: `maven:3.9-eclipse-temurin-17` → `maven:3.9-eclipse-temurin-21`; `eclipse-temurin:17-jdk` → `eclipse-temurin:21-jdk`; `tomcat:9.0-jdk17-temurin` → `tomcat:9.0-jdk21-temurin` (Tomcat 9 does ship a `-jdk21-temurin` tag — required because the WARs are now compiled with `--release 21`, so a JDK-17 runtime would fail with `UnsupportedClassVersionError` at servlet load).
 - `.github/workflows/ci.yml` line 18–22: `java-version: 17` → `21`.
 - Surefire: standardize all modules on `3.5.4` (currently `transitclockPipelineTests` is on `2.19.1`). 2.19 is a known issue under Java 17+ and a guaranteed problem under 21.
 

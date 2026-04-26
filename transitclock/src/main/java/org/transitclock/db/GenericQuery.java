@@ -115,11 +115,10 @@ public class GenericQuery {
 		// that used for the web server then need to load in the driver for
 		// the agency database manually by using Class.forName().
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
+			Class.forName("com.mysql.cj.jdbc.Driver");
 			Class.forName("org.postgresql.Driver");
 		} catch (ClassNotFoundException e) {
-			logger.error("Could not load in db driver for GenericQuery. {}", 
-					e.getMessage());
+			logger.error("Could not load in db driver for GenericQuery", e);
 		}
 		
 		String url = "jdbc:" + dbType + "://" + dbHost + "/" + dbName;
