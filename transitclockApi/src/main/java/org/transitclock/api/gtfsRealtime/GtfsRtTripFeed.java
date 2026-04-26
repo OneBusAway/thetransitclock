@@ -38,6 +38,8 @@ import org.transitclock.ipc.clients.PredictionsInterfaceFactory;
 import org.transitclock.ipc.data.IpcPrediction;
 import org.transitclock.ipc.data.IpcPredictionsForRouteStopDest;
 import org.transitclock.utils.IntervalTimer;
+import org.transitclock.utils.SystemCurrentTime;
+import org.transitclock.utils.SystemTime;
 import org.transitclock.utils.Time;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
@@ -69,12 +71,13 @@ import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
 public class GtfsRtTripFeed {
 
 	private final String agencyId;
-	
+	private final SystemTime systemTime;
+
 	// For outputting date in GTFS-realtime format
-	private SimpleDateFormat gtfsRealtimeDateFormatter = 
+	private SimpleDateFormat gtfsRealtimeDateFormatter =
 			new SimpleDateFormat("yyyyMMdd");
-	
-	private SimpleDateFormat gtfsRealtimeTimeFormatter = 
+
+	private SimpleDateFormat gtfsRealtimeTimeFormatter =
 			new SimpleDateFormat("HH:mm:ss");
 	
 	
@@ -111,8 +114,15 @@ public class GtfsRtTripFeed {
 	/********************** Member Functions **************************/
 
 	public GtfsRtTripFeed(String agencyId) {
-		this.agencyId = agencyId;	
-		
+		this(agencyId, new SystemCurrentTime());
+	}
+
+	// Package-private clock-injection seam used by tests so the FeedHeader
+	// timestamp can be made deterministic (golden-fixture comparison).
+	GtfsRtTripFeed(String agencyId, SystemTime systemTime) {
+		this.agencyId = agencyId;
+		this.systemTime = systemTime;
+
 		this.gtfsRealtimeDateFormatter.setTimeZone(AgencyTimezoneCache
 				.get(agencyId));
 	}
@@ -230,13 +240,15 @@ public class GtfsRtTripFeed {
 	 *            the data to be put into the GTFS-realtime message
 	 * @return the GTFS-realtime FeedMessage
 	 */
-	private FeedMessage createMessage(Map<String, List<IpcPrediction>> predsByTripMap) {
+	// Package-private so tests in the same package can drive it directly with
+	// canned IpcPrediction inputs (avoids the RMI round-trip).
+	FeedMessage createMessage(Map<String, List<IpcPrediction>> predsByTripMap) {
 		FeedMessage.Builder message = FeedMessage.newBuilder();
-		
+
 		FeedHeader.Builder feedheader = FeedHeader.newBuilder()
 				.setGtfsRealtimeVersion("1.0")
 				.setIncrementality(Incrementality.FULL_DATASET)
-				.setTimestamp(System.currentTimeMillis() / Time.MS_PER_SEC);
+				.setTimestamp(systemTime.get() / Time.MS_PER_SEC);
 		message.setHeader(feedheader);
 		//Create a comparator to sort each trip data
 		Comparator<IpcPrediction> comparator=new IpcPredictionComparator();
