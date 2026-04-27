@@ -22,10 +22,7 @@ jobs:
           java-version: 21
           cache: maven
 
-      # `mvn verify` is the project-sanctioned invocation per CLAUDE.md:
-      # `mvn test` fails on the full reactor because QuickStart binds the API
-      # WAR copy to generate-resources, which only runs by package time (MDEP-187).
-      # `verify` both packages and runs tests across every module.
+      # `mvn verify` packages and runs tests across every module.
       # Integration tests stay excluded by the default skip-integration-tests profile.
       #
       # Picks up the Phase 0 migration-safety tests:

@@ -13,7 +13,6 @@
     <module>transitclock</module>
     <module>transitclockApi</module>
     <module>transitclockWebapp</module>
-    <module>transitclockQuickStart</module>
     <module>transitclockTraccarClient</module>
     <module>transitclockBarefootClient</module>
     <module>coverage-report</module>
@@ -94,7 +93,6 @@
                 <module>transitclock</module>
                 <module>transitclockApi</module>
               	<module>transitclockWebapp</module>
- 		<module>transitclockQuickStart</module>
  		<module>transitclockTraccarClient</module>
  		<module>transitclockBarefootClient</module>
  		<module>coverage-report</module>

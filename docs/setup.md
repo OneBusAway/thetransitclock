@@ -6,10 +6,6 @@ at a Postgres database, import a GTFS static feed, then run `Core.jar` against
 a GTFS-realtime vehicle-positions URL. The REST API and web UI are deployed as
 WARs into Tomcat and reach Core over RMI.
 
-This guide ignores `transitclockQuickStart` entirely. QuickStart bundles all
-three tiers into a single launcher; everything below runs each tier as its own
-process, which is what you want in production.
-
 > **Docker shortcut.** The repo ships a `docker-compose.yml` plus
 > `docker/Dockerfile` that bundle Postgres 17, the build, Core, and Tomcat 11
 > + JDK 21 into one stack. If you're standing up a fresh deployment, jump to
