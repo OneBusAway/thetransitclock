@@ -2,6 +2,8 @@ package org.transitclock.pipelinetests;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -20,14 +22,18 @@ import org.transitclock.db.structs.Trip;
 import org.transitclock.gtfs.DbConfig;
 
 /**
- * Hammers the three {@code globalSession} lazy-load paths from many threads
- * to catch the Hibernate 6 cross-thread {@code Session} race. Hibernate 6's
+ * Hammers the matcher-hot-path {@code globalSession} lazy-load points
+ * ({@code DbConfig#getTrip}, {@code Block#getTrips},
+ * {@code Trip#getScheduleTime}) from many threads to catch the Hibernate 6
+ * cross-thread {@code Session} race. Hibernate 6's
  * {@code ResourceRegistryStandardImpl} iterates an unsynchronized HashMap
  * during JDBC-resource cleanup; if any caller touches the session without
  * the canonical {@code Block#lazyLoadingSyncObject} lock, a concurrent
  * cleanup throws CME / "ResultSet is closed". The bug is in Hibernate's
  * per-session resource registry, so HSQL reproduces the same race as
- * Postgres.
+ * Postgres. The {@code ValidateSessionThread} probe site uses the same
+ * lock but isn't exercised here — its 60s cadence is far longer than the
+ * test's run window.
  */
 public class GlobalSessionConcurrencyTest {
 
@@ -35,8 +41,8 @@ public class GlobalSessionConcurrencyTest {
     public static final CoreHarness CORE = CoreHarness.withWmata5A();
 
     /**
-     * Tuned to reliably reproduce the pre-fix CME within ~3s on a 4-core
-     * dev machine. Lower thread counts or shorter durations let the race
+     * Tuned to reproduce the cross-thread Session CME reliably (~3s on
+     * 4 cores). Lower thread counts or shorter durations let the race
      * slip past; higher values just slow CI without improving signal.
      */
     private static final int THREAD_COUNT = 32;
@@ -48,8 +54,8 @@ public class GlobalSessionConcurrencyTest {
     public void concurrentGlobalSessionReadersDoNotRaceUnderLoad() throws Exception {
         DbConfig dbConfig = CORE.dbConfig();
 
-        // Shared lookup keys only — no pre-resolution, so workers race the
-        // first lazy-load of each entity (the actual bug surface).
+        // Shared lookup keys only — no pre-resolution, so workers race
+        // the first lazy-load of each entity.
         List<Block> blocks = new ArrayList<>();
         for (Block b : dbConfig.getBlocks()) {
             blocks.add(b);
@@ -85,15 +91,19 @@ public class GlobalSessionConcurrencyTest {
                             if (resolved != null) opCount.incrementAndGet();
 
                             // Lazy ManyToMany load + per-Trip lazy
-                            // ElementCollection access — the matcher hot path
-                            // that produced the production CME.
+                            // ElementCollection access — the matcher hot path.
                             Block b = blocks.get(Math.floorMod(idx, blocks.size()));
                             for (Trip t : b.getTrips()) {
                                 try {
                                     ScheduleTime s = t.getScheduleTime(0);
                                     if (s != null) opCount.incrementAndGet();
                                 } catch (IndexOutOfBoundsException ignore) {
-                                    // Trips with empty scheduledTimesList for index 0.
+                                    // Empty schedule for index 0 is the only
+                                    // legitimate IOOBE — guard against masking
+                                    // a half-loaded PersistentList symptom.
+                                    if (!t.getScheduleTimes().isEmpty()) {
+                                        throw ignore;
+                                    }
                                 }
                                 break;
                             }
@@ -117,13 +127,28 @@ public class GlobalSessionConcurrencyTest {
                 .as("Worker pool didn't terminate cleanly — likely hang in Hibernate cleanup")
                 .isTrue();
 
-        assertThat(failures)
-                .as("Concurrent globalSession readers threw %d exception(s); first: %s",
-                        failures.size(),
-                        failures.isEmpty() ? "(none)" : failures.get(0))
+        List<Throwable> snapshot;
+        synchronized (failures) {
+            snapshot = new ArrayList<>(failures);
+        }
+        assertThat(snapshot)
+                .as("Concurrent globalSession readers threw %d exception(s):%n%s",
+                        snapshot.size(), renderFailures(snapshot))
                 .isEmpty();
         assertThat(opCount.get())
                 .as("Workers should have completed at least one full op each")
                 .isGreaterThan((long) THREAD_COUNT);
+    }
+
+    private static String renderFailures(List<Throwable> failures) {
+        if (failures.isEmpty()) return "(none)";
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        int max = Math.min(3, failures.size());
+        for (int i = 0; i < max; i++) {
+            pw.printf("--- failure %d/%d ---%n", i + 1, failures.size());
+            failures.get(i).printStackTrace(pw);
+        }
+        return sw.toString();
     }
 }

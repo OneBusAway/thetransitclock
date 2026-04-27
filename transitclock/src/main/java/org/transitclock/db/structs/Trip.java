@@ -1019,15 +1019,15 @@ public class Trip implements Lifecycle, Serializable {
 	 * @return
 	 */
 	public ScheduleTime getScheduleTime(int stopPathIndex) {
-	  // Hot-path fast lane: once scheduledTimesList is loaded, get() is a
-	  // pure ArrayList read — skip the lock that the lazy-load path needs.
+	  // Fast path: scheduledTimesList is eager-fetched in DbConfig (left
+	  // join fetch) and globalSession never evicts, so once initialized
+	  // it's a plain ArrayList read with no session interaction.
 	  if (Hibernate.isInitialized(scheduledTimesList)) {
 	    return scheduledTimesList.get(stopPathIndex);
 	  }
-	  // Lazy-load path serializes on the lock that every other
-	  // globalSession reader uses; Hibernate 6's ResourceRegistry isn't
-	  // safe against cross-thread Session access, so the unsynced version
-	  // raced AVL workers and broke block assignment under load.
+	  // Lazy-load path: Hibernate 6's ResourceRegistry isn't safe against
+	  // cross-thread Session access, so serialize on the canonical lock
+	  // every other globalSession reader uses.
 	  synchronized (Block.getLazyLoadingSyncObject()) {
 	    if (scheduledTimesList instanceof PersistentList) {
 	      PersistentList persistentListTimes = (PersistentList)scheduledTimesList;

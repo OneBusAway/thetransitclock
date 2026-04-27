@@ -10,9 +10,8 @@ import org.transitclock.testutil.TransitFixtures;
  * entity (via {@code toString()}) for debug logging during entity load,
  * before lazy collections are wired up. Block has a {@code private Block()}
  * factory constructor that leaves {@code trips} null in that window;
- * {@code Hibernate.isInitialized(null)} returns true, which is what made
- * the pre-fix {@code getTrips()} guard fall through to
- * {@code unmodifiableList(null)}.
+ * {@code Hibernate.isInitialized(null)} returns true, so a naive guard on
+ * {@code isInitialized} alone falls through to {@code unmodifiableList(null)}.
  */
 public class BlockHibernateInitTest {
 

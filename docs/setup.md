@@ -167,10 +167,11 @@ If the smoke test returns empty / errors, the most common causes are:
   `docker compose exec db psql -U transitclock -d <agency-db> -c '\dt' | wc -l`.
   Should be 30+.
 - **Web UI shows `Blocks: NNN  Assigned: 0%` with predictions still flowing:**
-  Phase B's Hibernate 5.5 → 6.5 / Jakarta upgrade left four load-bearing
-  bugs that together broke block matching; all four are fixed on this
-  branch and pinned by tests. See the troubleshooting table at the end
-  of this document if a partial cherry-pick reintroduces the symptom.
+  the Hibernate 5.5 → 6.5 / Jakarta upgrade introduced four load-bearing
+  regressions that together broke block matching; all four are fixed on
+  this branch and pinned by tests. See the matching row in the
+  troubleshooting table at the end of this document for the audit list
+  if a partial cherry-pick reintroduces the symptom.
 
 A couple of Docker-specific gotchas worth knowing:
 
@@ -232,7 +233,7 @@ A couple of Docker-specific gotchas worth knowing:
 | **GTFS-realtime VehiclePositions feed** (URL) | Live AVL stream. Must be a [VehiclePositions](https://gtfs.org/documentation/realtime/feed-entities/vehicle-positions/) feed (not TripUpdates / Alerts). | Same agency or aggregator. The URL is polled every 5 s by default. HTTP basic auth is supported via `transitclock.avl.authenticationUser` / `…Password`; arbitrary custom headers (e.g. WMATA's `api_key:`) require subclassing `PollUrlAvlModule` or embedding the secret in the URL — see the AVL-feed gotcha further down. |
 | **PostgreSQL 16+** | Persists config, GTFS, AVL, predictions, arrivals/departures, web agency registry, and API keys. | Any standard install. The shipped `docker-compose.yml` pins Postgres 17. MySQL also works (`-Dtransitclock.db.dbType=mysql`); HSQLDB is for tests only. |
 | **JDK 21** | Runtime. The WARs are compiled with `--release 21` so the deployed JRE must be ≥21. | Any LTS distribution. |
-| **Tomcat 11** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 9 will not work** — both WARs target the Jakarta `jakarta.servlet` namespace as of Phase B. | Apache Tomcat 11 distribution (Servlet 6.1 / Jakarta EE 11). |
+| **Tomcat 11** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 9 will not work** — both WARs target the Jakarta `jakarta.servlet` namespace. | Apache Tomcat 11 distribution (Servlet 6.1 / Jakarta EE 11). |
 
 Optional: a writable log directory (default `/Logs`, override with
 `-Dtransitclock.logging.dir=...`), and a writable PID directory (default
@@ -529,8 +530,7 @@ Valid `-c` values are `vehicles`, `preds`, `routeConfig`, `config`,
 ## 9. Deploy the API and web WARs
 
 Both WARs target Tomcat 11 (`jakarta.servlet`); **Tomcat 9 will not work** —
-Phase B migrated the WARs to the Jakarta namespace. Drop the WARs into
-Tomcat 11's `webapps/`.
+the WARs use the Jakarta namespace. Drop the WARs into Tomcat 11's `webapps/`.
 
 The API needs `transitclock.configFiles` and the same DB-related properties as
 Core, because it reads the `WebAgency` and `ApiKey` tables out of the `web`
@@ -612,4 +612,4 @@ after the new rev is active.
 | `CreateAPIKey` crashes / JDBC URL ends in `/null` | Forgot `-Dtransitclock.db.dbName=web`. `ApiKeyManager` resolves its DB name at class-init from `DbSetupConfig.getDbName()`; without the override the URL becomes `…/null` and the connection fails. |
 | `SchemaGenerator` aborts with `Could not load requested class : org.hibernate.dialect.Oracle10gDialect` | The `Dialect.ORACLE` enum in `org.transitclock.applications.SchemaGenerator` references the Hibernate 5 class name, which was removed in Hibernate 6.x. Change it to `org.hibernate.dialect.OracleDialect` and rebuild. The Postgres pass runs *before* the Oracle pass, so the postgres DDL files are written even on the failed run — but `pipefail` aborts the bash chain before the second `mvn exec:java` (for `webstructs`) runs. |
 | API endpoints 500 with `Connection refused to host: core` after `docker compose up core` recreated the container | Tomcat caches the RMI stub it pulled out of `WebAgency` at first lookup; when `core`'s container IP changes (recreate, not just restart of the same container) the cached stub points at a stale endpoint and every API call fails. `docker compose restart tomcat` clears the cache. The webapp itself (port 8080 `/web/`) keeps loading because that's plain HTML/JSP and only the API tier owns the RMI client. |
-| Active-blocks page shows `Assigned: 0%` even though AVL is flowing and trip-updates are vending | Hibernate 6 / SLF4J 2.0 regressions introduced by Phase B. The cascading symptom is `Block.getTrips()` NPE'ing on every Block load (Hibernate 6's entity initializer formats `toString()` *during* load, before the lazy collection proxy is attached, and the original `getTrips()` guard didn't null-check `trips`); the matcher dies before assigning any vehicle. Two related races (`Trip.getScheduleTime` and `ValidateSessionThread` using `globalSession` without `Block.getLazyLoadingSyncObject()`) and an SLF4J 1.7 / logback 1.3 binding mismatch (which silently swallowed every TransitClock log line, hiding the NPEs) also bit during diagnosis. All four are fixed on this branch; if you see the symptom on a partial backport, see the §0 troubleshooting block above for the audit list. |
+| Active-blocks page shows `Assigned: 0%` even though AVL is flowing and trip-updates are vending | Hibernate 6 / SLF4J 2.0 regressions from the Jakarta upgrade. The cascading symptom is `Block.getTrips()` NPE'ing on every Block load (Hibernate 6's entity initializer formats `toString()` *during* load, before the lazy collection proxy is attached, so a guard on `Hibernate.isInitialized` alone falls through and `unmodifiableList(null)` throws); the matcher dies before assigning any vehicle. Two related races (`Trip.getScheduleTime` and `ValidateSessionThread` using `globalSession` without `Block.getLazyLoadingSyncObject()`) and an SLF4J 1.7 / logback 1.3 binding mismatch (which silently swallowed every TransitClock log line, hiding the NPEs) also bit during diagnosis. All four are fixed on this branch. Audit a partial backport by checking: (1) `Block.getTrips` null-guards `trips` before `Collections.unmodifiableList`; (2) `Trip.getScheduleTime` synchronizes on `Block.getLazyLoadingSyncObject()` for the lazy-load path; (3) `DbConfig.ValidateSessionThread`'s probe is wrapped in the same lock; (4) every module's `slf4j-api` is on 2.x and `logback-classic`/`logback-core` are on 1.3.x. |
