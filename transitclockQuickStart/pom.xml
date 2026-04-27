@@ -9,7 +9,7 @@
 	<parent>
 	    <groupId>TheTransitClock</groupId>
 	  	<artifactId>transitclock</artifactId>
-	  	<version>2.0.0-SNAPSHOT</version>
+	  	<version>3.0.0-SNAPSHOT</version>
   	</parent>
 	<properties>
 		<jettyVersion>9.4.15.v20190215</jettyVersion>
@@ -53,7 +53,7 @@
 		<dependency>
 			<groupId>TheTransitClock</groupId>
 			<artifactId>transitclockCore</artifactId>
-			<version>2.0.0-SNAPSHOT</version>
+			<version>3.0.0-SNAPSHOT</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.glassfish.jersey.media</groupId>
@@ -152,7 +152,7 @@
 									<groupId>TheTransitClock</groupId>
 									<artifactId>transitclockApi</artifactId>
 									<type>war</type>
-									<version>2.0.0-SNAPSHOT</version>
+									<version>3.0.0-SNAPSHOT</version>
 									<overWrite>true</overWrite>
 									<outputDirectory>../transitclockQuickStart/src/main/resources</outputDirectory>
 									<destFileName>api.war</destFileName>
@@ -172,7 +172,7 @@
 									<groupId>TheTransitClock</groupId>
 									<artifactId>transitclockWebapp</artifactId>
 									<type>war</type>
-									<version>2.0.0-SNAPSHOT</version>
+									<version>3.0.0-SNAPSHOT</version>
 									<overWrite>true</overWrite>
 									<outputDirectory>../transitclockQuickStart/src/main/resources</outputDirectory>
 									<destFileName>web.war</destFileName>
@@ -185,7 +185,7 @@
 			 <plugin>
 			 			<groupId>TheTransitClock</groupId>
             <artifactId>jetty-maven-plugin</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <version>3.0.0-SNAPSHOT</version>
             <configuration>
                 <webAppConfig>
                   <overrideDescriptor>../transitclockQuickStart/src/main/resources/transitime.properties</overrideDescriptor>

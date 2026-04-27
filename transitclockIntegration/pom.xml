@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
 	   <groupId>TheTransitClock</groupId>
 
-	    <version>2.0.0-SNAPSHOT</version>
+	    <version>3.0.0-SNAPSHOT</version>
     <artifactId>transitclockIntegration</artifactId>
 
     <!-- See root pom.xml: pins JAXB 2.x build-POM transitives to working
@@ -48,7 +48,7 @@
      	<dependency>
 			<groupId>TheTransitClock</groupId>
 			<artifactId>transitclockCore</artifactId>
-			<version>2.0.0-SNAPSHOT</version>
+			<version>3.0.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.hsqldb</groupId>
