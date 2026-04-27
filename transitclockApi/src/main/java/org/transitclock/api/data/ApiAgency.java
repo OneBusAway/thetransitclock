@@ -19,8 +19,8 @@ package org.transitclock.api.data;
 
 import java.util.TimeZone;
 
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
 
 import org.transitclock.db.structs.Agency;
 

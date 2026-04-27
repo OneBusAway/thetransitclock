@@ -19,7 +19,7 @@ package org.transitclock.db.structs;
 
 import java.util.Date;
 
-import javax.persistence.Entity;
+import jakarta.persistence.Entity;
 
 /**
  * For persisting an Arrival time.

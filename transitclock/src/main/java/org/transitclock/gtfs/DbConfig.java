@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.HibernateException;
-import org.hibernate.SQLQuery;
 import org.hibernate.Session;
+import org.hibernate.query.NativeQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.applications.Core;
@@ -522,7 +522,7 @@ public class DbConfig {
 		if (trip == null) {
 			logger.debug("Trip for tripIdOrShortName={} not read from db yet "
 					+ "so reading it now.", tripIdOrShortName);
-			
+
 			// Need to sync such that block data, which includes trip
 			// pattern data, is only read serially (not read simultaneously
 			// by multiple threads). Otherwise get a "force initialize loading
@@ -1049,17 +1049,21 @@ public class DbConfig {
 			while (!Thread.interrupted()) {
 				Time.sleep(60 * 1000);
 				try {
-					SQLQuery query = service.getGlobalSession().createSQLQuery(dbConfig.getValidateTestQuery());
-					query.list();
+					// Hold the same lock every other globalSession reader uses;
+					// Hibernate 6's ResourceRegistry isn't safe against
+					// cross-thread Session access.
+					synchronized (Block.getLazyLoadingSyncObject()) {
+						NativeQuery<?> query = service.getGlobalSession().createNativeQuery(dbConfig.getValidateTestQuery(), Object.class);
+						query.list();
+					}
 					logger.debug("session test success");
 				} catch (Throwable t) {
-					logger.error("session test failure: {} {}", t, t);
-					// the only reason this validate query should fail is if
-					// our db connnection is invalid 
-					// log the issue for now
-					// eventually flush connection pool or give other hints
+					// The only reason this validate query should fail is if
+					// our db connection is invalid. Log the issue for now;
+					// eventually flush connection pool or give other hints.
+					logger.error("session test failure: {}", t.getMessage(), t);
 				}
-				
+
 			}
 		}
 	}

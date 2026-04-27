@@ -17,7 +17,7 @@
 
 package org.transitclock.api.data.siri;
 
-import javax.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElement;
 
 import org.transitclock.utils.Geo;
 

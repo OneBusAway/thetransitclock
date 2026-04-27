@@ -61,10 +61,13 @@ public class AvlJsonQuery {
 			if (endTime == null || endTime.isEmpty())
 				endTime = "24:00";
 		}
-		if (beginTime != null && !beginTime.isEmpty() 
+		if (beginTime != null && !beginTime.isEmpty()
 				&& endTime != null && !endTime.isEmpty()) {
-			timeSql = " AND time(time) BETWEEN '" 
-				+ beginTime + "' AND '" + endTime + "' ";
+			// SQL-standard cast(... as time): portable across Postgres,
+			// MySQL, and HSQL (HSQL rejects VARCHAR-vs-TIME comparison, so
+			// cast both sides).
+			timeSql = " AND cast(time as time) BETWEEN cast('"
+				+ beginTime + "' as time) AND cast('" + endTime + "' as time) ";
 		}
 
 		String sql = "SELECT vehicleId, time, assignmentId, lat, lon, speed, "

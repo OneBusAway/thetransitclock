@@ -18,26 +18,26 @@ package org.transitclock.ipc.jms;
 
 import java.io.Serializable;
 
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.ObjectMessage;
-import javax.jms.Queue;
-import javax.jms.QueueConnection;
-import javax.jms.QueueConnectionFactory;
-import javax.jms.QueueRequestor;
-import javax.jms.QueueSession;
-import javax.jms.Session;
-import javax.jms.TextMessage;
-import javax.jms.Topic;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.ObjectMessage;
+import jakarta.jms.Queue;
+import jakarta.jms.QueueConnection;
+import jakarta.jms.QueueConnectionFactory;
+import jakarta.jms.QueueRequestor;
+import jakarta.jms.QueueSession;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
+import jakarta.jms.Topic;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
-import org.hornetq.api.jms.HornetQJMSClient;
-import org.hornetq.api.jms.management.JMSManagementHelper;
+import org.apache.activemq.artemis.api.jms.ActiveMQJMSClient;
+import org.apache.activemq.artemis.api.jms.management.JMSManagementHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.config.StringConfigValue;
@@ -75,13 +75,15 @@ import org.transitclock.config.StringConfigValue;
  */
 public class JMSWrapper {
 	
-	// Parameter that specifies URL of where to find the hornetq server
-	private static StringConfigValue hornetqServerURL = 
-			new StringConfigValue("transitclock.ipc.hornetqServerURL", 
+	// JBoss-Naming default kept from the HornetQ era; the initiateConnection()
+	// JNDI bootstrap is also HornetQ-style and is scheduled to be rewritten to
+	// Artemis-native ConnectionFactory lookup (Phase B follow-up).
+	private static StringConfigValue jmsServerUrl =
+			new StringConfigValue("transitclock.ipc.jmsServerURL",
 					"jnp://localhost:1099",
-					"The URL of the Hornet JMS service to use.");
-	public static String getHornetqServerURL() {
-		return hornetqServerURL.getValue();
+					"URL of the Artemis JMS broker the AVL JMS feed connects to.");
+	public static String getJmsServerUrl() {
+		return jmsServerUrl.getValue();
 	}
 	
 	// Regular member variables
@@ -122,7 +124,7 @@ public class JMSWrapper {
 				"org.jnp.interfaces.NamingContextFactory");
 		p.put(javax.naming.Context.URL_PKG_PREFIXES,
 				"org.jboss.naming:org.jnp.interfaces");			
-		p.put(javax.naming.Context.PROVIDER_URL, getHornetqServerURL());
+		p.put(javax.naming.Context.PROVIDER_URL, getJmsServerUrl());
 		
 		// Initialize the member variables so that have a session that can reuse
 		initialContext = new InitialContext(p);
@@ -176,7 +178,12 @@ public class JMSWrapper {
 				(QueueConnectionFactory) connectionFactory;
 		QueueConnection connection = queueConnectionFactory.createQueueConnection();
 
-		Queue managementQueue = HornetQJMSClient.createQueue("hornetq.management");
+		// Artemis convention: management queue is "activemq.management"
+		// (replacing HornetQ's "hornetq.management"). Both brokers expose
+		// JMS-side admin via a system-managed JMS queue; the JNDI lookup
+		// then routes putOperationInvocation()-encoded messages to the
+		// broker's ManagementService.
+		Queue managementQueue = ActiveMQJMSClient.createQueue("activemq.management");
 		QueueSession session = connection.createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
 		connection.start();
 		Message message = session.createMessage();

@@ -17,7 +17,7 @@
 
 package org.transitclock.utils.web;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  *

@@ -21,25 +21,21 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Index;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.persistence.Transient;
-
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.Transient;
 
 import org.hibernate.CallbackException;
-import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.classic.Lifecycle;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.applications.Core;
@@ -585,11 +581,11 @@ public class ArrivalDeparture implements Lifecycle, Serializable  {
 		Query query = session.createQuery(hql);
 		
 		// Set the parameters
-		query.setTimestamp("beginDate", beginTime);
-		query.setTimestamp("endDate", endTime);
+		query.setParameter("beginDate", beginTime);
+		query.setParameter("endDate", endTime);
 
 		@SuppressWarnings("unchecked")
-		Iterator<ArrivalDeparture> iterator = query.iterate(); 
+		Iterator<ArrivalDeparture> iterator = query.getResultStream().iterator();
 		return iterator;
 	}
 	
@@ -640,21 +636,21 @@ public class ArrivalDeparture implements Lifecycle, Serializable  {
 	 * @param serviceId
 	 * @return
 	 */
-	public static List<ArrivalDeparture> getArrivalsDeparturesFromDb(Session session, Date beginTime, Date endTime, String tripId, String serviceId)	
+	public static List<ArrivalDeparture> getArrivalsDeparturesFromDb(Session session, Date beginTime, Date endTime, String tripId, String serviceId)
 	{
-		Criteria criteria = session.createCriteria(ArrivalDeparture.class);
-						
-		criteria.add(Restrictions.eq( "tripId",tripId ));
-		criteria.add(Restrictions.gt("time", beginTime));
-		criteria.add(Restrictions.lt("time",endTime)).list();
-		
-		if(serviceId!=null)
-			criteria.add(Restrictions.eq( "serviceId",serviceId ));
-		
-		@SuppressWarnings("unchecked")
-		List<ArrivalDeparture> arrivalsDeparatures=criteria.list();
-		return arrivalsDeparatures;
-					
+		StringBuilder hql = new StringBuilder(
+				"from ArrivalDeparture where tripId = :tripId and time > :beginTime and time < :endTime");
+		if (serviceId != null) {
+			hql.append(" and serviceId = :serviceId");
+		}
+		Query<ArrivalDeparture> query = session.createQuery(hql.toString(), ArrivalDeparture.class)
+				.setParameter("tripId", tripId)
+				.setParameter("beginTime", beginTime)
+				.setParameter("endTime", endTime);
+		if (serviceId != null) {
+			query.setParameter("serviceId", serviceId);
+		}
+		return query.getResultList();
 	}
 	/**
 	 * Reads in arrivals and departures for a particular stopPathIndex of a trip between two dates. Uses session provided
@@ -666,27 +662,25 @@ public class ArrivalDeparture implements Lifecycle, Serializable  {
 	 * @param stopPathIndex
 	 * @return
 	 */
-	public static List<ArrivalDeparture> getArrivalsDeparturesFromDb(Session session, Date beginTime, Date endTime, String tripId, Integer stopPathIndex)	
+	public static List<ArrivalDeparture> getArrivalsDeparturesFromDb(Session session, Date beginTime, Date endTime, String tripId, Integer stopPathIndex)
 	{
-		Criteria criteria = session.createCriteria(ArrivalDeparture.class);
-						
-		if(tripId!=null)
-		{
-			criteria.add(Restrictions.eq( "tripId",tripId ));
-			
-			if(stopPathIndex!=null)
-				criteria.add(Restrictions.eq( "stopPathIndex",stopPathIndex ));
+		StringBuilder hql = new StringBuilder("from ArrivalDeparture where time > :beginTime and time < :endTime");
+		if (tripId != null) {
+			hql.append(" and tripId = :tripId");
+			if (stopPathIndex != null) {
+				hql.append(" and stopPathIndex = :stopPathIndex");
+			}
 		}
-		
-		criteria.add(Restrictions.gt("time", beginTime));
-		criteria.add(Restrictions.lt("time",endTime)).list();
-		
-				
-		
-		@SuppressWarnings("unchecked")
-		List<ArrivalDeparture> arrivalsDeparatures=criteria.list();
-		return arrivalsDeparatures;
-					
+		Query<ArrivalDeparture> query = session.createQuery(hql.toString(), ArrivalDeparture.class)
+				.setParameter("beginTime", beginTime)
+				.setParameter("endTime", endTime);
+		if (tripId != null) {
+			query.setParameter("tripId", tripId);
+			if (stopPathIndex != null) {
+				query.setParameter("stopPathIndex", stopPathIndex);
+			}
+		}
+		return query.getResultList();
 	}
 	/**
 	 * Reads the arrivals/departures for the timespan specified. All of the 
@@ -715,8 +709,8 @@ public class ArrivalDeparture implements Lifecycle, Serializable  {
 		Query query = session.createQuery(hql);
 		
 		// Set the parameters
-		query.setTimestamp("beginDate", beginTime);
-		query.setTimestamp("endDate", endTime);
+		query.setParameter("beginDate", beginTime);
+		query.setParameter("endDate", endTime);
 		
 		try {
 			@SuppressWarnings("unchecked")
@@ -792,8 +786,8 @@ public class ArrivalDeparture implements Lifecycle, Serializable  {
 		Query query = session.createQuery(hql);
 		
 		// Set the parameters for the query
-		query.setTimestamp("beginDate", beginTime);
-		query.setTimestamp("endDate", endTime);
+		query.setParameter("beginDate", beginTime);
+		query.setParameter("endDate", endTime);
 		
 		// Only get a batch of data at a time if maxResults specified
 		if (firstResult != null) {
@@ -844,8 +838,8 @@ public class ArrivalDeparture implements Lifecycle, Serializable  {
 		Query query = session.createQuery(hql);
 		
 		// Set the parameters for the query
-		query.setTimestamp("beginDate", beginTime);
-		query.setTimestamp("endDate", endTime);
+		query.setParameter("beginDate", beginTime);
+		query.setParameter("endDate", endTime);
 		
 		
 		try {

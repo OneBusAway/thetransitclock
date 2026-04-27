@@ -11,9 +11,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.hibernate.Query;
 import org.hibernate.Session;
-import org.hibernate.criterion.Projections;
+import org.hibernate.query.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.applications.Core;
@@ -306,8 +305,9 @@ public class PlaybackModule {
 	
 	private static void updateTravelTimes() {
 		session = HibernateUtils.getSession();
-		Date beginTime = (Date) session.createCriteria(ArrivalDeparture.class)
-			.setProjection(Projections.min("avlTime")).list().get(0);
+		Date beginTime = session.createQuery(
+				"select min(ad.avlTime) from ArrivalDeparture ad", Date.class)
+				.getSingleResult();
 		session.close();
 		Date endTime = new Date(beginTime.getTime() + Time.MS_PER_DAY);
 		System.out.println("Running update travel times from " + beginTime + " to " + endTime);

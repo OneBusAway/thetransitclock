@@ -27,11 +27,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.sql.Types;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,12 +45,8 @@ import org.apache.commons.cli.ParseException;
 import org.hibernate.boot.Metadata;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.cfg.Configuration;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.service.ServiceRegistry;
-import org.hibernate.tool.hbm2ddl.SchemaExport;
-import org.hibernate.tool.hbm2ddl.SchemaExport.Action;
-import org.hibernate.tool.schema.TargetType;
 
 import com.google.common.reflect.ClassPath;
 
@@ -86,21 +81,15 @@ public class SchemaGenerator {
 			LoggerFactory.getLogger(SchemaGenerator.class);
 	
 	/**
-	 * MySQL handles fractional seconds differently from PostGRES and other
-	 * DBs. Need to use "datetime(3)" for fractional seconds whereas with 
-	 * PostGRES can use the default "timestamp" type. In order to handle
-	 * this properly in the generated ddl schema files need to not use
-	 * @Column(columnDefinition="datetime(3)") in the Java class that defines
-	 * the db object. Instead need to use this special ImprovedMySQLDialect
-	 * as the Dialect.
+	 * Empty subclass referenced by the {@link Dialect#MYSQL} enum constant.
+	 * Previously overrode {@code registerColumnType(Types.TIMESTAMP, "datetime(3)")}
+	 * for millisecond-precision timestamps; Hibernate 6 dropped that hook and
+	 * Connector/J 8 + MySQL 5.6.4+ default to fractional-second precision via
+	 * {@code @Temporal(TemporalType.TIMESTAMP)}, so the override is no longer
+	 * needed. Kept (rather than collapsed to {@code MySQLDialect.class}) so the
+	 * fully-qualified class name in {@code Dialect.MYSQL} stays valid.
 	 */
 	public static class ImprovedMySQLDialect extends MySQLDialect {
-		public ImprovedMySQLDialect() {
-			super();
-			// Specify special SQL type for MySQL for timestamps so that get
-			// fractions seconds.
-			registerColumnType(Types.TIMESTAMP, "datetime(3)");
-		}
 	}
 
 
@@ -174,8 +163,7 @@ public class SchemaGenerator {
 				writer.write("\n");
 			}
 		} catch (IOException e) {
-			System.err.println("Could not trim cruft from file "
-					+ outputFilename + " . " + e.getMessage());
+			logger.error("Could not trim cruft from file {}", outputFilename, e);
 		} finally {
 			try {
 				if (reader != null)
@@ -193,8 +181,8 @@ public class SchemaGenerator {
 					StandardCopyOption.REPLACE_EXISTING);
 			Files.delete(new File(tmpFileName).toPath());
 		} catch (IOException e) {
-			System.err.println("Could not rename file " + tmpFileName + " to "
-					+ outputFilename);
+			logger.error("Could not rename file {} to {}",
+					tmpFileName, outputFilename, e);
 		}
 
 	}
@@ -204,43 +192,66 @@ public class SchemaGenerator {
 	 * 
 	 * @param dbDialect to use
 	 */
-	private void generate(Dialect dialect) {
-		
-		Map<String, String> settings = new HashMap<>();
-		settings.put("hibernate.dialect",  dialect.getDialectClass());
-		
-		ServiceRegistry serviceRegistry = 
-			      new StandardServiceRegistryBuilder().applySettings(settings).build();
-		
+	void generate(Dialect dialect) {
 		// Determine file name. Use "ddl_" plus dialect name such as mysql or
 		// oracle plus the package name with "_" replacing "." such as
 		// org_transitime_db_structs .
-		String packeNameSuffix = 
-				packageName.replace(".", "_");
-		String outputFilename = (outputDirectory!=null?outputDirectory+"/" : "") + 
-				"ddl_" + dialect.name().toLowerCase() + 
+		String packeNameSuffix = packageName.replace(".", "_");
+		String outputFilename = (outputDirectory!=null?outputDirectory+"/" : "") +
+				"ddl_" + dialect.name().toLowerCase() +
 				"_" + packeNameSuffix + ".sql";
-		
-		// Export, but only to an SQL file. Don't actually modify the database
-		System.out.println("Writing file " + outputFilename);		
-		
+
+		// Hibernate 6 dropped the org.hibernate.tool.hbm2ddl.SchemaExport
+		// public class. The Jakarta-standard replacement is to drive the
+		// schema-tooling SPI via jakarta.persistence properties: setting the
+		// scripts-action + scripts-create-target on a Hibernate
+		// SessionFactory triggers DDL emission to file when the factory
+		// builds. No live DB connection is needed since the action is
+		// "create" and the target is a script (not "database").
+		Map<String, Object> settings = new HashMap<>();
+		settings.put("hibernate.dialect", dialect.getDialectClass());
+		settings.put("jakarta.persistence.schema-generation.scripts.action", "create");
+		settings.put("jakarta.persistence.schema-generation.scripts.create-target", outputFilename);
+		settings.put("hibernate.hbm2ddl.delimiter", ";");
+
+		ServiceRegistry serviceRegistry =
+				new StandardServiceRegistryBuilder().applySettings(settings).build();
+
+		logger.info("Writing schema file {}", outputFilename);
+
 		MetadataSources metadatasource = new MetadataSources(serviceRegistry);
-							
-		for(Class<Object> annotatedClass:classList)
-		{
-			metadatasource.addAnnotatedClass( annotatedClass);
+		for (Class<Object> annotatedClass : classList) {
+			metadatasource.addAnnotatedClass(annotatedClass);
 		}
-		
-		Metadata metadata =metadatasource.buildMetadata();
-		
-	    new SchemaExport().setDelimiter(";") //
-	            .setOutputFile(outputFilename)
-	            .create(EnumSet.of(TargetType.SCRIPT), metadata);
-	 
-	    metadata.buildSessionFactory().close();
-		
+
+		Metadata metadata = metadatasource.buildMetadata();
+		metadata.buildSessionFactory().close();
+
 		// Get rid of unneeded SQL for dropping tables and keys and such
 		trimCruftFromFile(outputFilename);
+
+		// Hibernate's schema-generation SPI is silent on failure (e.g. no
+		// @Entity classes found): assert the post-condition so a build that
+		// ships an empty DDL artifact fails loudly instead.
+		verifyDdlWritten(outputFilename);
+	}
+
+	private static void verifyDdlWritten(String outputFilename) {
+		File outFile = new File(outputFilename);
+		String contents;
+		try {
+			contents = outFile.exists()
+					? Files.readString(outFile.toPath(), StandardCharsets.UTF_8)
+					: "";
+		} catch (IOException e) {
+			throw new IllegalStateException(
+					"Failed to read generated DDL at " + outputFilename, e);
+		}
+		if (!contents.toLowerCase().contains("create table")) {
+			throw new IllegalStateException("DDL generation at " + outputFilename
+					+ " produced no 'create table' statement — likely no @Entity "
+					+ "classes found in the configured package.");
+		}
 	}
 
 	/**
@@ -274,9 +285,9 @@ public class SchemaGenerator {
 	/**
 	 * Holds the class names of hibernate dialects for easy reference.
 	 */
-	private static enum Dialect {
-		ORACLE("org.hibernate.dialect.Oracle10gDialect"), 
-		// Note that using special ImprovedMySqlDialect
+	static enum Dialect {
+		ORACLE("org.hibernate.dialect.OracleDialect"),
+		// See ImprovedMySQLDialect javadoc for why the empty subclass exists.
 		MYSQL("org.transitclock.applications.SchemaGenerator$ImprovedMySQLDialect"),
 		POSTGRES("org.hibernate.dialect.PostgreSQLDialect"),
 		HSQL("org.hibernate.dialect.HSQLDialect");

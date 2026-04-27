@@ -5,57 +5,95 @@
 
 	<groupId>TheTransitClock</groupId>
 	<artifactId>transitclockApi</artifactId>
-	<version>2.0.0-SNAPSHOT</version>
+	<version>3.0.0-SNAPSHOT</version>
 	<packaging>war</packaging>
 	<name>transitclockApi</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+		<!-- Jersey 3.1.x is the jakarta-namespace line implementing
+		     Jakarta REST 3.1 / Jakarta EE 10. Minimum JDK is 11; runs
+		     cleanly on 21. 3.1.7 is the stable Mar-2024 release. -->
+		<jersey.version>3.1.7</jersey.version>
 	</properties>
+
+	<!-- See root pom.xml: pins JAXB 2.x build-POM transitives to working
+	     Jakarta-line versions so dep resolution doesn't try retired
+	     jvnet-nexus repositories. Duplicated here because this module
+	     does not declare <parent>. -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>jakarta.xml.bind</groupId>
+				<artifactId>jakarta.xml.bind-api</artifactId>
+				<version>4.0.2</version>
+			</dependency>
+			<dependency>
+				<groupId>org.glassfish.jaxb</groupId>
+				<artifactId>jaxb-runtime</artifactId>
+				<version>4.0.5</version>
+			</dependency>
+			<dependency>
+				<groupId>org.glassfish.jaxb</groupId>
+				<artifactId>jaxb-core</artifactId>
+				<version>4.0.5</version>
+			</dependency>
+			<dependency>
+				<groupId>com.sun.istack</groupId>
+				<artifactId>istack-commons-runtime</artifactId>
+				<version>4.1.2</version>
+			</dependency>
+			<dependency>
+				<groupId>com.sun.xml.fastinfoset</groupId>
+				<artifactId>FastInfoset</artifactId>
+				<version>2.1.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 
 
 		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>javax.servlet-api</artifactId>
-			<version>3.0.1</version>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>6.1.0</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- jax-rs 2.0 -->
+		<!-- Jakarta REST 3.1 -->
 		<dependency>
-			<groupId>javax.ws.rs</groupId>
-			<artifactId>javax.ws.rs-api</artifactId>
-			<version>2.0</version>
+			<groupId>jakarta.ws.rs</groupId>
+			<artifactId>jakarta.ws.rs-api</artifactId>
+			<version>3.1.0</version>
 		</dependency>
 		<!-- jersey implementation library -->
 		<dependency>
 			<groupId>org.glassfish.jersey.media</groupId>
 			<artifactId>jersey-media-moxy</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.7.2</version>
+			<!-- See note in transitclock/pom.xml. -->
+			<version>2.0.13</version>
 			<!-- <scope>provided</scope> -->
 		</dependency>
 
 		<dependency>
 			<groupId>org.glassfish.jersey.containers</groupId>
 			<artifactId>jersey-container-servlet</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.inject</groupId>
 			<artifactId>jersey-hk2</artifactId>
-			<version>2.35</version>
+			<version>${jersey.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>TheTransitClock</groupId>
 			<artifactId>transitclockCore</artifactId>
-			<version>2.0.0-SNAPSHOT</version>
+			<version>3.0.0-SNAPSHOT</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
@@ -76,32 +114,71 @@
 			<artifactId>guava</artifactId>
 			<version>20.0</version>
 		</dependency>
-		<dependency>
-			<groupId>org.glassfish.jersey.bundles.repackaged</groupId>
-			<artifactId>jersey-guava</artifactId>
-			<version>2.6</version>
-		</dependency>
-		<!--SWAGGER DOCS -->
-
-		<!-- https://mvnrepository.com/artifact/io.swagger/swagger-jaxrs -->
-		<!-- https://mvnrepository.com/artifact/io.swagger/swagger-jersey2-jaxrs -->
-		<!-- <dependency> <groupId>io.swagger</groupId> <artifactId>swagger-jersey2-jaxrs</artifactId> 
-			<version>1.5.20</version> </dependency> -->
-		<!-- https://mvnrepository.com/artifact/io.swagger.core.v3/swagger-jaxrs2 -->
+		<!-- Swagger Core (Jakarta line). The "-jakarta" artifact id is the
+		     jakarta.* equivalent of swagger-jaxrs2, paired with Jersey 3.1
+		     and jakarta.ws.rs-api 3.1. -->
 		<dependency>
 			<groupId>io.swagger.core.v3</groupId>
-			<artifactId>swagger-jaxrs2</artifactId>
-			<version>2.0.2</version>
+			<artifactId>swagger-jaxrs2-jakarta</artifactId>
+			<version>2.2.22</version>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.webjars/swagger-ui -->
 		<dependency>
 			<groupId>org.webjars</groupId>
 			<artifactId>swagger-ui</artifactId>
-			<version>3.17.1</version>
+			<version>5.17.14</version>
 		</dependency>
 
-
+		<!-- Test scope -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.13.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>5.12.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
+			<version>3.26.3</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Jersey Test Framework: spins the JAX-RS resources in-process on
+		     a Grizzly2 HTTP container so the resource layer can be exercised
+		     end-to-end without Tomcat. The 3.1.x line transitively pulls
+		     junit-jupiter, which causes surefire's auto-discovery to crash
+		     ("TestEngine 'junit-jupiter' failed to discover tests") in this
+		     JUnit 4-only module. Exclude jupiter; vintage / junit:junit
+		     handle our @Test annotations. -->
+		<dependency>
+			<groupId>org.glassfish.jersey.test-framework</groupId>
+			<artifactId>jersey-test-framework-core</artifactId>
+			<version>${jersey.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.jupiter</groupId>
+					<artifactId>junit-jupiter</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.test-framework.providers</groupId>
+			<artifactId>jersey-test-framework-provider-grizzly2</artifactId>
+			<version>${jersey.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.jupiter</groupId>
+					<artifactId>junit-jupiter</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 	</dependencies>
 
@@ -113,11 +190,10 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.8.1</version>
+				<version>3.13.0</version>
 				<inherited>true</inherited>
 				<configuration>
-					<source>17</source>
-					<target>17</target>
+					<release>21</release>
 				</configuration>
 			</plugin>
 			<plugin>

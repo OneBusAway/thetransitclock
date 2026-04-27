@@ -21,20 +21,13 @@ import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
-import org.hibernate.type.Type;
-import org.hibernate.type.DoubleType;
-import org.hibernate.criterion.CriteriaSpecification;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Projection;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
+import org.hibernate.query.NativeQuery;
+import org.hibernate.transform.AliasToEntityMapResultTransformer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.db.hibernate.HibernateUtils;
-import org.transitclock.db.structs.PredictionAccuracy;
 
 /**
  * To find route performance information.
@@ -55,55 +48,60 @@ public class RoutePerformanceQuery {
   private static final String TRANSITIME_PREDICTION_SOURCE = "Transitime";
   
   public List<Object[]> query(String agencyId, Date startDate, int numDays, double allowableEarlyMin, double allowableLateMin, String predictionType, String predictionSource) {
-    
+
     int msecLo = (int) (allowableEarlyMin * 60 * 1000 * -1);
     int msecHi = (int) (allowableLateMin * 60 * 1000);
     Calendar c = Calendar.getInstance();
     c.setTime(startDate);
     c.add(Calendar.DAY_OF_YEAR,numDays);
     Date endDate = c.getTime();
-    // Project to: # of predictions in which route is on time / # of predictions
-    // for route. This cannot be done with pure Criteria API. This could be
-    // moved to a separate class or XML file.
-    String sqlProjection = "avg(predictionAccuracyMsecs)  AS avgAccuracy";
+
+    // Hibernate 6 dropped the legacy Criteria + Projections / Restrictions
+    // APIs this report originally used. The query mixes a SQL projection
+    // (avg(predictionAccuracyMsecs)) with a group-by — easiest expressed
+    // as native SQL, which is what the original sqlProjection effectively
+    // was anyway.
+    StringBuilder sql = new StringBuilder(
+        "select routeId as routeId, avg(predictionAccuracyMsecs) as performance"
+            + " from PredictionAccuracy"
+            + " where arrivalDepartureTime >= :startDate"
+            + "   and arrivalDepartureTime <= :endDate"
+            + "   and predictionAccuracyMsecs >= :msecLo"
+            + "   and predictionAccuracyMsecs <= :msecHi");
+
+    if (predictionType == PREDICTION_TYPE_AFFECTED) {
+      sql.append(" and affectedByWaitStop = true");
+    } else if (predictionType == PREDICTION_TYPE_NOT_AFFECTED) {
+      sql.append(" and affectedByWaitStop = false");
+    }
+
+    boolean filterTransitime = false;
+    boolean filterNonTransitime = false;
+    if (predictionSource != null && !StringUtils.isEmpty(predictionSource)) {
+      if (predictionSource.equals(TRANSITIME_PREDICTION_SOURCE)) {
+        sql.append(" and predictionSource = :predictionSource");
+        filterTransitime = true;
+      } else {
+        sql.append(" and predictionSource <> :predictionSource");
+        filterNonTransitime = true;
+      }
+    }
+
+    sql.append(" group by routeId order by performance desc");
 
     try {
       session = HibernateUtils.getSession(agencyId);
-            
-      Projection proj = Projections.projectionList()
-          .add(Projections.groupProperty("routeId"), "routeId")
-          .add(Projections.sqlProjection(sqlProjection,
-              new String[] { "avgAccuracy" }, 
-              new Type[] { DoubleType.INSTANCE }), "performance");
-          
-      Criteria criteria = session.createCriteria(PredictionAccuracy.class)
-        .setProjection(proj)
-        .add(Restrictions.ge("arrivalDepartureTime", startDate))
-        .add(Restrictions.le("arrivalDepartureTime", endDate))
-      	.add(Restrictions.ge("predictionAccuracyMsecs", msecLo))
-    	.add(Restrictions.le("predictionAccuracyMsecs", msecHi));
-      
-      
-      if (predictionType == PREDICTION_TYPE_AFFECTED)
-          criteria.add(Restrictions.eq("affectedByWaitStop", true));
-      else if (predictionType == PREDICTION_TYPE_NOT_AFFECTED)
-          criteria.add(Restrictions.eq("affectedByWaitStop", false));
-      
-      if (predictionSource != null && !StringUtils.isEmpty(predictionSource)) {
-    	  if (predictionSource.equals(TRANSITIME_PREDICTION_SOURCE))
-    		  criteria.add(Restrictions.eq("predictionSource", TRANSITIME_PREDICTION_SOURCE));
-    	  else
-    		  criteria.add(Restrictions.ne("predictionSource", TRANSITIME_PREDICTION_SOURCE));
+      NativeQuery<?> q = session.createNativeQuery(sql.toString(), Object.class)
+          .setParameter("startDate", startDate)
+          .setParameter("endDate", endDate)
+          .setParameter("msecLo", msecLo)
+          .setParameter("msecHi", msecHi);
+      if (filterTransitime || filterNonTransitime) {
+        q.setParameter("predictionSource", TRANSITIME_PREDICTION_SOURCE);
       }
-      
-      criteria.addOrder(Order.desc("performance"));
-      
-      criteria.setResultTransformer(CriteriaSpecification.ALIAS_TO_ENTITY_MAP);
-          
+      q.setTupleTransformer(AliasToEntityMapResultTransformer.INSTANCE);
       @SuppressWarnings("unchecked")
-      List<Object[]> results = criteria.list();
-      
-
+      List<Object[]> results = (List<Object[]>) q.list();
       return results;
     }
     catch(HibernateException e) {

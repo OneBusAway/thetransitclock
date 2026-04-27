@@ -16,8 +16,8 @@
  */
 package org.transitclock.ipc.jms;
 
-import javax.jms.JMSException;
-import javax.jms.MessageConsumer;
+import jakarta.jms.JMSException;
+import jakarta.jms.MessageConsumer;
 import javax.naming.NamingException;
 
 /**

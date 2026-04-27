@@ -17,8 +17,8 @@
 
 package org.transitclock.api.data;
 
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.transitclock.ipc.data.IpcPrediction;
 import org.transitclock.utils.Time;

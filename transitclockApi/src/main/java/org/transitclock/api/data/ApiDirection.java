@@ -20,8 +20,8 @@ package org.transitclock.api.data;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
 
 import org.transitclock.ipc.data.IpcDirection;
 import org.transitclock.ipc.data.IpcStop;

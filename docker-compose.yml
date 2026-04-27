@@ -1,4 +1,4 @@
-# TheTransitClock production-ish stack: Postgres + Core + Tomcat (api + webapp).
+# TransitClock production-ish stack: Postgres + Core + Tomcat (api + webapp).
 #
 # Before first run: `cp .env.example .env` and fill in TRANSITCLOCK_DB_PASSWORD
 # (and TRANSITCLOCK_APIKEY after step 7). Compose substitutes these into the
@@ -45,7 +45,7 @@ services:
       retries: 10
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Admin tools (Maven + JDK 17 + psql). Used only via `docker compose run`.
+  # Admin tools (Maven + JDK 21 + psql). Used only via `docker compose run`.
   # Mounts .deploy/ so the host can hand the container the GTFS zip, read
   # the generated DDL files back, etc.
   # ──────────────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ services:
       - ./.deploy/logs:/var/log/transitclock
     environment:
       JAVA_OPTS: >-
-        -Xmx4g -server
+        -Xmx6g -server
         -Dtransitclock.core.agencyId=1
         -Dtransitclock.configFiles=/etc/transitclock/transitclockConfig.xml
         -Dtransitclock.hibernate.configFile=/etc/transitclock/postgres_hibernate.cfg.xml
@@ -123,8 +123,9 @@ services:
       start_period: 30s
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Tomcat 9 + JDK 17 (Tomcat 10 doesn't work — the WARs are still
-  # javax.servlet, not jakarta.servlet). Hosts api.war and web.war.
+  # Tomcat 11 + JDK 21. WARs are jakarta.servlet 6.1 (Phase B) and
+  # class-file 65 (Java 21), so the runtime stack must be Tomcat 11+
+  # (Servlet 6.1 / Jakarta EE 11) and JDK 21+. Hosts api.war and web.war.
   # ──────────────────────────────────────────────────────────────────────────
   tomcat:
     build:

@@ -10,9 +10,7 @@ import java.util.Set;
 import org.apache.commons.jcs.JCS;
 import org.apache.commons.jcs.access.CacheAccess;
 import org.apache.commons.lang3.time.DateUtils;
-import org.hibernate.Criteria;
 import org.hibernate.Session;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.applications.Core;
@@ -130,10 +128,12 @@ public class TripDataHistoryCache implements TripDataHistoryCacheInterface {
 	@Override
 	public void populateCacheFromDb(Session session, Date startDate, Date endDate)
 	{
- 		Criteria criteria =session.createCriteria(ArrivalDeparture.class);				
-		
-		@SuppressWarnings("unchecked")
-		List<ArrivalDeparture> results=criteria.add(Restrictions.between("time", startDate, endDate)).list();
+		List<ArrivalDeparture> results = session.createQuery(
+				"from ArrivalDeparture where time between :start and :end",
+				ArrivalDeparture.class)
+				.setParameter("start", startDate)
+				.setParameter("end", endDate)
+				.getResultList();
 						
 		for(ArrivalDeparture result : results)		
 		{						

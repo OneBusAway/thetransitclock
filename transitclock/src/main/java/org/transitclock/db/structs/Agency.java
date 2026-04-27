@@ -20,15 +20,15 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.TimeZone;
 
-import javax.persistence.Column;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.DynamicUpdate;
 import org.transitclock.db.hibernate.HibernateUtils;
@@ -161,7 +161,7 @@ public class Agency implements Serializable {
 		String hql = "FROM Agency " +
 				"    WHERE configRev = :configRev";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
+		query.setParameter("configRev", configRev);
 		return query.list();
 	}
 

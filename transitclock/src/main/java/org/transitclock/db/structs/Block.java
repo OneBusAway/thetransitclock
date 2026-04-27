@@ -30,24 +30,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.OrderColumn;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Table;
 
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.JDBCException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.collection.internal.PersistentList;
+import org.hibernate.collection.spi.PersistentList;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.internal.SessionImpl;
@@ -223,7 +223,7 @@ public final class Block implements Serializable {
       String hql = "FROM Blocks b "
           + "WHERE b.configRev = :configRev";
       Query query = session.createQuery(hql);
-      query.setInteger("configRev", configRev);
+      query.setParameter("configRev", configRev);
       return query.list();
 	  }
 
@@ -237,7 +237,7 @@ public final class Block implements Serializable {
           /*+ "join fetch sp.locations "*/  //this makes the resultset REALLY big
           + "WHERE b.configRev = :configRev";
       Query query = session.createQuery(hql);
-      query.setInteger("configRev", configRev);
+      query.setParameter("configRev", configRev);
       return query.list();
 	  }
 
@@ -272,7 +272,7 @@ public final class Block implements Serializable {
 
 		// Delete configRev data from Block_to_Trip_joinTable
 		int rowsUpdated = session.
-				createSQLQuery("DELETE FROM Block_to_Trip_joinTable "
+				createNativeQuery("DELETE FROM Block_to_Trip_joinTable "
 						+ "WHERE Blocks_configRev=" + configRev).
 				executeUpdate();
 		logger.info("Deleted {} rows from Block_to_Trip_joinTable for "
@@ -281,7 +281,7 @@ public final class Block implements Serializable {
 
 		// Delete configRev data from Trips
 		rowsUpdated = session.
-				createSQLQuery("DELETE FROM Trips WHERE configRev=" 
+				createNativeQuery("DELETE FROM Trips WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		logger.info("Deleted {} rows from Trips for configRev={}",
@@ -290,7 +290,7 @@ public final class Block implements Serializable {
 
 		// Delete configRev data from Blocks
 		rowsUpdated = session.
-				createSQLQuery("DELETE FROM Blocks WHERE configRev=" 
+				createNativeQuery("DELETE FROM Blocks WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		logger.info("Deleted {} rows from Blocks for configRev={}",
@@ -804,10 +804,15 @@ public final class Block implements Serializable {
 	 * @return the trips as an unmodifiable collection
 	 */
 	public List<Trip> getTrips() {
-		// If trips already lazy loaded then simply return them
+		// Hibernate 6's entity initializer formats the entity (toString →
+		// getTrips) before the PersistentList proxy is attached, so trips
+		// is briefly null. Hibernate.isInitialized(null) returns true, so
+		// without this guard the next line would NPE on every Block load.
+		if (trips == null)
+			return Collections.emptyList();
 		if (Hibernate.isInitialized(trips))
 			return Collections.unmodifiableList(trips);
-		
+
 		// Trips not yet lazy loaded so do so now.
 		// It appears that lazy initialization is problematic when have multiple
 		// simultaneous threads. Get "org.hibernate.AssertionFailure: force

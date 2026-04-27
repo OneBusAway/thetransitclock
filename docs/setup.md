@@ -6,13 +6,9 @@ at a Postgres database, import a GTFS static feed, then run `Core.jar` against
 a GTFS-realtime vehicle-positions URL. The REST API and web UI are deployed as
 WARs into Tomcat and reach Core over RMI.
 
-This guide ignores `transitclockQuickStart` entirely. QuickStart bundles all
-three tiers into a single launcher; everything below runs each tier as its own
-process, which is what you want in production.
-
 > **Docker shortcut.** The repo ships a `docker-compose.yml` plus
-> `docker/Dockerfile` that bundle Postgres 17, the build, Core, and Tomcat 9
-> + JDK 17 into one stack. If you're standing up a fresh deployment, jump to
+> `docker/Dockerfile` that bundle Postgres 17, the build, Core, and Tomcat 11
+> + JDK 21 into one stack. If you're standing up a fresh deployment, jump to
 > [§0 Containerized deployment](#0-containerized-deployment) — every step
 > below is wired up there. The detailed §1–§10 flow is the bare-metal
 > reference for when Docker isn't an option (or when you need to debug what
@@ -27,8 +23,8 @@ single docker network. The build is a multi-stage `docker/Dockerfile`:
 - **tools** — `FROM builder`, plus `psql`. Used via `docker compose run
   --rm tools <cmd>` for SchemaGenerator, GtfsFileProcessor, CreateWebAgency,
   CreateAPIKey, RmiQuery — i.e. every one-shot admin command in §4–§7.
-- **core-runtime** — JDK 17 + `Core.jar` (copied from builder).
-- **tomcat-runtime** — Tomcat 9 + JDK 17 + `api.war`/`web.war` (copied
+- **core-runtime** — JDK 21 + `Core.jar` (copied from builder).
+- **tomcat-runtime** — Tomcat 11 + JDK 21 + `api.war`/`web.war` (copied
   from builder).
 
 Per-deployment secrets live in a top-level `.env` (gitignored), and
@@ -85,7 +81,7 @@ docker compose run --rm tools bash -euo pipefail -c "
     -Dexec.args='-o /deploy/ddl -p org.transitclock.db.webstructs'
   test -s /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql
   test -s /deploy/ddl/ddl_postgres_org_transitclock_db_webstructs.sql
-  grep -c 'CREATE TABLE' /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql"
+  grep -c 'create table' /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql"
 
 docker compose run --rm tools bash -euo pipefail -c "
   psql -v ON_ERROR_STOP=1 -h db -U transitclock -d <agency-db> \
@@ -166,6 +162,12 @@ If the smoke test returns empty / errors, the most common causes are:
 - **No tables / DDL incomplete:** confirm with
   `docker compose exec db psql -U transitclock -d <agency-db> -c '\dt' | wc -l`.
   Should be 30+.
+- **Web UI shows `Blocks: NNN  Assigned: 0%` with predictions still flowing:**
+  the Hibernate 5.5 → 6.5 / Jakarta upgrade introduced four load-bearing
+  regressions that together broke block matching; all four are fixed on
+  this branch and pinned by tests. See the matching row in the
+  troubleshooting table at the end of this document for the audit list
+  if a partial cherry-pick reintroduces the symptom.
 
 A couple of Docker-specific gotchas worth knowing:
 
@@ -226,8 +228,8 @@ A couple of Docker-specific gotchas worth knowing:
 | **GTFS static feed** (`.zip`) | Routes, stops, trips, schedule, shapes — the static skeleton TheTransitClock matches AVL onto. | Your transit agency's open-data portal, [Mobility Database](https://database.mobilitydata.org/), or [transit.land](https://www.transit.land/feeds). Must be GTFS, not GTFS-Flex. |
 | **GTFS-realtime VehiclePositions feed** (URL) | Live AVL stream. Must be a [VehiclePositions](https://gtfs.org/documentation/realtime/feed-entities/vehicle-positions/) feed (not TripUpdates / Alerts). | Same agency or aggregator. The URL is polled every 5 s by default. HTTP basic auth is supported via `transitclock.avl.authenticationUser` / `…Password`; arbitrary custom headers (e.g. WMATA's `api_key:`) require subclassing `PollUrlAvlModule` or embedding the secret in the URL — see the AVL-feed gotcha further down. |
 | **PostgreSQL 16+** | Persists config, GTFS, AVL, predictions, arrivals/departures, web agency registry, and API keys. | Any standard install. The shipped `docker-compose.yml` pins Postgres 17. MySQL also works (`-Dtransitclock.db.dbType=mysql`); HSQLDB is for tests only. |
-| **JDK 17** | Runtime. | Any LTS distribution. |
-| **Tomcat 9** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 10+ won't work** — both WARs are still on `javax.servlet`, and Tomcat 10 switched to the Jakarta `jakarta.servlet` namespace. | Apache Tomcat distribution. |
+| **JDK 21** | Runtime. The WARs are compiled with `--release 21` so the deployed JRE must be ≥21. | Any LTS distribution. |
+| **Tomcat 11** | Hosts `api.war` and `web.war`. Not required if you only need the engine + RMI. **Tomcat 9 will not work** — both WARs target the Jakarta `jakarta.servlet` namespace. | Apache Tomcat 11 distribution (Servlet 6.1 / Jakarta EE 11). |
 
 Optional: a writable log directory (default `/Logs`, override with
 `-Dtransitclock.logging.dir=...`), and a writable PID directory (default
@@ -523,9 +525,8 @@ Valid `-c` values are `vehicles`, `preds`, `routeConfig`, `config`,
 
 ## 9. Deploy the API and web WARs
 
-Both WARs target Tomcat 9 (`javax.servlet`); **Tomcat 10+ won't work** because
-those releases switched to the Jakarta `jakarta.servlet` namespace. Drop the
-WARs into Tomcat's `webapps/`.
+Both WARs target Tomcat 11 (`jakarta.servlet`); **Tomcat 9 will not work** —
+the WARs use the Jakarta namespace. Drop the WARs into Tomcat 11's `webapps/`.
 
 The API needs `transitclock.configFiles` and the same DB-related properties as
 Core, because it reads the `WebAgency` and `ApiKey` tables out of the `web`
@@ -605,3 +606,6 @@ after the new rev is active.
 | "Could not contact RMI" between API and Core | Ports 2099 and 2098 blocked, or `hostName` passed to `CreateWebAgency` doesn't resolve from the API host. |
 | Settings in your config file have no effect | Root tag is `<transitime>` (legacy). Change to `<transitclock>`; every typed `ConfigValue` is registered under `transitclock.*`. |
 | `CreateAPIKey` crashes / JDBC URL ends in `/null` | Forgot `-Dtransitclock.db.dbName=web`. `ApiKeyManager` resolves its DB name at class-init from `DbSetupConfig.getDbName()`; without the override the URL becomes `…/null` and the connection fails. |
+| `SchemaGenerator` aborts with `Could not load requested class : org.hibernate.dialect.Oracle10gDialect` | The `Dialect.ORACLE` enum in `org.transitclock.applications.SchemaGenerator` references the Hibernate 5 class name, which was removed in Hibernate 6.x. Change it to `org.hibernate.dialect.OracleDialect` and rebuild. The Postgres pass runs *before* the Oracle pass, so the postgres DDL files are written even on the failed run — but `pipefail` aborts the bash chain before the second `mvn exec:java` (for `webstructs`) runs. |
+| API endpoints 500 with `Connection refused to host: core` after `docker compose up core` recreated the container | Tomcat caches the RMI stub it pulled out of `WebAgency` at first lookup; when `core`'s container IP changes (recreate, not just restart of the same container) the cached stub points at a stale endpoint and every API call fails. `docker compose restart tomcat` clears the cache. The webapp itself (port 8080 `/web/`) keeps loading because that's plain HTML/JSP and only the API tier owns the RMI client. |
+| Active-blocks page shows `Assigned: 0%` even though AVL is flowing and trip-updates are vending | Hibernate 6 / SLF4J 2.0 regressions from the Jakarta upgrade. The cascading symptom is `Block.getTrips()` NPE'ing on every Block load (Hibernate 6's entity initializer formats `toString()` *during* load, before the lazy collection proxy is attached, so a guard on `Hibernate.isInitialized` alone falls through and `unmodifiableList(null)` throws); the matcher dies before assigning any vehicle. Two related races (`Trip.getScheduleTime` and `ValidateSessionThread` using `globalSession` without `Block.getLazyLoadingSyncObject()`) and an SLF4J 1.7 / logback 1.3 binding mismatch (which silently swallowed every TransitClock log line, hiding the NPEs) also bit during diagnosis. All four are fixed on this branch. Audit a partial backport by checking: (1) `Block.getTrips` null-guards `trips` before `Collections.unmodifiableList`; (2) `Trip.getScheduleTime` synchronizes on `Block.getLazyLoadingSyncObject()` for the lazy-load path; (3) `DbConfig.ValidateSessionThread`'s probe is wrapped in the same lock; (4) every module's `slf4j-api` is on 2.x and `logback-classic`/`logback-core` are on 1.3.x. |

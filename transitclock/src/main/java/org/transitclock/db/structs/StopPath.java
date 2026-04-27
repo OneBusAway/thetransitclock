@@ -19,7 +19,7 @@ package org.transitclock.db.structs;
 
 import org.hibernate.CallbackException;
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.classic.Lifecycle;
@@ -30,7 +30,7 @@ import org.transitclock.configData.CoreConfig;
 import org.transitclock.db.hibernate.HibernateUtils;
 import org.transitclock.utils.Geo;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -225,7 +225,7 @@ public class StopPath implements Serializable, Lifecycle {
 		String hql = "FROM StopPath " +
 				"    WHERE configRev = :configRev";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
+		query.setParameter("configRev", configRev);
 		return query.list();
 	}
 

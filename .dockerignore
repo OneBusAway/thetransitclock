@@ -1,0 +1,39 @@
+# Local Maven build outputs — re-generated inside the builder stage.
+**/target/
+
+# Per-deployment runtime config + logs + GTFS payload + Postgres bind data.
+# Mounted into containers at runtime via volumes, not baked into the image.
+.deploy/
+
+# Git history and IDE clutter.
+.git/
+.idea/
+.vscode/
+*.iml
+
+# Coverage / surefire reports.
+**/target/site/
+**/jacoco.exec
+**/surefire-reports/
+
+# Editor backup / OS noise.
+*~
+.DS_Store
+
+# Local agent + assistant memory directories.
+memory/
+.claude/
+
+# Docker build artifacts that should never be bundled.
+docker/build-cache/
+
+# WMATA capture outputs and other large local fixtures sit under tools/
+# but are not used by the build itself.
+tools/wmata_capture/output/
+tools/wmata_capture/__pycache__/
+
+# Playwright session and browser artifacts.
+.playwright-mcp/
+
+# Hibernate exec output landed in the repo root.
+ddl_*.sql

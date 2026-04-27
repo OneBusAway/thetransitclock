@@ -6,40 +6,77 @@
     <modelVersion>4.0.0</modelVersion>
 	   <groupId>TheTransitClock</groupId>
 
-	    <version>2.0.0-SNAPSHOT</version>
+	    <version>3.0.0-SNAPSHOT</version>
     <artifactId>transitclockIntegration</artifactId>
+
+    <!-- See root pom.xml: pins JAXB 2.x build-POM transitives to working
+         Jakarta-line versions so dep resolution doesn't try retired
+         jvnet-nexus repositories. Duplicated here because this module
+         does not declare <parent>. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>jakarta.xml.bind</groupId>
+                <artifactId>jakarta.xml.bind-api</artifactId>
+                <version>4.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jaxb</groupId>
+                <artifactId>jaxb-runtime</artifactId>
+                <version>4.0.5</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jaxb</groupId>
+                <artifactId>jaxb-core</artifactId>
+                <version>4.0.5</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sun.istack</groupId>
+                <artifactId>istack-commons-runtime</artifactId>
+                <version>4.1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sun.xml.fastinfoset</groupId>
+                <artifactId>FastInfoset</artifactId>
+                <version>2.1.1</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
 
      	<dependency>
 			<groupId>TheTransitClock</groupId>
 			<artifactId>transitclockCore</artifactId>
-			<version>2.0.0-SNAPSHOT</version>
+			<version>3.0.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.hsqldb</groupId>
 			<artifactId>hsqldb</artifactId>
-			<version>2.2.4</version>
+			<version>2.7.4</version>
 			<scope>test</scope>
 		</dependency>
 
-        <!-- For logging -->
+        <!-- For logging. Versions match the rest of the reactor; see Phase A
+             notes for why we hold logback at 1.3.x (last slf4j-1.x and javax
+             namespace-compatible line) until the jakarta migration. -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <version>1.1.2</version>
+            <version>1.3.14</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.1.2</version>
+            <version>1.3.14</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.2</version>
+            <!-- See note in transitclock/pom.xml. -->
+            <version>2.0.13</version>
             <scope>compile</scope>
         </dependency>
 
@@ -74,6 +111,18 @@
 
     <build>
         <plugins>
+            <!-- Without this block the module would fall back to the Maven
+                 super-pom defaults (source/target Java 8). Match the rest of
+                 the reactor so its class files are loadable on the same
+                 runtime. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
             <!-- Configure integration test system properties -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

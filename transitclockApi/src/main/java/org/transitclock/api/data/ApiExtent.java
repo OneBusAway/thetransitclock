@@ -17,7 +17,7 @@
 
 package org.transitclock.api.data;
 
-import javax.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlAttribute;
 
 import org.transitclock.db.structs.Extent;
 import org.transitclock.utils.MathUtils;

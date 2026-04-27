@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-TheTransitClock (formerly Transitime) is a Java real-time transit prediction and monitoring system. It ingests AVL (Automatic Vehicle Location) data, matches vehicles to GTFS schedules/routes, and generates arrival/departure predictions. Java 17, Maven multi-module, Hibernate 5.5 over PostgreSQL (MySQL and HSQLDB also wired up).
+TransitClock (formerly TheTransitClock, formerly Transitime) is a Java real-time transit prediction and monitoring system. It ingests AVL (Automatic Vehicle Location) data, matches vehicles to GTFS schedules/routes, and generates arrival/departure predictions. Java 21, Maven multi-module, Hibernate 5.5 over PostgreSQL (MySQL and HSQLDB also wired up).
 
 ## Build and test
 
@@ -17,30 +17,26 @@ Built from the repository root as a Maven multi-module project.
 - Integration tests live in the `transitclockIntegration` module and are **excluded by default** via the `skip-integration-tests` profile. Enable with: `mvn install -P include-integration-tests`
 - Pipeline tests live in the `transitclockPipelineTests` module and are **excluded by default** — opt-in via the `include-pipeline-tests` profile. They boot a real Core against an in-memory HSQL database populated with a small WMATA GTFS fixture and exercise matcher/generator behavior end-to-end (lighter than the full AVL-trace runs in `transitclockIntegration`). Enable with: `mvn -pl transitclockPipelineTests -am -P include-pipeline-tests test`. CI runs this as a separate step after `mvn verify`.
 - Run **everything** (unit + pipeline + integration) in one invocation: `mvn install -P run-all-tests`. The `run-all-tests` profile activates both extra modules so the reactor picks them up alongside the default build.
-
-`mvn test` on the full reactor fails: `transitclockQuickStart` binds `maven-dependency-plugin:copy` to `generate-resources` to pull the `transitclockApi` WAR into its resources, but the `test` phase never packages that WAR (MDEP-187: "Artifact has not been packaged yet"). Use `mvn verify` / `mvn package` / `mvn install` to exercise all tests, or scope to one module with `-pl`, or skip QuickStart: `mvn test -pl '!transitclockQuickStart'`.
 - Shaded executable JARs are emitted into `transitclock/target/` (e.g. `Core.jar`, `GtfsFileProcessor.jar`, `SchemaGenerator.jar`, `CreateWebAgency.jar`, `CreateAPIKey.jar`, `RmiQuery.jar`, `UpdateTravelTimes.jar`, `ScheduleGenerator.jar`) — each is a maven-shade execution in `transitclock/pom.xml`.
 
 There is no lint step configured in the build.
 
 ## Code coverage
 
-JaCoCo 0.8.12 is wired at the root `pom.xml`. It inherits into any module that declares `<parent>`, which today means `transitclock`, `transitclockQuickStart`, `transitclockBarefootClient`, and `transitclockTraccarClient`. `transitclockApi` and `transitclockWebapp` don't declare `<parent>`, so they currently produce no coverage data.
+JaCoCo 0.8.12 is wired at the root `pom.xml`. It inherits into any module that declares `<parent>`, which today means `transitclock`, `transitclockBarefootClient`, and `transitclockTraccarClient`. `transitclockApi` and `transitclockWebapp` don't declare `<parent>`, so they currently produce no coverage data.
 
 - Per-module HTML reports land at `<module>/target/site/jacoco/index.html` after `mvn verify`.
 - Aggregate report (merges Core + both thin clients) lands at `coverage-report/target/site/jacoco-aggregate/index.html`. The `coverage-report` module's only job is to run `jacoco:report-aggregate`; it has no sources of its own.
 - Quickest way to regenerate just the aggregate: `mvn verify -pl coverage-report -am`.
-- `transitclockQuickStart` has JaCoCo explicitly skipped — it bundles `api.war`/`web.war` into `target/classes` as resources, and JaCoCo's analyzer chokes on multi-release JARs inside those WARs ("Can't add different class with same name"). QuickStart is a launcher, not logic worth measuring.
 - No coverage threshold / build-break rule is configured. `jacoco:check` with a minimum goal would be the place to add one.
 
 ## Module layout
 
-Nine Maven modules under the root aggregator `pom.xml`:
+Eight Maven modules under the root aggregator `pom.xml`:
 
 - **transitclock** — core engine. Artifact id `transitclockCore`. Contains domain model, AVL ingestion, matching, prediction generation, Hibernate entities, config, modules, IPC servers, and all executable `main` classes under `org.transitclock.applications`.
 - **transitclockApi** — JAX-RS REST API WAR. Calls into a running Core process via RMI (see `org.transitclock.ipc`); does **not** talk to the DB directly for live vehicle/prediction data.
 - **transitclockWebapp** — user-facing web UI WAR. Consumes the REST API; deployed to the same Tomcat instance as `transitclockApi`. Connects to the DB via `hibernate.cfg.xml` in `src/main/resources`.
-- **transitclockQuickStart** — standalone `java -jar` launcher bundling Core+API+Webapp for local experimentation.
 - **transitclockTraccarClient**, **transitclockBarefootClient** — thin clients for Traccar GPS devices and the Barefoot map-matching server. Depended on by `transitclock`.
 - **transitclockIntegration** — end-to-end / prediction-accuracy tests; only built under the `include-integration-tests` profile. Fixture-refresh workflow (capture, subset, promote, regenerate baselines) is documented in `docs/integration-tests.md`; supporting tooling under `tools/wmata_capture/`.
 - **transitclockPipelineTests** — real-Core behavior tests for the prediction pipeline (`AvlProcessor`, and eventually the other matcher/generator classes). Boots a real Core against in-memory HSQL with a small WMATA GTFS fixture via `CoreHarness` (a JUnit `@ClassRule`). Only built under the `include-pipeline-tests` profile.

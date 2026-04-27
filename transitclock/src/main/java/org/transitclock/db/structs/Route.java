@@ -25,15 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.persistence.Column;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.DynamicUpdate;
 import org.slf4j.Logger;
@@ -45,7 +45,7 @@ import org.transitclock.gtfs.gtfsStructs.GtfsRoute;
 import org.transitclock.utils.OrderedCollection;
 import org.transitclock.utils.StringUtils;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.*;
 
@@ -328,7 +328,7 @@ public class Route implements Serializable {
 				+ "    WHERE configRev = :configRev"
 				+ "    ORDER BY routeOrder, shortName";
 		Query query = session.createQuery(hql);
-		query.setInteger("configRev", configRev);
+		query.setParameter("configRev", configRev);
 		List<Route> routesList = query.list();
 	
 		// Need to set the route order for each route so that can sort

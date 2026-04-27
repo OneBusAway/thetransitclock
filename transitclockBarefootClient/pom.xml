@@ -12,7 +12,7 @@
 	 <parent>
 	    <groupId>TheTransitClock</groupId>
 	  	<artifactId>transitclock</artifactId>
-	  	<version>2.0.0-SNAPSHOT</version>
+	  	<version>3.0.0-SNAPSHOT</version>
   	</parent>
 	
 	<build>
@@ -20,10 +20,9 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.8.1</version>			
+				<version>3.13.0</version>			
 				<configuration>
-					<source>17</source>
-					<target>17</target>
+					<release>21</release>
 				</configuration>
 			</plugin>
 		</plugins>

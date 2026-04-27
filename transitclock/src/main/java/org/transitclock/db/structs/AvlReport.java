@@ -21,20 +21,20 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import javax.persistence.Column;
-import javax.persistence.Embedded;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.Id;
-import javax.persistence.Index;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.persistence.Transient;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.Transient;
 
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
+import org.hibernate.query.Query;
 import org.hibernate.Session;
 import org.hibernate.annotations.DynamicUpdate;
 import org.slf4j.Logger;
@@ -1098,9 +1098,9 @@ public class AvlReport implements Serializable {
 		
 		// Set the parameters
 		if (vehicleId != null && !vehicleId.isEmpty())
-			query.setString("vehicleId", vehicleId);
-		query.setTimestamp("beginDate", beginTime);
-		query.setTimestamp("endDate", endTime);
+			query.setParameter("vehicleId", vehicleId);
+		query.setParameter("beginDate", beginTime);
+		query.setParameter("endDate", endTime);
 		
 		try {
 			@SuppressWarnings("unchecked")

@@ -12,9 +12,7 @@ import org.ehcache.Status;
 import org.ehcache.config.builders.CacheManagerBuilder;
 import org.ehcache.xml.XmlConfiguration;
 import org.apache.commons.lang3.time.DateUtils;
-import org.hibernate.Criteria;
 import org.hibernate.Session;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.applications.Core;
@@ -172,10 +170,12 @@ public class ScheduleBasedHistoricalAverageCache {
 	}
 	public void populateCacheFromDb(Session session, Date startDate, Date endDate) throws Exception 
 	{
-		Criteria criteria =session.createCriteria(ArrivalDeparture.class);				
-		
-		@SuppressWarnings("unchecked")
-		List<ArrivalDeparture> results=criteria.add(Restrictions.between("time", startDate, endDate)).list();
+		List<ArrivalDeparture> results = session.createQuery(
+				"from ArrivalDeparture where time between :start and :end",
+				ArrivalDeparture.class)
+				.setParameter("start", startDate)
+				.setParameter("end", endDate)
+				.getResultList();
 		
 		Collections.sort(results, new ArrivalDepartureComparator());
 						

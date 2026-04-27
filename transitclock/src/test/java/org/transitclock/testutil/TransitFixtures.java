@@ -1,5 +1,6 @@
 package org.transitclock.testutil;
 
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -212,5 +213,16 @@ public final class TransitFixtures {
 	 */
 	public static List<ScheduleTime> noScheduleTimes() {
 		return Collections.emptyList();
+	}
+
+	/**
+	 * Instantiates an entity via its private no-arg constructor — the one
+	 * Hibernate uses as its instance factory. Several entity tests need this
+	 * to reproduce the partially-initialized state Hibernate's loaders see.
+	 */
+	public static <T> T newViaNoArgConstructor(Class<T> cls) throws Exception {
+		Constructor<T> ctor = cls.getDeclaredConstructor();
+		ctor.setAccessible(true);
+		return ctor.newInstance();
 	}
 }

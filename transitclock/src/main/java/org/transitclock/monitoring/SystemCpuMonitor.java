@@ -91,10 +91,9 @@ public class SystemCpuMonitor extends MonitorBase {
 		if (secondsIntoDay < 12 * Time.SEC_PER_MIN)
 			return false;
 			
-		Object resultObject = SystemMemoryMonitor
-				.getOperatingSystemValue("getSystemCpuLoad");
-		if (resultObject != null) {
-			double cpuLoad = (Double) resultObject;
+		Double firstReading = SystemMemoryMonitor.getSystemCpuLoad();
+		if (firstReading != null) {
+			double cpuLoad = firstReading;
 
 			// If cpuLoad too high take another reading after a brief sleep
 			// and take the average. This is important because sometimes the
@@ -102,16 +101,17 @@ public class SystemCpuMonitor extends MonitorBase {
 			// out an alert for short lived spikes.
 			if (cpuLoad >= cpuThreshold.getValue()) {
 				logger.debug("CPU load was {} which is higher than threshold "
-						+ "of {} so taking another reading.", 
+						+ "of {} so taking another reading.",
 						StringUtils.twoDigitFormat(cpuLoad),
 						StringUtils.twoDigitFormat(cpuThreshold.getValue()));
-				Time.sleep(1 * Time.MS_PER_MIN);
-				resultObject = SystemMemoryMonitor
-						.getOperatingSystemValue("getSystemCpuLoad");
-				double cpuLoad2 = (Double) resultObject;
-				
+				Time.sleep(Time.MS_PER_SEC);
+				Double secondReading = SystemMemoryMonitor.getSystemCpuLoad();
+				if (secondReading == null) {
+					return false;
+				}
+
 				// Take average of cpuLoad
-				cpuLoad = (cpuLoad + cpuLoad2) / 2.0;
+				cpuLoad = (cpuLoad + secondReading) / 2.0;
 			}
 				
 			setMessage("CPU load is " 

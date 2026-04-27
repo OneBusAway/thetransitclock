@@ -22,25 +22,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Index;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.OrderColumn;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Table;
 
-import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.criterion.Restrictions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.db.hibernate.HibernateUtils;
@@ -176,7 +174,7 @@ public class TravelTimesForTrip implements Serializable {
 		// syntax for inner joins is different for the two databases. Therefore need to
 		// use the IN statement with a SELECT clause.
 		int rowsUpdated = session.
-				createSQLQuery("DELETE "
+				createNativeQuery("DELETE "
 						+ " FROM TravelTimesForTrip_to_TravelTimesForPath_joinTable "
 						+ "WHERE TravelTimesForTrips_id IN "
 						+ "  (SELECT id " 
@@ -191,7 +189,7 @@ public class TravelTimesForTrip implements Serializable {
 		
 		// Delete configRev data from TravelTimesForStopPaths
 		rowsUpdated = session.
-				createSQLQuery("DELETE FROM TravelTimesForStopPaths WHERE configRev=" 
+				createNativeQuery("DELETE FROM TravelTimesForStopPaths WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		logger.info("Deleted {} rows from TravelTimesForStopPaths for "
@@ -200,7 +198,7 @@ public class TravelTimesForTrip implements Serializable {
 		
 		// Delete configRev data from TravelTimesForTrips
 		rowsUpdated = session.
-				createSQLQuery("DELETE FROM TravelTimesForTrips WHERE configRev=" 
+				createNativeQuery("DELETE FROM TravelTimesForTrips WHERE configRev=" 
 						+ configRev).
 				executeUpdate();
 		logger.info("Deleted {} rows from TravelTimesForTrips for configRev={}",
@@ -227,9 +225,11 @@ public class TravelTimesForTrip implements Serializable {
 		logger.info("Reading TravelTimesForTrips for travelTimesRev={} ...", 
 				travelTimesRev);
 		
-		List<TravelTimesForTrip> allTravelTimes = session.createCriteria(TravelTimesForTrip.class)
-				.add(Restrictions.eq("travelTimesRev", travelTimesRev))
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).list();		
+		List<TravelTimesForTrip> allTravelTimes = session.createQuery(
+				"select distinct ttft from TravelTimesForTrip ttft where ttft.travelTimesRev = :rev",
+				TravelTimesForTrip.class)
+				.setParameter("rev", travelTimesRev)
+				.getResultList();
 		
 		logger.info("Putting travel times into map...");
 		

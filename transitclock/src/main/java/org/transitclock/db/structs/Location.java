@@ -18,8 +18,8 @@ package org.transitclock.db.structs;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 import org.transitclock.utils.Geo;
 
