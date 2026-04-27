@@ -1049,14 +1049,9 @@ public class DbConfig {
 			while (!Thread.interrupted()) {
 				Time.sleep(60 * 1000);
 				try {
-					// Synchronize on the same lock every other globalSession
-					// reader uses (Block#lazyLoadingSyncObject). Hibernate 6's
-					// ResourceRegistryStandardImpl iterates an unsynchronized
-					// HashMap during JDBC resource cleanup; if this validation
-					// thread is mid-query while an AVL worker is in
-					// afterTransaction (or vice versa), the registry trips a
-					// CME / "ResultSet is closed" and the matcher loses the
-					// vehicle. Hibernate 5.x's registry tolerated this race.
+					// Hold the same lock every other globalSession reader uses;
+					// Hibernate 6's ResourceRegistry isn't safe against
+					// cross-thread Session access.
 					synchronized (Block.getLazyLoadingSyncObject()) {
 						NativeQuery<?> query = service.getGlobalSession().createNativeQuery(dbConfig.getValidateTestQuery(), Object.class);
 						query.list();

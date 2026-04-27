@@ -75,11 +75,7 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<!-- 2.0.x to match logback-classic 1.3.x pulled in transitively
-			     via transitclockCore. With slf4j 1.7 on the classpath the
-			     ServiceLoader lookup for SLF4JServiceProvider misses and
-			     every API-tier log call drops to NOPLogger. See setup.md
-			     "Web UI shows Blocks: NNN Assigned: 0%" troubleshooting. -->
+			<!-- See note in transitclock/pom.xml. -->
 			<version>2.0.13</version>
 			<!-- <scope>provided</scope> -->
 		</dependency>

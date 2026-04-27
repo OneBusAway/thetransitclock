@@ -33,6 +33,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
 import org.hibernate.CallbackException;
+import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.query.Query;
 import org.hibernate.Session;
@@ -41,7 +42,6 @@ import org.hibernate.annotations.CascadeType;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.collection.spi.PersistentList;
 import org.hibernate.engine.spi.SessionImplementor;
-import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.classic.Lifecycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1019,24 +1019,20 @@ public class Trip implements Lifecycle, Serializable {
 	 * @return
 	 */
 	public ScheduleTime getScheduleTime(int stopPathIndex) {
-	  // Hibernate 6's ResourceRegistryStandardImpl iterates an
-	  // unsynchronized HashMap while releasing JDBC resources. If another
-	  // AVL worker thread triggers a lazy load on the same globalSession
-	  // (which DbConfig hands out to every reader) we get a CME mid-cleanup
-	  // and the matcher loses the trip. Hibernate 5.x's registry tolerated
-	  // this; 6.x does not. All other globalSession readers serialize on
-	  // Block.getLazyLoadingSyncObject(); we have to as well or this code
-	  // path stays the odd one out and breaks block assignment under load.
+	  // Hot-path fast lane: once scheduledTimesList is loaded, get() is a
+	  // pure ArrayList read — skip the lock that the lazy-load path needs.
+	  if (Hibernate.isInitialized(scheduledTimesList)) {
+	    return scheduledTimesList.get(stopPathIndex);
+	  }
+	  // Lazy-load path serializes on the lock that every other
+	  // globalSession reader uses; Hibernate 6's ResourceRegistry isn't
+	  // safe against cross-thread Session access, so the unsynced version
+	  // raced AVL workers and broke block assignment under load.
 	  synchronized (Block.getLazyLoadingSyncObject()) {
 	    if (scheduledTimesList instanceof PersistentList) {
-	      // TODO this is an anti-pattern
-	      // instead find a way to manage sessions more consistently
 	      PersistentList persistentListTimes = (PersistentList)scheduledTimesList;
-	      SharedSessionContractImplementor session =
-            persistentListTimes.getSession();
-	      if (session == null) {
-	        Session globalLazyLoadSession = Core.getInstance().getDbConfig().getGlobalSession();
-	        globalLazyLoadSession.update(this);
+	      if (persistentListTimes.getSession() == null) {
+	        Core.getInstance().getDbConfig().getGlobalSession().update(this);
 	      }
 	    }
 	    return scheduledTimesList.get(stopPathIndex);

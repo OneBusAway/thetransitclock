@@ -131,15 +131,10 @@
 			<version>2.7.4</version>
 		</dependency>
 
-		<!-- SLF4J 2.0 — logback-classic 1.3.x targets the SLF4J 2.0 API and
-		     looks up bindings via ServiceLoader (META-INF/services/...
-		     SLF4JServiceProvider). With the older 1.7.x API on the
-		     classpath, the runtime fails over to NOPLogger ("Failed to
-		     load class org.slf4j.impl.StaticLoggerBinder" / "Defaulting to
-		     no-operation logger") and every TransitClock log call is
-		     silently dropped — including the matcher's diagnostics, which
-		     made the Phase B-introduced block-assignment failures
-		     impossible to triage from logs. -->
+		<!-- 2.0.x must match logback-classic 1.3.x, which binds via the
+		     SLF4J 2.0 ServiceLoader. slf4j 1.7 routes everything to
+		     NOPLogger silently. Tests that pin the binding live in
+		     org.transitclock.logging.Slf4jBindingTest. -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>

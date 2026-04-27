@@ -87,17 +87,6 @@ docker compose run --rm tools bash -euo pipefail -c "
   test -s /deploy/ddl/ddl_postgres_org_transitclock_db_webstructs.sql
   grep -c 'create table' /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql"
 
-# Note: `SchemaGenerator` runs three dialect passes (Postgres, Oracle, MySQL)
-# in sequence so the same DDL is emitted for each. The Oracle pass needs
-# `org.hibernate.dialect.OracleDialect` (Hibernate 6+); pre-Phase-B copies
-# of `SchemaGenerator.java` referenced the long-removed `Oracle10gDialect`
-# class and the pass crashed under JDK 21 / Hibernate 6.5 — taking
-# `pipefail` down with it before the second mvn run for the `webstructs`
-# package could fire. If you're running an older checkout and see
-# `Could not load requested class : org.hibernate.dialect.Oracle10gDialect`,
-# update `Dialect.ORACLE`'s class-name string to `org.hibernate.dialect.OracleDialect`
-# and rebuild the `tools` image.
-
 docker compose run --rm tools bash -euo pipefail -c "
   psql -v ON_ERROR_STOP=1 -h db -U transitclock -d <agency-db> \
        -f /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql
@@ -178,37 +167,10 @@ If the smoke test returns empty / errors, the most common causes are:
   `docker compose exec db psql -U transitclock -d <agency-db> -c '\dt' | wc -l`.
   Should be 30+.
 - **Web UI shows `Blocks: NNN  Assigned: 0%` with predictions still flowing:**
-  Phase B's Hibernate 5.5 → 6.5 / Jakarta upgrade introduced four
-  load-bearing bugs that together broke block matching. All four are
-  fixed in source on this branch; if you see the symptom on a partial
-  cherry-pick, audit:
-  1. `Block.getTrips()` must null-check `trips` before
-     `Collections.unmodifiableList` — Hibernate 6's
-     `AbstractEntityInitializer.resolveKey` calls `debugf` formatting
-     the entity (which calls `Block.toString()` → `getTrips()`) *during*
-     entity load, while the lazy-collection proxy is still null.
-     `Hibernate.isInitialized(null)` returns `true`, so the original
-     guard fell through and NPE'd every Block load, killing the matcher
-     worker thread. Hibernate 5 didn't invoke `toString` that early.
-  2. `Trip.getScheduleTime()` and the `ValidateSessionThread` probe in
-     `DbConfig` must `synchronized (Block.getLazyLoadingSyncObject())`
-     before touching `globalSession`. Hibernate 6's
-     `ResourceRegistryStandardImpl` iterates an unsynchronized `HashMap`
-     during JDBC-resource cleanup; Hibernate 5's registry tolerated
-     cross-thread `Session` access. Without the lock you'll see
-     `ConcurrentModificationException` in
-     `ResourceRegistryStandardImpl.releaseResources` and
-     `PSQLException: This ResultSet is closed` from concurrent matchers.
-  3. `slf4j-api` must be 2.0.x to match `logback-classic 1.3.x`. With
-     1.7.36 on the classpath, logback's 2.0-only `SLF4JServiceProvider`
-     ServiceLoader entry never binds, every TransitClock log call
-     silently routes to NOPLogger, and the symptoms above are invisible.
-     The bind failure prints `SLF4J: Failed to load class
-     "org.slf4j.impl.StaticLoggerBinder"` once at JVM start.
-  4. `SchemaGenerator.Dialect.ORACLE` must reference
-     `org.hibernate.dialect.OracleDialect` (Hibernate 6 dropped the
-     5.x-era `Oracle10gDialect`); otherwise the DDL run in §4 aborts
-     before the `webstructs` pass.
+  Phase B's Hibernate 5.5 → 6.5 / Jakarta upgrade left four load-bearing
+  bugs that together broke block matching; all four are fixed on this
+  branch and pinned by tests. See the troubleshooting table at the end
+  of this document if a partial cherry-pick reintroduces the symptom.
 
 A couple of Docker-specific gotchas worth knowing:
 
