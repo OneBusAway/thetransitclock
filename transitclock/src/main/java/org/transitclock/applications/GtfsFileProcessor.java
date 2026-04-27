@@ -128,11 +128,16 @@ public class GtfsFileProcessor {
 			if (configFile != null) {
 			try {
 				// Read in the data from config file
-				
+
 				ConfigFileReader.processConfig(configFile);
 			} catch (Exception e) {
 				logger.error("Error reading in config file \"" + configFile
 						+ "\". Exiting program.", e);
+				// Stderr fallback so the failure is visible even if the
+				// logback chain is broken at startup (see #24).
+				System.err.println("GtfsFileProcessor: error reading config file \""
+						+ configFile + "\"; exiting. Cause:");
+				e.printStackTrace(System.err);
 				System.exit(-1);
 			}
 			}
