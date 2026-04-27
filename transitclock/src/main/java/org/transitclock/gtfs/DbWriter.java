@@ -78,10 +78,10 @@ public class DbWriter {
 		// batching to make sure don't run out memory.
 		counter++;
 		if (counter % DbSetupConfig.getBatchSize() == 0) {
-			logger.info("flushing with " + counter + " % " + DbSetupConfig.getBatchSize());
+			logger.debug("flushing with {} % {}", counter, DbSetupConfig.getBatchSize());
 			session.flush();
 			session.clear();
-			logger.info("flushed with " + counter + " % " + DbSetupConfig.getBatchSize());
+			logger.debug("flushed with {} % {}", counter, DbSetupConfig.getBatchSize());
 		}
 	}
 	
@@ -127,8 +127,8 @@ public class DbWriter {
 		int c = 0;
 		long startTime = System.currentTimeMillis();
 		for (Block block : gtfsData.getBlocks()) {
-			logger.info("Saving block #{} with blockId={} serviceId={} blockId={}",
-					++c, block.getId(), block.getServiceId(), block.getId());
+			logger.debug("Saving block #{} with blockId={} serviceId={}",
+					++c, block.getId(), block.getServiceId());
 			writeObject(session, block, false);
 			if (c % 1000 == 0) {
 				logger.info("wrote " + c + " blocks in " + (System.currentTimeMillis()-startTime)/1000 + "s");

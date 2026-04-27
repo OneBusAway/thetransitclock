@@ -421,7 +421,6 @@ public class StopPathProcessor {
 			}
 		}
 		logger.debug(" bestMatch {} expected distanceAlongPattern {}",bestMatch,stopPath.getShapeDistanceTraveled());
-		System.out.println("bestMatch "  +bestMatch+" "+stopPath.getShapeDistanceTraveled());
 		// Return results
 		return bestMatch;
 	}
