@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn verify *)",
+      "Bash(mvn -pl transitclockPipelineTests -am -P include-pipeline-tests test)"
+    ]
+  }
+}
