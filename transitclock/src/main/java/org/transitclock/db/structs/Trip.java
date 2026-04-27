@@ -1019,18 +1019,28 @@ public class Trip implements Lifecycle, Serializable {
 	 * @return
 	 */
 	public ScheduleTime getScheduleTime(int stopPathIndex) {
-	  if (scheduledTimesList instanceof PersistentList) {
-	    // TODO this is an anti-pattern
-	    // instead find a way to manage sessions more consistently 
-	    PersistentList persistentListTimes = (PersistentList)scheduledTimesList;
-	    SharedSessionContractImplementor session = 
-          persistentListTimes.getSession();
-	    if (session == null) {
-	      Session globalLazyLoadSession = Core.getInstance().getDbConfig().getGlobalSession();
-	      globalLazyLoadSession.update(this);
+	  // Hibernate 6's ResourceRegistryStandardImpl iterates an
+	  // unsynchronized HashMap while releasing JDBC resources. If another
+	  // AVL worker thread triggers a lazy load on the same globalSession
+	  // (which DbConfig hands out to every reader) we get a CME mid-cleanup
+	  // and the matcher loses the trip. Hibernate 5.x's registry tolerated
+	  // this; 6.x does not. All other globalSession readers serialize on
+	  // Block.getLazyLoadingSyncObject(); we have to as well or this code
+	  // path stays the odd one out and breaks block assignment under load.
+	  synchronized (Block.getLazyLoadingSyncObject()) {
+	    if (scheduledTimesList instanceof PersistentList) {
+	      // TODO this is an anti-pattern
+	      // instead find a way to manage sessions more consistently
+	      PersistentList persistentListTimes = (PersistentList)scheduledTimesList;
+	      SharedSessionContractImplementor session =
+            persistentListTimes.getSession();
+	      if (session == null) {
+	        Session globalLazyLoadSession = Core.getInstance().getDbConfig().getGlobalSession();
+	        globalLazyLoadSession.update(this);
+	      }
 	    }
+	    return scheduledTimesList.get(stopPathIndex);
 	  }
-		return scheduledTimesList.get(stopPathIndex);
 	}
 	
 	/**

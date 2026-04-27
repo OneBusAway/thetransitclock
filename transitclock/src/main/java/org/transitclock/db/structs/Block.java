@@ -804,10 +804,22 @@ public final class Block implements Serializable {
 	 * @return the trips as an unmodifiable collection
 	 */
 	public List<Trip> getTrips() {
-		// If trips already lazy loaded then simply return them
+		// In Hibernate 6 the entity-initializer calls debugf with %s on the
+		// entity during AbstractEntityInitializer.resolveKey — before the
+		// PersistentList proxy has been attached, so `trips` is still null
+		// when toString() reaches getTrips(). Hibernate 5 didn't invoke
+		// toString that early in the load lifecycle.
+		// Hibernate.isInitialized(null) returns true (nothing to initialize),
+		// so the original guard fell through to Collections.unmodifiableList(null)
+		// → NPE on every Block load, killing the matcher worker thread before
+		// any vehicle could be assigned a block. Return empty for the
+		// pre-attach case — the next read after Hibernate has wired up the
+		// proxy will take the lazy-load branch as before.
+		if (trips == null)
+			return Collections.emptyList();
 		if (Hibernate.isInitialized(trips))
 			return Collections.unmodifiableList(trips);
-		
+
 		// Trips not yet lazy loaded so do so now.
 		// It appears that lazy initialization is problematic when have multiple
 		// simultaneous threads. Get "org.hibernate.AssertionFailure: force

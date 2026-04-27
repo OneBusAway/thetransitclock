@@ -522,7 +522,7 @@ public class DbConfig {
 		if (trip == null) {
 			logger.debug("Trip for tripIdOrShortName={} not read from db yet "
 					+ "so reading it now.", tripIdOrShortName);
-			
+
 			// Need to sync such that block data, which includes trip
 			// pattern data, is only read serially (not read simultaneously
 			// by multiple threads). Otherwise get a "force initialize loading
@@ -1049,8 +1049,18 @@ public class DbConfig {
 			while (!Thread.interrupted()) {
 				Time.sleep(60 * 1000);
 				try {
-					NativeQuery<?> query = service.getGlobalSession().createNativeQuery(dbConfig.getValidateTestQuery(), Object.class);
-					query.list();
+					// Synchronize on the same lock every other globalSession
+					// reader uses (Block#lazyLoadingSyncObject). Hibernate 6's
+					// ResourceRegistryStandardImpl iterates an unsynchronized
+					// HashMap during JDBC resource cleanup; if this validation
+					// thread is mid-query while an AVL worker is in
+					// afterTransaction (or vice versa), the registry trips a
+					// CME / "ResultSet is closed" and the matcher loses the
+					// vehicle. Hibernate 5.x's registry tolerated this race.
+					synchronized (Block.getLazyLoadingSyncObject()) {
+						NativeQuery<?> query = service.getGlobalSession().createNativeQuery(dbConfig.getValidateTestQuery(), Object.class);
+						query.list();
+					}
 					logger.debug("session test success");
 				} catch (Throwable t) {
 					// The only reason this validate query should fail is if
@@ -1058,7 +1068,7 @@ public class DbConfig {
 					// eventually flush connection pool or give other hints.
 					logger.error("session test failure: {}", t.getMessage(), t);
 				}
-				
+
 			}
 		}
 	}

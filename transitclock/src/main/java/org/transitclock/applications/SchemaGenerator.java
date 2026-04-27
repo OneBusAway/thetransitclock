@@ -286,7 +286,7 @@ public class SchemaGenerator {
 	 * Holds the class names of hibernate dialects for easy reference.
 	 */
 	static enum Dialect {
-		ORACLE("org.hibernate.dialect.Oracle10gDialect"),
+		ORACLE("org.hibernate.dialect.OracleDialect"),
 		// See ImprovedMySQLDialect javadoc for why the empty subclass exists.
 		MYSQL("org.transitclock.applications.SchemaGenerator$ImprovedMySQLDialect"),
 		POSTGRES("org.hibernate.dialect.PostgreSQLDialect"),

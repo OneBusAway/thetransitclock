@@ -85,7 +85,18 @@ docker compose run --rm tools bash -euo pipefail -c "
     -Dexec.args='-o /deploy/ddl -p org.transitclock.db.webstructs'
   test -s /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql
   test -s /deploy/ddl/ddl_postgres_org_transitclock_db_webstructs.sql
-  grep -c 'CREATE TABLE' /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql"
+  grep -c 'create table' /deploy/ddl/ddl_postgres_org_transitclock_db_structs.sql"
+
+# Note: `SchemaGenerator` runs three dialect passes (Postgres, Oracle, MySQL)
+# in sequence so the same DDL is emitted for each. The Oracle pass needs
+# `org.hibernate.dialect.OracleDialect` (Hibernate 6+); pre-Phase-B copies
+# of `SchemaGenerator.java` referenced the long-removed `Oracle10gDialect`
+# class and the pass crashed under JDK 21 / Hibernate 6.5 — taking
+# `pipefail` down with it before the second mvn run for the `webstructs`
+# package could fire. If you're running an older checkout and see
+# `Could not load requested class : org.hibernate.dialect.Oracle10gDialect`,
+# update `Dialect.ORACLE`'s class-name string to `org.hibernate.dialect.OracleDialect`
+# and rebuild the `tools` image.
 
 docker compose run --rm tools bash -euo pipefail -c "
   psql -v ON_ERROR_STOP=1 -h db -U transitclock -d <agency-db> \
@@ -166,6 +177,38 @@ If the smoke test returns empty / errors, the most common causes are:
 - **No tables / DDL incomplete:** confirm with
   `docker compose exec db psql -U transitclock -d <agency-db> -c '\dt' | wc -l`.
   Should be 30+.
+- **Web UI shows `Blocks: NNN  Assigned: 0%` with predictions still flowing:**
+  Phase B's Hibernate 5.5 → 6.5 / Jakarta upgrade introduced four
+  load-bearing bugs that together broke block matching. All four are
+  fixed in source on this branch; if you see the symptom on a partial
+  cherry-pick, audit:
+  1. `Block.getTrips()` must null-check `trips` before
+     `Collections.unmodifiableList` — Hibernate 6's
+     `AbstractEntityInitializer.resolveKey` calls `debugf` formatting
+     the entity (which calls `Block.toString()` → `getTrips()`) *during*
+     entity load, while the lazy-collection proxy is still null.
+     `Hibernate.isInitialized(null)` returns `true`, so the original
+     guard fell through and NPE'd every Block load, killing the matcher
+     worker thread. Hibernate 5 didn't invoke `toString` that early.
+  2. `Trip.getScheduleTime()` and the `ValidateSessionThread` probe in
+     `DbConfig` must `synchronized (Block.getLazyLoadingSyncObject())`
+     before touching `globalSession`. Hibernate 6's
+     `ResourceRegistryStandardImpl` iterates an unsynchronized `HashMap`
+     during JDBC-resource cleanup; Hibernate 5's registry tolerated
+     cross-thread `Session` access. Without the lock you'll see
+     `ConcurrentModificationException` in
+     `ResourceRegistryStandardImpl.releaseResources` and
+     `PSQLException: This ResultSet is closed` from concurrent matchers.
+  3. `slf4j-api` must be 2.0.x to match `logback-classic 1.3.x`. With
+     1.7.36 on the classpath, logback's 2.0-only `SLF4JServiceProvider`
+     ServiceLoader entry never binds, every TransitClock log call
+     silently routes to NOPLogger, and the symptoms above are invisible.
+     The bind failure prints `SLF4J: Failed to load class
+     "org.slf4j.impl.StaticLoggerBinder"` once at JVM start.
+  4. `SchemaGenerator.Dialect.ORACLE` must reference
+     `org.hibernate.dialect.OracleDialect` (Hibernate 6 dropped the
+     5.x-era `Oracle10gDialect`); otherwise the DDL run in §4 aborts
+     before the `webstructs` pass.
 
 A couple of Docker-specific gotchas worth knowing:
 
@@ -605,3 +648,6 @@ after the new rev is active.
 | "Could not contact RMI" between API and Core | Ports 2099 and 2098 blocked, or `hostName` passed to `CreateWebAgency` doesn't resolve from the API host. |
 | Settings in your config file have no effect | Root tag is `<transitime>` (legacy). Change to `<transitclock>`; every typed `ConfigValue` is registered under `transitclock.*`. |
 | `CreateAPIKey` crashes / JDBC URL ends in `/null` | Forgot `-Dtransitclock.db.dbName=web`. `ApiKeyManager` resolves its DB name at class-init from `DbSetupConfig.getDbName()`; without the override the URL becomes `…/null` and the connection fails. |
+| `SchemaGenerator` aborts with `Could not load requested class : org.hibernate.dialect.Oracle10gDialect` | The `Dialect.ORACLE` enum in `org.transitclock.applications.SchemaGenerator` references the Hibernate 5 class name, which was removed in Hibernate 6.x. Change it to `org.hibernate.dialect.OracleDialect` and rebuild. The Postgres pass runs *before* the Oracle pass, so the postgres DDL files are written even on the failed run — but `pipefail` aborts the bash chain before the second `mvn exec:java` (for `webstructs`) runs. |
+| API endpoints 500 with `Connection refused to host: core` after `docker compose up core` recreated the container | Tomcat caches the RMI stub it pulled out of `WebAgency` at first lookup; when `core`'s container IP changes (recreate, not just restart of the same container) the cached stub points at a stale endpoint and every API call fails. `docker compose restart tomcat` clears the cache. The webapp itself (port 8080 `/web/`) keeps loading because that's plain HTML/JSP and only the API tier owns the RMI client. |
+| Active-blocks page shows `Assigned: 0%` even though AVL is flowing and trip-updates are vending | Hibernate 6 / SLF4J 2.0 regressions introduced by Phase B. The cascading symptom is `Block.getTrips()` NPE'ing on every Block load (Hibernate 6's entity initializer formats `toString()` *during* load, before the lazy collection proxy is attached, and the original `getTrips()` guard didn't null-check `trips`); the matcher dies before assigning any vehicle. Two related races (`Trip.getScheduleTime` and `ValidateSessionThread` using `globalSession` without `Block.getLazyLoadingSyncObject()`) and an SLF4J 1.7 / logback 1.3 binding mismatch (which silently swallowed every TransitClock log line, hiding the NPEs) also bit during diagnosis. All four are fixed on this branch; if you see the symptom on a partial backport, see the §0 troubleshooting block above for the audit list. |
