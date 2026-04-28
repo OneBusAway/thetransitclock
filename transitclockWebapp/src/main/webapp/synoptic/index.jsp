@@ -198,7 +198,7 @@ function vehicleUpdate(vehicleDetail, status)
 		var directionVehicle=(vehicle.direction=="0" || vehicle.direction==undefined)?0:1;
 		var _identifier=(vehicle.licensePlate==undefined)?vehicle.id:vehicle.licensePlate;
 		var gpsTimeStr = dateFormat(vehicle.loc.time);
-		buses.push({id:vehicle.id, projection:vehicle.distanceAlongTrip/getShapeLength(vehicle.tripPattern),identifier:_identifier,direction:directionVehicle,gpsTimeStr:gpsTimeStr,nextStopName:vehicle.nextStopName,schAdhStr:vehicle.schAdhStr,trip:vehicle.trip,schAdh:vehicle.schAdh,headway:vehicle.headway});
+		buses.push({id:vehicle.id, projection:vehicle.distanceAlongTrip/getShapeLength(vehicle.tripPattern),identifier:_identifier,direction:directionVehicle,gpsTimeStr:gpsTimeStr,nextStopName:vehicle.nextStopName,schAdhStr:vehicle.schAdhStr,trip:vehicle.trip,schAdh:vehicle.schAdh,headway:vehicle.headway,isScheduledService:vehicle.isScheduledService,freqStartTime:vehicle.freqStartTime});
 
 	}
 	synoptic.setBuses(buses);

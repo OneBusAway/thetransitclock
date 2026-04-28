@@ -665,27 +665,26 @@ class Sinoptico
 		var thumb=document.getElementById('synopticScrollThumb');
 		if(!bar || !thumb)
 			return;
-		// Sinoptico is reconstructed on every route selection, so wire each
-		// instance to its own thumb/track.
+		// `init()` runs for every route selection but the scrollbar nodes live
+		// outside the canvas and survive — tear down the previous instance's
+		// listeners so we don't stack handlers and leak old Sinoptico instances.
+		Sinoptico.__teardownScrollIndicator(bar, thumb);
+
 		this.scrollBar=bar;
 		this.scrollThumb=thumb;
-
 		var self=this;
 		var dragStartX=0;
 		var dragStartScrollLeft=0;
 
-		this.container.addEventListener('scroll',function(){
-			self.__updateScrollIndicator();
-		});
-
-		thumb.addEventListener('pointerdown',function(e){
+		var onScroll=function(){ self.__updateScrollIndicator(); };
+		var onThumbDown=function(e){
 			e.preventDefault();
 			thumb.setPointerCapture(e.pointerId);
 			thumb.classList.add('dragging');
 			dragStartX=e.clientX;
 			dragStartScrollLeft=self.container.scrollLeft;
-		});
-		thumb.addEventListener('pointermove',function(e){
+		};
+		var onThumbMove=function(e){
 			if(!thumb.hasPointerCapture(e.pointerId))
 				return;
 			var maxScrollLeft=self.container.scrollWidth-self.container.clientWidth;
@@ -694,13 +693,13 @@ class Sinoptico
 				return;
 			var deltaX=e.clientX-dragStartX;
 			self.container.scrollLeft=dragStartScrollLeft+deltaX*(maxScrollLeft/maxThumbLeft);
-		});
-		thumb.addEventListener('pointerup',function(e){
-			thumb.releasePointerCapture(e.pointerId);
+		};
+		var endDrag=function(e){
+			if(thumb.hasPointerCapture(e.pointerId))
+				thumb.releasePointerCapture(e.pointerId);
 			thumb.classList.remove('dragging');
-		});
-
-		bar.addEventListener('pointerdown',function(e){
+		};
+		var onBarDown=function(e){
 			if(e.target===thumb)
 				return;
 			var maxScrollLeft=self.container.scrollWidth-self.container.clientWidth;
@@ -709,7 +708,38 @@ class Sinoptico
 				return;
 			var clickX=e.clientX-bar.getBoundingClientRect().left-thumb.clientWidth/2;
 			self.container.scrollLeft=(clickX/maxThumbLeft)*maxScrollLeft;
-		});
+		};
+
+		this.container.addEventListener('scroll',onScroll);
+		thumb.addEventListener('pointerdown',onThumbDown);
+		thumb.addEventListener('pointermove',onThumbMove);
+		thumb.addEventListener('pointerup',endDrag);
+		thumb.addEventListener('pointercancel',endDrag);
+		bar.addEventListener('pointerdown',onBarDown);
+
+		// Keep the un-binders attached to the DOM nodes so the next Sinoptico
+		// can find and remove them without inheriting our state.
+		bar.__synopticTeardown={
+			container:this.container,
+			onScroll:onScroll,
+			onThumbDown:onThumbDown,
+			onThumbMove:onThumbMove,
+			endDrag:endDrag,
+			onBarDown:onBarDown
+		};
+	}
+	static __teardownScrollIndicator(bar, thumb)
+	{
+		var prev=bar.__synopticTeardown;
+		if(!prev)
+			return;
+		prev.container.removeEventListener('scroll',prev.onScroll);
+		thumb.removeEventListener('pointerdown',prev.onThumbDown);
+		thumb.removeEventListener('pointermove',prev.onThumbMove);
+		thumb.removeEventListener('pointerup',prev.endDrag);
+		thumb.removeEventListener('pointercancel',prev.endDrag);
+		bar.removeEventListener('pointerdown',prev.onBarDown);
+		bar.__synopticTeardown=null;
 	}
 	getLastPostition(id)
 	{
