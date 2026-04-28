@@ -121,20 +121,37 @@ public class HibernateUtils {
 			logger.info("using read only connection url {}", dbUrl);
 		}
 		if (dbUrl == null || dbUrl.isEmpty()) {
-			dbUrl = "jdbc:" + DbSetupConfig.getDbType() + "://" +
+			String dbType = DbSetupConfig.getDbType();
+			dbUrl = "jdbc:" + dbType + "://" +
 					DbSetupConfig.getDbHost() +
 					"/" + dbName;
-			
+
+			StringBuilder params = new StringBuilder();
+
 			// If socket timeout specified then add that to the URL
 			Integer timeout = DbSetupConfig.getSocketTimeoutSec();
 			if (timeout != null && timeout != 0) {
 				// If mysql then timeout specified in msec instead of secs
-				if (DbSetupConfig.getDbType().equals("mysql"))
+				if (dbType.equals("mysql"))
 					timeout *= 1000;
-				
-				dbUrl += "?connectTimeout=" + timeout + "&socketTimeout=" + timeout;
+
+				params.append("connectTimeout=").append(timeout)
+						.append("&socketTimeout=").append(timeout);
 			}
-			config.setProperty("hibernate.connection.url", dbUrl);			
+
+			// Without reWriteBatchedInserts=true the Postgres JDBC driver sends
+			// each row in a Hibernate batch as a separate INSERT round-trip.
+			if ("postgresql".equals(dbType)) {
+				if (params.length() > 0) {
+					params.append('&');
+				}
+				params.append("reWriteBatchedInserts=true");
+			}
+
+			if (params.length() > 0) {
+				dbUrl += "?" + params;
+			}
+			config.setProperty("hibernate.connection.url", dbUrl);
 		}
 		
 		String dbUserName = DbSetupConfig.getDbUserName();
