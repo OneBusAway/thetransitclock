@@ -1,3 +1,4 @@
+<%@ page pageEncoding="UTF-8" %>
 <%
 pageContext.setAttribute("ctx", request.getContextPath());
 %>
@@ -30,27 +31,20 @@ pageContext.setAttribute("ctx", request.getContextPath());
   <!-- Load in Select2 files so can create fancy selectors -->
   <link href="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.0/css/select2.min.css" rel="stylesheet" />
   <script src="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.0/js/select2.min.js"></script>
-
-
-  <!--  Override the body style from the includes.jsp/general.css files -->
-  <style>
-    body {
-	  margin: 0px;
-    }
-  </style>
   </jsp:attribute>
   <jsp:body>
-  <div id="routesContainer">
-    <div id="routesDiv">
-      <select id="routes" style="width:380px"></select>
-      <input type="hidden" id="routes" style="width:380px" />
-    </div>
+  <t:mapPage>
+    <jsp:attribute name="title"><fmt:message key="div.synoptic"/></jsp:attribute>
+    <jsp:attribute name="actions">
+      <div id="routesDiv" class="ml-auto">
+        <select id="routes" style="width:320px"></select>
+      </div>
+    </jsp:attribute>
+    <jsp:body>
+  <div id="synoptic"></div>
+  <div id="synopticScrollbar" aria-hidden="true">
+    <div id="synopticScrollThumb"></div>
   </div>
-  <!-- For testing purpose
-  <input type="button" onclick="myFunction()" value="test"/>
-  -->
-  <div id="synoptic"
-		style="width: 100%; height: 480px; left: 0px; top: 50px; position: absolute;' "></div>
 	<script type="text/javascript">
 
 	var agencyTimezoneOffset;
@@ -148,70 +142,36 @@ function predictionCallback(preds, status) {
 	var stopName = routeStopPreds.stopName;
 	if (routeStopPreds.stopCode)
 		stopName += " (" + routeStopPreds.stopCode + ")";
-	var content = '<table class="tooltipTable">'
-		+ '<tr><td><b>Stop:</b> ' + stopName + '</td></tr>';
-	//if (verbose)
-	//	content += '<b>Stop Id:</b> ' + routeStopPreds.stopId + '<br/>';
+	var content = '<div class="synopticPredictions">'
+		+ '<div class="synopticPredictions__title">' + stopName + '</div>';
 
-	// For each destination add predictions
 	for (var i in routeStopPreds.dest) {
-		// If there are several destinations then add a horizontal rule
-		// to break predictions up by destination
-		if (routeStopPreds.dest.length > 1)
-			content += '<tr><td>############</td></tr>';
+		var dest = routeStopPreds.dest[i];
+		if (dest.headsign)
+			content += '<div class="synopticPredictions__headsign">' + dest.headsign + '</div>';
 
-		// Add the destination/headsign info
-		if (routeStopPreds.dest[i].headsign)
-			content += '<tr><td><b>Destination:</b> ' + routeStopPreds.dest[i].headsign + '</td></tr>';
-		content +='<tr><td>';
-		// Add each prediction for the current destination
-
-		if (routeStopPreds.dest[i].pred.length > 0) {
-			content += '<table  class="tooltipTable" style="border-spacing: 0px;border-collapse: collapse;">';
-			content += '<tr class="tooltipTable" style="font-weight:bold;"><td style="border: 1px solid">trip</td>';
-			content += '<td style="border: 1px solid">Vehicle</td>';
-			content += '<td style="border: 1px solid">Minutes</td>';
-			for (var j in routeStopPreds.dest[i].pred) {
-				// Separators between the predictions
-
-
-				// Add the actual prediction
-				var pred = routeStopPreds.dest[i].pred[j];
-				content+= '<tr ><td style="border: 1px solid">'+  pred.trip + "</td>";
-				var ident=synoptic.getVehicleIdentifier(pred.vehicle );
-				if(ident==null)
-					ident=pred.vehicle;
-				content+= '<td style="border: 1px solid">'+ ident + "</td>";
-				content+= '<td style="border: 1px solid">'+  pred.min + "</td></tr>";
-
-
-				// Added any special indipredcators for if schedule based,
-				// delayed, or not yet departed from terminal
-				/*
-				if (pred.scheduleBased)
-					content += '<sup>sched</sup>';
-				else {
-					if (pred.notYetDeparted)
-						content += '<sup>not yet left</sup>';
-					else
-						if (pred.delayed)
-							content += '<sup>delayed</sup>';
-				}
-				*/
-				// If in verbose mode add vehicle info
-				//if (verbose)
+		if (dest.pred.length > 0) {
+			content += '<table class="synopticPredictions__table">'
+				+ '<thead><tr><th>Trip</th><th>Vehicle</th><th class="num">Min</th></tr></thead>'
+				+ '<tbody>';
+			for (var j in dest.pred) {
+				var pred = dest.pred[j];
+				var ident = synoptic.getVehicleIdentifier(pred.vehicle);
+				if (ident == null)
+					ident = pred.vehicle;
+				content += '<tr><td>' + pred.trip + '</td>'
+					+ '<td>' + ident + '</td>'
+					+ '<td class="num">' + pred.min + '</td></tr>';
 			}
 
-			content += '</table>';
+			content += '</tbody></table>';
 
 		} else {
-			// There are no predictions so let user know
-			content += "No predictions";
+			content += '<div class="synopticPredictions__empty">No predictions</div>';
 		}
-		content +='</td></tr>';
 	}
+	content += '</div>';
 
-	// Now update popup with the wonderful prediction info
 	synoptic.setPredictionsContent(content);
 }
 
@@ -238,7 +198,7 @@ function vehicleUpdate(vehicleDetail, status)
 		var directionVehicle=(vehicle.direction=="0" || vehicle.direction==undefined)?0:1;
 		var _identifier=(vehicle.licensePlate==undefined)?vehicle.id:vehicle.licensePlate;
 		var gpsTimeStr = dateFormat(vehicle.loc.time);
-		buses.push({id:vehicle.id, projection:vehicle.distanceAlongTrip/getShapeLength(vehicle.tripPattern),identifier:_identifier,direction:directionVehicle,gpsTimeStr:gpsTimeStr,nextStopName:vehicle.nextStopName,schAdhStr:vehicle.schAdhStr,trip:vehicle.trip,schAdh:vehicle.schAdh,headway:vehicle.headway});
+		buses.push({id:vehicle.id, projection:vehicle.distanceAlongTrip/getShapeLength(vehicle.tripPattern),identifier:_identifier,direction:directionVehicle,gpsTimeStr:gpsTimeStr,nextStopName:vehicle.nextStopName,schAdhStr:vehicle.schAdhStr,trip:vehicle.trip,schAdh:vehicle.schAdh,headway:vehicle.headway,isScheduledService:vehicle.isScheduledService,freqStartTime:vehicle.freqStartTime});
 
 	}
 	synoptic.setBuses(buses);
@@ -315,10 +275,29 @@ function routeConfigCallback(routeDetail, status)
 	}
 	var params={container:canvas,
 			onVehiClick:testFunc,
-			infoStop:function(data) {console.log(data.identifier);return "<table class=\"table\"><th >"+data.identifier+"</th><tr><td>distance: "+parseFloat(data.distance).toFixed(2) +" m. </td></tr></table>"},
-			//var startTimeStr = vehicleData.isScheduledService ? "" : "<br/><b>Start Time:</b> "+dateFormat(vehicleData.freqStartTime/1000)
-			infoVehicle:function(data) {console.log(data.identifier);return "<table class=\"table\"><th >"+data.identifier+"</th><tr><td>GPSTime: "+data.gpsTimeStr +" </td></tr><tr><td>NextStop: "+data.nextStopName+"</td></tr><tr><td>schAdh: "+data.schAdhStr+"</td></tr><tr><td>trip: "+data.trip+((data.isScheduledService!=undefined && data.isScheduledService==false)?("</td></tr><tr><td>Start Time: "+dateFormat(data.freqStartTime/1000)):"")+"</td></tr><tr><td>headway: "+((data.headway==-1)?"-":((data.headway/60000).toFixed(2))+ " min.") +"</td><tr></table>"},
-			routeName:routeDetail.routes[0].name,
+			infoStop:function(data) {
+				return '<table class="synopticInfo">'
+					+ '<caption>'+data.identifier+'</caption>'
+					+ '<tr><th scope="row">Distance</th><td>'+parseFloat(data.distance).toFixed(2)+' m</td></tr>'
+					+ '</table>';
+			},
+			infoVehicle:function(data) {
+				var startTimeRow = (data.isScheduledService==false)
+					? '<tr><th scope="row">Start time</th><td>'+dateFormat(data.freqStartTime/1000)+'</td></tr>'
+					: '';
+				var headwayValue = (data.headway==-1)
+					? '—'
+					: (data.headway/60000).toFixed(2)+' min';
+				return '<table class="synopticInfo">'
+					+ '<caption>Bus '+data.identifier+'</caption>'
+					+ '<tr><th scope="row">GPS time</th><td>'+data.gpsTimeStr+'</td></tr>'
+					+ '<tr><th scope="row">Next stop</th><td>'+data.nextStopName+'</td></tr>'
+					+ '<tr><th scope="row">Sched adh</th><td>'+data.schAdhStr+'</td></tr>'
+					+ '<tr><th scope="row">Trip</th><td>'+data.trip+'</td></tr>'
+					+ startTimeRow
+					+ '<tr><th scope="row">Headway</th><td>'+headwayValue+'</td></tr>'
+					+ '</table>';
+			},
 			patternType:routeDetail.routes[0].shape[0].patternType,
 			drawReturnUpside:false,
 			showReturn:showReturn,
@@ -388,5 +367,7 @@ function routeConfigCallback(routeDetail, status)
 	 	});
 
 	</script>
+    </jsp:body>
+  </t:mapPage>
   </jsp:body>
 </t:layout>

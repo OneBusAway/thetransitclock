@@ -155,6 +155,7 @@ class Sinoptico
 		this.stopImg.onload = this.resize;
 		//It has to be here for the first time it loads the image.
 		this.stopImg.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlz\nAAALEwAACxMBAJqcGAAAAPVJREFUOI2Vkl1qwlAQhT/z1GQpNYRQ29XUJYkiqOiDS7GldBENFUSx\ne2jjy/XhnluHGPJzYEgyOTNz5gfu8QRsgD1wkX0DayCv4f8jAbaAa7ENENcFf4rwC0yk5EE2AqbA\nnzgf1SSh8gl4bFCZAmdx17bnULkp2CYpFZOjnpxkd8VMMSvw03ZSYlEdnsWzfAX4NTn8sLomSOQr\nox6yaxEBR70Pe8QF7iEC3vTxWiENKmYx1nMHfhUOfyRph+oZtzVmwRlWeW5JkgE/4i7tjxh/nkHJ\nDL+qRPYCzE3ld+63RmyUNNmyLtgix19YoYol8AUsbM8BV0fAV591YB1RAAAAAElFTkSuQmCC\n';
+		this.__bindScrollIndicator();
 		this.resize();
 	}
 	getVehicleIdentifier(id)
@@ -613,8 +614,10 @@ class Sinoptico
 			width=this.container.clientWidth;
 			height=this.container.clientHeight
 		}
-		width=this.zoomFactor*width;
-		this.container.style.overflow="auto";  
+		var minPxPerStop=80;
+		var stopCount=(this.stops!=undefined && this.stops!=null)?this.stops.length:0;
+		var minContentWidth=Math.max(width, stopCount*minPxPerStop+2*this.margin);
+		width=this.zoomFactor*minContentWidth;
 		//console.log(this.canvas.style);
 		if(this.canvas.border!= undefined)
 		{
@@ -629,7 +632,114 @@ class Sinoptico
 		this.canvas.width = width;
 		this.canvas.height = height;
 		this.paint();
+		this.__updateScrollIndicator();
 		this.resized=true;
+	}
+	__updateScrollIndicator()
+	{
+		var bar=this.scrollBar;
+		var thumb=this.scrollThumb;
+		if(!bar || !thumb)
+			return;
+		var scrollWidth=this.container.scrollWidth;
+		var clientWidth=this.container.clientWidth;
+		if(scrollWidth<=clientWidth)
+		{
+			bar.style.display='none';
+			return;
+		}
+		bar.style.display='block';
+		var trackWidth=bar.clientWidth;
+		var thumbWidth=Math.max(40, trackWidth*clientWidth/scrollWidth);
+		var maxThumbLeft=trackWidth-thumbWidth;
+		var maxScrollLeft=scrollWidth-clientWidth;
+		var thumbLeft=maxScrollLeft>0
+			? (this.container.scrollLeft/maxScrollLeft)*maxThumbLeft
+			: 0;
+		thumb.style.width=thumbWidth+'px';
+		thumb.style.left=thumbLeft+'px';
+	}
+	__bindScrollIndicator()
+	{
+		var bar=document.getElementById('synopticScrollbar');
+		var thumb=document.getElementById('synopticScrollThumb');
+		if(!bar || !thumb)
+			return;
+		// `init()` runs for every route selection but the scrollbar nodes live
+		// outside the canvas and survive — tear down the previous instance's
+		// listeners so we don't stack handlers and leak old Sinoptico instances.
+		Sinoptico.__teardownScrollIndicator(bar, thumb);
+
+		this.scrollBar=bar;
+		this.scrollThumb=thumb;
+		var self=this;
+		var dragStartX=0;
+		var dragStartScrollLeft=0;
+
+		var onScroll=function(){ self.__updateScrollIndicator(); };
+		var onThumbDown=function(e){
+			e.preventDefault();
+			thumb.setPointerCapture(e.pointerId);
+			thumb.classList.add('dragging');
+			dragStartX=e.clientX;
+			dragStartScrollLeft=self.container.scrollLeft;
+		};
+		var onThumbMove=function(e){
+			if(!thumb.hasPointerCapture(e.pointerId))
+				return;
+			var maxScrollLeft=self.container.scrollWidth-self.container.clientWidth;
+			var maxThumbLeft=bar.clientWidth-thumb.clientWidth;
+			if(maxThumbLeft<=0)
+				return;
+			var deltaX=e.clientX-dragStartX;
+			self.container.scrollLeft=dragStartScrollLeft+deltaX*(maxScrollLeft/maxThumbLeft);
+		};
+		var endDrag=function(e){
+			if(thumb.hasPointerCapture(e.pointerId))
+				thumb.releasePointerCapture(e.pointerId);
+			thumb.classList.remove('dragging');
+		};
+		var onBarDown=function(e){
+			if(e.target===thumb)
+				return;
+			var maxScrollLeft=self.container.scrollWidth-self.container.clientWidth;
+			var maxThumbLeft=bar.clientWidth-thumb.clientWidth;
+			if(maxThumbLeft<=0)
+				return;
+			var clickX=e.clientX-bar.getBoundingClientRect().left-thumb.clientWidth/2;
+			self.container.scrollLeft=(clickX/maxThumbLeft)*maxScrollLeft;
+		};
+
+		this.container.addEventListener('scroll',onScroll);
+		thumb.addEventListener('pointerdown',onThumbDown);
+		thumb.addEventListener('pointermove',onThumbMove);
+		thumb.addEventListener('pointerup',endDrag);
+		thumb.addEventListener('pointercancel',endDrag);
+		bar.addEventListener('pointerdown',onBarDown);
+
+		// Keep the un-binders attached to the DOM nodes so the next Sinoptico
+		// can find and remove them without inheriting our state.
+		bar.__synopticTeardown={
+			container:this.container,
+			onScroll:onScroll,
+			onThumbDown:onThumbDown,
+			onThumbMove:onThumbMove,
+			endDrag:endDrag,
+			onBarDown:onBarDown
+		};
+	}
+	static __teardownScrollIndicator(bar, thumb)
+	{
+		var prev=bar.__synopticTeardown;
+		if(!prev)
+			return;
+		prev.container.removeEventListener('scroll',prev.onScroll);
+		thumb.removeEventListener('pointerdown',prev.onThumbDown);
+		thumb.removeEventListener('pointermove',prev.onThumbMove);
+		thumb.removeEventListener('pointerup',prev.endDrag);
+		thumb.removeEventListener('pointercancel',prev.endDrag);
+		bar.removeEventListener('pointerdown',prev.onBarDown);
+		bar.__synopticTeardown=null;
 	}
 	getLastPostition(id)
 	{
