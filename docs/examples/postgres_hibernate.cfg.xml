@@ -57,7 +57,7 @@
         <!-- Batched writes — DataDbLogger and DbWriter both push through
              this. Should evenly divide transitclock.db.batchSize so each
              DbWriter flush ships a whole number of JDBC batches. -->
-        <property name="hibernate.jdbc.batch_size">50</property>
+        <property name="hibernate.jdbc.batch_size">100</property>
         <property name="default_batch_fetch_size">100</property>
         <property name="hibernate.order_inserts">true</property>
         <property name="hibernate.order_updates">true</property>
