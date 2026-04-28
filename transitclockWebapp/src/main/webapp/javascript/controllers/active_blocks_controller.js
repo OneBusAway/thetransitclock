@@ -43,13 +43,9 @@ export default class extends Controller {
   }
 
   async #fetchRoutes() {
-    try {
-      const res = await fetch(`${window.apiUrlPrefix}/command/activeBlocksByRouteWithoutVehicles`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      this.#renderRoutes(await res.json());
-    } catch (err) {
-      console.error("activeBlocksByRouteWithoutVehicles failed", err);
-    }
+    const data = await this.#getJSON(`${window.apiUrlPrefix}/command/activeBlocksByRouteWithoutVehicles`,
+                                     "activeBlocksByRouteWithoutVehicles");
+    if (data) this.#renderRoutes(data);
   }
 
   async #fetchSummary() {
@@ -57,27 +53,29 @@ export default class extends Controller {
       allowableEarlySec: String(this.earlyMsecValue / 1000),
       allowableLateSec: String(this.lateMsecValue / 1000),
     });
-    try {
-      const res = await fetch(`${window.apiUrlPrefix}/command/vehicleAdherenceSummary?${params}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      this.#renderSummary(await res.json());
-    } catch (err) {
-      console.error("vehicleAdherenceSummary failed", err);
-    }
+    const data = await this.#getJSON(`${window.apiUrlPrefix}/command/vehicleAdherenceSummary?${params}`,
+                                     "vehicleAdherenceSummary");
+    if (data) this.#renderSummary(data);
   }
 
   async #fetchRoute(item) {
     const routeName = item.dataset.routeName;
     if (!routeName) return;
     const url = `${window.apiUrlPrefix}/command/activeBlockByRouteNameWithVehicles?r=${encodeURIComponent(routeName)}`;
+    const data = await this.#getJSON(url, `activeBlockByRouteNameWithVehicles for ${routeName}`);
+    if (!data) return;
+    const route = data.routes?.find((r) => r.id === item.dataset.routeId) ?? data.routes?.[0];
+    if (route) this.#renderRouteData(item, route);
+  }
+
+  async #getJSON(url, label) {
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const route = data.routes?.find((r) => r.id === item.dataset.routeId) ?? data.routes?.[0];
-      if (route) this.#renderRouteData(item, route);
+      return await res.json();
     } catch (err) {
-      console.error(`activeBlockByRouteNameWithVehicles failed for ${routeName}`, err);
+      console.error(`${label} failed`, err);
+      return null;
     }
   }
 

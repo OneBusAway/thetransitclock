@@ -26,7 +26,7 @@
 <c:set var="activeBlocksActive" value="${path == '/status/activeBlocks.jsp'}"/>
 <c:set var="serverStatusActive" value="${path == '/status/serverStatus.jsp'}"/>
 <c:set var="dbDiskSpaceActive"  value="${path == '/status/dbDiskSpace.jsp'}"/>
-<c:set var="statusExpanded"     value="${activeBlocksActive or schAdhMapActive or serverStatusActive or dbDiskSpaceActive}"/>
+<c:set var="statusExpanded"     value="${activeBlocksActive or serverStatusActive or dbDiskSpaceActive}"/>
 <c:set var="synopticActive"     value="${path == '/synoptic/index.jsp'}"/>
 <c:set var="holdingNorthActive" value="${path == '/holding/singlestopholding.html' and param.stop == '20097'}"/>
 <c:set var="holdingSouthActive" value="${path == '/holding/singlestopholding.html' and param.stop == '93296'}"/>
@@ -87,7 +87,6 @@
                 </button>
                 <ul data-disclosure-target="panel" class="${statusExpanded ? '' : 'hidden'} mt-1 ml-3 space-y-0.5">
                   <li><a class="block px-2 py-1 text-sm rounded ${activeBlocksActive ? subActive : subInactive}" <c:if test="${activeBlocksActive}">aria-current="page"</c:if> href="${ctx}/status/activeBlocks.jsp${qs}"><fmt:message key="div.acbiveblock"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm rounded ${schAdhMapActive ? subActive : subInactive}" <c:if test="${schAdhMapActive}">aria-current="page"</c:if> href="${ctx}/maps/schAdhMap.jsp${qs}"><fmt:message key="div.ScheduleAdherenceMap"/></a></li>
                   <li><a class="block px-2 py-1 text-sm rounded ${serverStatusActive ? subActive : subInactive}" <c:if test="${serverStatusActive}">aria-current="page"</c:if> href="${ctx}/status/serverStatus.jsp${qs}"><fmt:message key="div.ss"/></a></li>
                   <li><a class="block px-2 py-1 text-sm rounded ${dbDiskSpaceActive ? subActive : subInactive}" <c:if test="${dbDiskSpaceActive}">aria-current="page"</c:if> href="${ctx}/status/dbDiskSpace.jsp${qs}"><fmt:message key="div.ddsu"/></a></li>
                 </ul>

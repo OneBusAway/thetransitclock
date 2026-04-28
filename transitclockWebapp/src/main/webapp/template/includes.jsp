@@ -9,28 +9,29 @@
      use becomes a concern. --%>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
-<%-- Load in JQuery --%>
-<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-
-<%-- Load in JQuery UI javascript and css to set general look and feel, such as for tooltips --%>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <script src="<%= request.getContextPath() %>/jquery-ui/jquery-ui.js"></script>
 <link rel="stylesheet" href="<%= request.getContextPath() %>/jquery-ui/jquery-ui.css">
-  
-<%-- Load in Transitime css and javascript libraries. Do this after jquery files
-     loaded so can override those parameters as necessary. --%>
+
+<%-- Load transitime.js after jQuery so it can override jQuery defaults. --%>
 <link rel="stylesheet" href="<%= request.getContextPath() %>/css/general.css">
 <script src="<%= request.getContextPath() %>/javascript/transitime.js"></script>
 
 <%-- Stimulus.js application entry point. ESM module, so it loads
      asynchronously after parse — fine because controllers attach on connect
-     once the DOM is ready. Add new controllers in javascript/application.js. --%>
+     once the DOM is ready. --%>
 <script type="module" src="<%= request.getContextPath() %>/javascript/application.js"></script>
 
+<%
+  String apikey = System.getProperty("transitclock.apikey");
+  if (apikey == null || apikey.isEmpty()) {
+    throw new IllegalStateException(
+        "System property 'transitclock.apikey' is not set. " +
+        "Start the JVM with -Dtransitclock.apikey=<key> before serving the webapp.");
+  }
+%>
 <script>
-// This needs to match the API key in the database
-//var apiKey = "f78a2e9a"
- var apiKey="<%=System.getProperty("transitclock.apikey")%>"
-// For accessing the api for an agency command
+var apiKey = "<%= apikey %>";
 var apiUrlPrefixAllAgencies = "/api/v1/key/" + apiKey;
 var apiUrlPrefix = apiUrlPrefixAllAgencies + "/agency/<%= request.getParameter("a") %>";
 </script>
