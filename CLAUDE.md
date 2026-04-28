@@ -75,6 +75,16 @@ These are all `main` classes in `org.transitclock.applications` and are wired as
 ### Two revision concepts
 GTFS data in the DB is versioned by `configRev` and travel-time data by `travelTimesRev`. `ActiveRevisions` points at the currently-live pair. When changing ingestion logic or entity shapes, consider that multiple revs coexist in the same tables.
 
+## Iterating on the webapp UI
+
+`docker/Dockerfile` bakes `web.war` into the Tomcat image at build time, so naively iterating on JSP/CSS/JS means a multi-minute image rebuild per edit. `docker-compose.dev.yml` is a checked-in compose override that swaps the WAR for a live bind mount of `transitclockWebapp/src/main/webapp/`. With it active, edits to JSP/CSS/JS/images appear in the running container on the next browser refresh — Tomcat recompiles JSPs on demand and serves the rest as static files.
+
+- One-time build to populate `transitclockWebapp/target/web/WEB-INF/{lib,classes}` (the override mounts these on top of the source tree, since the source has no built classpath): `mvn -pl transitclockWebapp -am package -DskipTests`.
+- Bring tomcat up with the override: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d tomcat`. The override deletes `web.war` from the image at startup so it doesn't fight the bind mount.
+- The override only affects `tomcat`; `core`, `db`, and `tools` keep their normal behavior.
+- Java class changes (anything under `transitclockWebapp/src/main/java`, `transitclockApi`, or core) still require `mvn -pl transitclockWebapp -am package -DskipTests` followed by `docker compose -f docker-compose.yml -f docker-compose.dev.yml restart tomcat`. Only the JSP/CSS/JS/HTML/image loop is fast.
+- To return to the production-style baked-WAR flow, drop the `-f docker-compose.dev.yml` flag.
+
 ## Conventions to be aware of
 
 - Package name is `org.transitclock` (not `org.transitime`); the project was renamed but README files still reference the old name in places.

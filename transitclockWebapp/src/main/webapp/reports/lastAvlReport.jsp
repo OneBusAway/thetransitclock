@@ -1,20 +1,15 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
 <%@ page import="org.transitclock.utils.web.WebUtils" %>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <%
 String agencyId = request.getParameter("a");
 if (agencyId == null || agencyId.isEmpty()) {
     response.getWriter().write("You must specify agency in query string (e.g. ?a=mbta)");
     return;
 }
+pageContext.setAttribute("ajaxDataString", WebUtils.getAjaxDataString(request));
 %>
-<html>
-<head>
-  <%@include file="/template/includes.jsp" %>
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title><fmt:message key="div.lastgpsreports" /></title>
-
+<t:layout>
+  <jsp:attribute name="title"><fmt:message key="div.lastgpsreports" /></jsp:attribute>
+  <jsp:attribute name="head">
 <style>
 
 </style>
@@ -24,7 +19,7 @@ if (agencyId == null || agencyId.isEmpty()) {
 /* Programatically create contents of table */
 function dataReadCallback(jsonData) {
 	var table = document.getElementById("dataTable");
-	
+
 	for (var i=0; i<jsonData.data.length; ++i) {
 		var vehicleInfo = jsonData.data[i];
 
@@ -43,7 +38,7 @@ $( document ).ready(function() {
    	// The page being requested
   	url: "/web/reports/lastAvlJsonData.jsp",
    	// Pass in query string parameters to page being requested
-   	data: {<%= WebUtils.getAjaxDataString(request) %>},
+   	data: {${ajaxDataString}},
   	// Needed so that parameters passed properly to page being requested
    	traditional: true,
     dataType:"json",
@@ -51,12 +46,11 @@ $( document ).ready(function() {
   });
 });
 </script>
-</head>
-<body>
-<%@include file="/template/header.jsp" %>
+  </jsp:attribute>
+  <jsp:body>
 <div id="title"><fmt:message key="div.lgpsr" /></div>
 <table id="dataTable">
   <tr><th><fmt:message key="div.Vehicle" /></th><th><fmt:message key="div.lgps" /></th></tr>
   </table>
-</body>
-</html>
+  </jsp:body>
+</t:layout>

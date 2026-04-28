@@ -1,40 +1,31 @@
 <%-- This is an experimental page for using a smartphone as a tracker. --%>
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
-<head>
-  <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Tracking</title>
-
-</head>
-<body>
+<t:layout>
+  <jsp:attribute name="title">Tracking</jsp:attribute>
+  <jsp:body>
 <div id="output">Tracking...</div>
-</body>
 
 <script>
 
 var positions=[];
 
 function storePosition(position) {
-	// Make a copy since the position variable passed in 
+	// Make a copy since the position variable passed in
 	// is reused.
 	var positionsCopy = $.extend( {}, position);
-	
+
 	// If a new position (indicated by new timestamp) then
 	// add to array of positions
-	if (positions.length == 0 
+	if (positions.length == 0
 			|| position.timestamp != positions[positions.length-1].timestamp)
 		positions.push(positionsCopy);
-	
+
 	// Write only when get 10 data points so that don't
 	// try to communicate every second
 	if (positions.length >= 10) {
 		var dataStr = '';
 		for (var i=0; i<positions.length; ++i) {
 			var p = positions[i];
-			dataStr += p.coords.latitude + ',' 
+			dataStr += p.coords.latitude + ','
 				+ p.coords.longitude + ','
 				+ p.coords.speed + ','
 				+ p.coords.heading + ','
@@ -51,7 +42,7 @@ function storePosition(position) {
 	    		//alert(data);
 	    	}
 	    });
-	    
+
 	    // Clear array
 	    positions.length = 0;
 	}
@@ -61,11 +52,11 @@ function handlePosition(position) {
     $("#output").html("Latitude: " + position.coords.latitude
       + "<br>Longitude: " + position.coords.longitude
       + "<br>Speed:" + position.coords.speed
-      + "<br>Heading:" + position.coords.heading 
+      + "<br>Heading:" + position.coords.heading
       + "<br>timestamp:" + position.timestamp);
-    
+
 	storePosition(position);
-	
+
 	// Done getting position
 	gettingLocation = false;
 }
@@ -119,4 +110,5 @@ function interval() {
 setInterval(interval, 100);
 
 </script>
-</html>
+  </jsp:body>
+</t:layout>

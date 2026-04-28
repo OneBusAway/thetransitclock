@@ -77,17 +77,23 @@ public class JspTaglibAuditTest {
 	}
 
 	@Test
-	public void jspsWithTaglibsExist() throws IOException {
-		// Sanity check: if no JSPs declare taglibs, the audit above is
-		// vacuously green and would silently miss a wholesale taglib removal.
-		long jspsWithTaglibs;
-		try (Stream<Path> stream = Files.walk(WEBAPP_ROOT)) {
-			jspsWithTaglibs = stream
-					.filter(p -> p.toString().endsWith(".jsp"))
-					.filter(p -> TAGLIB_DIRECTIVE.matcher(readSilently(p)).find())
-					.count();
-		}
-		assertThat(jspsWithTaglibs).isGreaterThanOrEqualTo(10);
+	public void preludeDeclaresExpectedTaglibs() throws IOException {
+		// Taglibs are centralized in WEB-INF/jspf/prelude.jspf and pulled
+		// into every *.jsp via web.xml's <include-prelude>. If the prelude
+		// is deleted or stops declaring c/fmt/t, every page that relies on
+		// those prefixes silently renders broken — the audit above can't
+		// catch it because there are no inline taglib directives left to
+		// fail on. Pin the prelude's contents instead.
+		Path prelude = WEBAPP_ROOT.resolve("WEB-INF/jspf/prelude.jspf");
+		assertThat(prelude).as("centralized taglib prelude must exist").exists();
+		String content = readSilently(prelude);
+		assertThat(content)
+				.as("prelude must declare the t/c/fmt taglib prefixes")
+				.contains("prefix=\"t\"")
+				.contains("prefix=\"c\"")
+				.contains("prefix=\"fmt\"")
+				.contains("jakarta.tags.core")
+				.contains("jakarta.tags.fmt");
 	}
 
 	private static String readSilently(Path p) {

@@ -1,49 +1,48 @@
 @CHARSET "UTF-8";
 
-html, body, #map { 
-	height: 100%; width: 100%; padding: 0px; margin: 0px;
+/* general.css applies a 10px bottom body margin; reset it on map pages so
+ * the full-bleed layout doesn't overflow. */
+html, body {
+	margin: 0; padding: 0;
 }
 
-/* Center the title. 
+#map {
+	height: 100%; width: 100%;
+}
+
+/* Center the title.
  * Need to use the one div inside the other trick to do this so that
- * it works in both iOS and elsewhere. Sheesh! 
+ * it works in both iOS and elsewhere. Sheesh!
  */
 #titleContainer {
-	position:absolute; top: 40%; left: 50%;
+	position: absolute; top: 40%; left: 50%;
+	pointer-events: none;
 }
 
-#mapTitle { 
-	/* Center in page */
-	position: relative; left: -50%; 
-	padding: 0.5em; border-radius: 0.5em; 
+#mapTitle {
+	/* Center horizontally relative to titleContainer */
+	position: relative; left: -50%;
+	padding: 0.5em; border-radius: 0.5em;
 	/* Special semi-transparent color */
 	background: rgba(0,255,0,0.5);
 	/* Nice big font */
 	font-family: sans-serif; font-size: 42pt; font-weight: bold;
 }
 
-/* Set the title text here in css 
+/* Set the title text here in css
  */
 #mapTitle:before {
 	content: "Transitime";
 }
-	
-/* Center the route selector.
- * Need to use the one div inside the other trick to do this so that
- * it works in both iOS and elsewhere. Sheesh!
- */
-#routesContainer {
-	position:absolute; top: 5px; left: 5px;
-}
 
-/* Set font for route selector. Need to use #select2-drop because of 
- * extra elements that select2 adds 
+/* Set font for route selector. Need to use #select2-drop because of
+ * extra elements that select2 adds
  */
 #select2-drop, #routesDiv {
   font-family: sans-serif; font-size: normal;
 }
 
-/* For the vehicle and prediction popups 
+/* For the vehicle and prediction popups
  */
 .vehicle { font-size: x-small; font-weight: normal;}
 .prediction {font-size: large; font-weight: bold;}

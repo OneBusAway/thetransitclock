@@ -1,0 +1,6 @@
+<%-- Auto-included at the top of every *.jsp via the include-prelude in
+     WEB-INF/web.xml's <jsp-config>. Pages get these taglib prefixes for
+     free; declaring them again is harmless. --%>
+<%@ taglib prefix="t"   tagdir="/WEB-INF/tags" %>
+<%@ taglib prefix="c"   uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>

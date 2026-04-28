@@ -14,6 +14,30 @@
 
   </context-param>
 
+  <!-- App-wide JSTL fmt resource bundle. Sets the default LocalizationContext
+       at application scope so every JSP and tag file can use <fmt:message>
+       without each one calling <fmt:setBundle>. Pages may still override at
+       page scope if they want a different bundle. -->
+  <context-param>
+      <param-name>jakarta.servlet.jsp.jstl.fmt.localizationContext</param-name>
+      <param-value>org.transitclock.i18n.text</param-value>
+  </context-param>
+
+
+  <!-- App-wide JSP defaults: a prelude JSPF that registers the t/c/fmt
+       taglib prefixes for every page, plus a UTF-8 default response
+       Content-Type. <page-encoding> is intentionally not set here: a
+       handful of legacy pages explicitly declare pageEncoding="ISO-8859-1"
+       and the JSP spec rejects mismatches. Files are ASCII in practice,
+       so the implicit ISO-8859-1 source-file default is fine; pages that
+       need UTF-8 source can opt in with <%@ page pageEncoding="UTF-8" %>. -->
+  <jsp-config>
+    <jsp-property-group>
+      <url-pattern>*.jsp</url-pattern>
+      <default-content-type>text/html; charset=UTF-8</default-content-type>
+      <include-prelude>/WEB-INF/jspf/prelude.jspf</include-prelude>
+    </jsp-property-group>
+  </jsp-config>
 
   <welcome-file-list>
     <welcome-file>welcome/index.jsp</welcome-file>

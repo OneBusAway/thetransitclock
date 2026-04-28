@@ -1,21 +1,23 @@
 <%@page import="org.transitclock.web.WebConfigParams"%>
-<!--  NOTE: this file is obsolete. Should only be using smartphoneMap.jsp. 
-      But this smartphoneMap.html needs to be kept around because is being 
+<!--  NOTE: this file is obsolete. Should only be using smartphoneMap.jsp.
+      But this smartphoneMap.html needs to be kept around because is being
       used for VTA smartphone app. -->
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title><fmt:message key="div.smartphonemap" /></title>
+<%
+pageContext.setAttribute("mapTileUrl", WebConfigParams.getMapTileUrl());
+pageContext.setAttribute("mapTileCopyright", WebConfigParams.getMapTileCopyright());
+%>
+<t:layout bare="true">
+  <jsp:attribute name="title"><fmt:message key="div.smartphonemap" /></jsp:attribute>
+  <jsp:attribute name="head">
   <!-- So that get proper sized map on iOS mobile device -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  
+
   <link rel="stylesheet" href="css/mapUi.css" />
- 
+
   <!-- Load javascript and css files -->
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.css" />
   <script src="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
-  <!-- New version of map. CLIP_PADDING doesn't seem to work and then see 
+  <!-- New version of map. CLIP_PADDING doesn't seem to work and then see
        route paths be redrawn in ugly way when panning
   <link rel="stylesheet" href="leaflet/leaflet.css" />
   <script src="leaflet/leaflet.js"></script>
@@ -23,9 +25,6 @@
   <script src="javascript/leafletRotatedMarker.js"></script>
   <script src="javascript/mapUiOptions.js"></script>
   <script src="javascript/map.js"></script>
-  
-  <!-- Load in JQuery -->
-  <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 
   <!--  Override the body style from the includes.jsp/general.css files -->
   <style>
@@ -33,7 +32,7 @@
 	  margin: 0px;
     }
   </style>
-  
+
   <style>
   /* Make prediction popup small */
   .leaflet-popup-content {
@@ -42,12 +41,12 @@
     text-align: center;
     font-size: x-small;
   }
-  
+
   .prediction {font-size: large; font-weight: bold;}
-  
+
   /* For a back button. Currently not implemented */
   #button {
-  	position: absolute; 
+  	position: absolute;
   	z-index: 9999;
   	top: 10px;
   	left: 10px;
@@ -55,7 +54,7 @@
   	padding-right: 20px;
   	font-size: x-large;
   }
-  
+
   /* For labeling walking directions with distance and time */
   .walkingDirDiv {
   	background: white;
@@ -71,18 +70,15 @@
   	border-width: 1px;
   	border-color: gray;
   }
-    
-  </style>
-  
-</head>
 
-<body>
+  </style>
+  </jsp:attribute>
+  <jsp:body>
   <!--  Create map that takes up entire view -->
   <div id="map">
-    <!--  <div id='button'>&lt; Back</div>  --> 
+    <!--  <div id='button'>&lt; Back</div>  -->
   </div>
-</body>
-  
+
   <script>
 
   // Customize some map options to get desired look. These override the usual
@@ -95,10 +91,10 @@
 			// which is a nuisance since the popup can hide info on walking to stop.
 			closeOnClick: false,
 			// Don't want map to auto pan every time prediction updated. Tried
-			// setting autoPan to false but didn't work. 
+			// setting autoPan to false but didn't work.
 			autoPan: false
 		}
-  
+
   var shapeOptions = {
 			color: '#0080FF',
 			weight: 7,
@@ -106,14 +102,14 @@
 			lineJoin: 'round',
 			clickable: false
 		};
-				
+
   var minorShapeOptions = {
 			color: '#0080FF',
 			weight: 1,
 			opacity: 0.4,
 			clickable: false
 		};
-  
+
   var stopOptions = {
 		    color: '#092F87',
 		    opacity: 1.0,
@@ -129,7 +125,7 @@
 		    radius: 4,
 		    weight: 2,
 		    fillColor: '#0080FF',
-		    fillOpacity: 0.8,		
+		    fillOpacity: 0.8,
 		}
 
   var minorStopOptions = {
@@ -147,7 +143,7 @@
 		};
 
   var secondaryVehicleMarkerOptions = {
-			opacity: 0.65,		
+			opacity: 0.65,
 		};
 
   var minorVehicleMarkerOptions = {
@@ -174,7 +170,7 @@
   	    fillOpacity: 1.0,
   	    clickable: false
   	};
-  
+
   // For indicating accuracy of user location. Faint blue circle.
   var userAccuracyMarkerOptions = {
 	  color: '#ff000',
@@ -194,8 +190,8 @@
   };
 
   // Create the leaflet map
-  createMap('<%= WebConfigParams.getMapTileUrl() %>', '<%= WebConfigParams.getMapTileCopyright() %>');
-  
+  createMap('${mapTileUrl}', '${mapTileCopyright}');
+
   // Get the parameters from query string and display the route
   var agencyId = getQueryVariable("a");
   var routeId = getQueryVariable("r");
@@ -203,7 +199,7 @@
   var stopId = getQueryVariable("s");
   var apiKey = "5ec0de94";
   showRoute(agencyId, routeId, directionId, stopId, apiKey);
-  
-  </script>
 
-</html>
+  </script>
+  </jsp:body>
+</t:layout>

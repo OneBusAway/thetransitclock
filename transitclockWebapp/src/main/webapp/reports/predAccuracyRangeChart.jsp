@@ -1,8 +1,6 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
 <%@ page import="org.transitclock.utils.web.WebUtils" %>
 <%@page import="org.transitclock.db.webstructs.WebAgency"%>
-<%     
+<%
 // Determine all the parameters from the query string
 
 // Determine agency using "a" param
@@ -14,7 +12,7 @@ String routeIds[] = request.getParameterValues("r");
 String titleRoutes = "";
 if (routeIds != null && !routeIds[0].isEmpty()) {
     titleRoutes += ", route ";
-    if (routeIds.length > 1) 
+    if (routeIds.length > 1)
         titleRoutes += "s";
     titleRoutes += routeIds[0];
     for (int i=1; i<routeIds.length; ++i) {
@@ -24,33 +22,31 @@ if (routeIds != null && !routeIds[0].isEmpty()) {
 }
 
 String sourceParam = request.getParameter("source");
-String source = (sourceParam != null && !sourceParam.isEmpty()) ? 
-	", " + sourceParam + " predictions" : ""; 
+String source = (sourceParam != null && !sourceParam.isEmpty()) ?
+	", " + sourceParam + " predictions" : "";
 String beginDate = request.getParameter("beginDate");
 String numDays = request.getParameter("numDays");
 if (numDays == null) numDays = "1";
 String beginTime = request.getParameter("beginTime");
 String endTime = request.getParameter("endTime");
 
-String chartTitle = "Prediction Accuracy Range for " 
-    + WebAgency.getCachedWebAgency(agencyId).getAgencyName()   
-	+ titleRoutes 
-	+ source 
+String chartTitle = "Prediction Accuracy Range for "
+    + WebAgency.getCachedWebAgency(agencyId).getAgencyName()
+	+ titleRoutes
+	+ source
 	+ ", " + beginDate + " for " + numDays + " day" + (Integer.parseInt(numDays) > 1 ? "s" : "");
-	
+
 if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.isEmpty())) {
 	chartTitle += ", " + beginTime + " to " + endTime;
 }
 
-%>  
-	  
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
-<head>
-  <%@include file="/template/includes.jsp" %>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <title><fmt:message key="div.PredictionAccuracy" /></title>
-
+pageContext.setAttribute("chartTitle", chartTitle);
+pageContext.setAttribute("ajaxDataString", WebUtils.getAjaxDataString(request));
+pageContext.setAttribute("queryParamsString", WebUtils.getQueryParamsString(request));
+%>
+<t:layout>
+  <jsp:attribute name="title"><fmt:message key="div.PredictionAccuracy" /></jsp:attribute>
+  <jsp:attribute name="head">
     <style>
       .google-visualization-tooltip {
         font-family: arial, sans-serif;
@@ -72,7 +68,7 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
       	text-align: center;
       	margin-top: 1%;
       }
-      
+
       #errorMessage {
 		  display: none;
           position: fixed;
@@ -86,16 +82,6 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
 	      z-index: 9999;
 		}
     </style>
-</head>
-
-<body>
-  <%@include file="/template/header.jsp" %>
-  
-  <div id="chart_div" style="width: 100%; height: 600px;"></div>
-  <div id="loading"></div>
-  <div id="errorMessage"></div>
-  <div id="summary"><small>Schedule Adherence loading....</small></div>
-</body>
 
 <script type="text/javascript" src="https://www.google.com/jsapi"></script>
 
@@ -109,7 +95,7 @@ window.onresize = function () {
              clearTimeout(globalTimer);
              globalTimer = setTimeout(drawChart, 100)
            };
-           
+
 var globalDataTable = null;
 
 function getDataTable() {
@@ -117,7 +103,7 @@ function getDataTable() {
   	// The page being requested
     url: "predAccuracyRangeData.jsp",
 	// Pass in query string parameters to page being requested
-	data: {<%= WebUtils.getAjaxDataString(request) %>},
+	data: {${ajaxDataString}},
  	// Needed so that parameters passed properly to page being requested
  	traditional: true,
      dataType:"json",
@@ -138,17 +124,17 @@ function getDataTable() {
 
 function drawChart() {
 	var chartOptions = {
-	         title: '<%= chartTitle %>',
+	         title: '${chartTitle}',
 	         titleTextStyle: {fontSize: 28},
 	         //tooltip: {isHtml: true},
 	         isStacked: true,
 	         series: [{'color': '#E84D5F'}, {'color': '#6FD656'}, {'color': '#F0DB56'}],
 	         legend: 'bottom',
 	         chartArea: {
-	                // Use most of available area. But need to not use 100% or else 
+	                // Use most of available area. But need to not use 100% or else
 	                // labels won't appear
-	            	width:'90%', 
-	            	height:'70%', 
+	            	width:'90%',
+	            	height:'70%',
 	            	// Make chart a bit graay so that it stands out
 	            	backgroundColor: '#f2f2f2'},
 	         hAxis: {
@@ -178,7 +164,7 @@ function drawChart() {
 
     var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
 
-    chart.draw(globalDataTable, chartOptions);	
+    chart.draw(globalDataTable, chartOptions);
 }
 
 function parseSummary(data) {
@@ -188,13 +174,13 @@ function parseSummary(data) {
 	});
 	document.getElementById('summary').innerHTML = "Schedule Adherence over " + results[0] + " arrival and departures<br/>"
 	+ "Early: <b>" + results[1]
-	+ "</b>% OnTime: <b>" + results[2] 
+	+ "</b>% OnTime: <b>" + results[2]
 	+ "</b>% Late: <b>" + results[3] + "</b>%";
-	
+
 }
 
 function formatQueryParams() {
-  return "<%= WebUtils.getQueryParamsString(request) %>";
+  return "${queryParamsString}";
 }
 
 function showSummary() {
@@ -211,7 +197,7 @@ function getDataAndDrawChart() {
 		drawChart();
 		showSummary();
     }
-	
+
     // Now that chart has been drawn faceout the loading image
     $("#loading").fadeOut("slow");
 }
@@ -221,4 +207,11 @@ function getDataAndDrawChart() {
 google.load("visualization", "1", {packages:["corechart"]});
 google.setOnLoadCallback(getDataAndDrawChart);
 </script>
-</html>
+  </jsp:attribute>
+  <jsp:body>
+  <div id="chart_div" style="width: 100%; height: 600px;"></div>
+  <div id="loading"></div>
+  <div id="errorMessage"></div>
+  <div id="summary"><small>Schedule Adherence loading....</small></div>
+  </jsp:body>
+</t:layout>

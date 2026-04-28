@@ -1,10 +1,7 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
-
 <%@ page import="org.transitclock.utils.web.WebUtils" %>
 <%@page import="org.transitclock.db.webstructs.WebAgency"%>
 
-<%     
+<%
 // Determine all the parameters from the query string
 
 // Determine agency using "a" param
@@ -16,7 +13,7 @@ String routeIds[] = request.getParameterValues("r");
 String titleRoutes = "";
 if (routeIds != null && !routeIds[0].isEmpty()) {
     titleRoutes += ", route ";
-    if (routeIds.length > 1) 
+    if (routeIds.length > 1)
         titleRoutes += "s";
     titleRoutes += routeIds[0];
     for (int i=1; i<routeIds.length; ++i) {
@@ -26,34 +23,30 @@ if (routeIds != null && !routeIds[0].isEmpty()) {
 }
 
 String sourceParam = request.getParameter("source");
-String source = (sourceParam != null && !sourceParam.isEmpty()) ? 
-	", " + sourceParam + " predictions" : ""; 
+String source = (sourceParam != null && !sourceParam.isEmpty()) ?
+	", " + sourceParam + " predictions" : "";
 String beginDate = request.getParameter("beginDate");
 String numDays = request.getParameter("numDays");
 String beginTime = request.getParameter("beginTime");
 String endTime = request.getParameter("endTime");
 
 String chartTitle = "Prediction Accuracy for "
-	+ WebAgency.getCachedWebAgency(agencyId).getAgencyName()   
-	+ titleRoutes 
-	+ source 
+	+ WebAgency.getCachedWebAgency(agencyId).getAgencyName()
+	+ titleRoutes
+	+ source
 	+ ", " + beginDate + " for " + numDays + " day" + (Integer.parseInt(numDays) > 1 ? "s" : "");
 
 if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.isEmpty())) {
 	chartTitle += ", " + beginTime + " to " + endTime;
 }
 
-%>  
-	  
-    
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
-  <head>
-    <%@include file="/template/includes.jsp" %>
-    
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title><fmt:message key="div.PredictionAccuracy" /></title>
-    
+pageContext.setAttribute("chartTitle", chartTitle);
+pageContext.setAttribute("seriesColor", (sourceParam==null || !sourceParam.equals("Other")) ? "blue" : "red");
+pageContext.setAttribute("ajaxDataString", WebUtils.getAjaxDataString(request));
+%>
+<t:layout>
+  <jsp:attribute name="title"><fmt:message key="div.PredictionAccuracy" /></jsp:attribute>
+  <jsp:attribute name="head">
     <style>
        #loading {
           position: fixed;
@@ -77,23 +70,10 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
 	      font-size: large;
 	      z-index: 9999;
 		}
-    </style>  
- </head>
- 
-  <body>
-    <%@include file="/template/header.jsp" %>
-    
-    <!--  There seems to be a bug with a chart_lines chart where it
-          doesn't properly handle a height specified as a percentage.
-          Therefore need to use pixels for the height. -->
-    <div id="chart_lines" style="width: 100%; height: 700px;"></div>
-    <div id="loading"></div>
-    <div id="errorMessage"></div>
-  </body>
-
+    </style>
     <!-- Needed for Google Chart -->
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    
+
     <script type="text/javascript">
 
     // Updates chart when page is resized. But only does so at most
@@ -104,7 +84,7 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
                  clearTimeout(globalTimer);
                  globalTimer = setTimeout(drawChart, 100)
     };
-               
+
     var globalDataTable = null;
 
     function getDataTable() {
@@ -112,7 +92,7 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
       	// The page being requested
         url: "predAccuracyIntervalsData.jsp",
     	// Pass in query string parameters to page being requested
-    	data: {<%= WebUtils.getAjaxDataString(request) %>},
+    	data: {${ajaxDataString}},
     	// Needed so that parameters passed properly to page being requested
     	traditional: true,
         dataType:"json",
@@ -130,28 +110,28 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
           },
         }).responseJSON;
     }
-    
+
     function drawChart() {
         // The intervals data as narrow lines (useful for showing raw source data)
         var chartOptions = {
-            title: '<%= chartTitle %>',
+            title: '${chartTitle}',
             titleTextStyle: {fontSize: 28},
             curveType: 'function',
             lineWidth: 4,
             intervals: { 'style':'area' },
             legend: 'bottom',
-            // Usually will first be displaying Transitime predictions and 
+            // Usually will first be displaying Transitime predictions and
             // those will get the first color. If both Transitime and Tther
             // predictions shown then the Other ones will get the second color.
-            // But want color for the Other predictions to be consistent 
+            // But want color for the Other predictions to be consistent
             // whether only Other predictions or both Other and Transitime ones
             // are shown. Therefore do something fancy here for consistency.
-            series: [{'color': '<%= (sourceParam==null || !sourceParam.equals("Other")) ? "blue" : "red" %>'},{'color': 'red'}],
+            series: [{'color': '${seriesColor}'},{'color': 'red'}],
             chartArea: {
-                // Use most of available area. But need to not use 100% or else 
+                // Use most of available area. But need to not use 100% or else
                 // labels won't appear
-            	width:'90%', 
-            	height:'80%', 
+            	width:'90%',
+            	height:'80%',
             	// Make chart a bit graay so that it stands out
             	backgroundColor: '#f2f2f2'},
             hAxis: {
@@ -164,11 +144,11 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
             	minorGridlines: {count: 1}
        	    },
             vAxis: {title: 'Prediction Accuracy (secs) (postive means vehicle later than predicted)',
-            	// Try to show accuracy on a consistent vertical axis and 
+            	// Try to show accuracy on a consistent vertical axis and
             	// divide into minutes. This unfortunately won't work well
             	// if values are greater than 300 because then chart will
             	// autoscale but will still be using 8 gridlines
-            	minValue: -120, 
+            	minValue: -120,
             	maxValue: 300,
             	gridlines: {count: 8},
        	        // Nice to show a faint line for every 30 seconds as well
@@ -177,14 +157,14 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
          	// Sometimes won't have data in a prediction bucket. For this
          	// case want chart to interpolate instead of displaying nothing.
          	interpolateNulls: true,
-         	
+
 			lineWidth: 1.0
         };
-  
+
         var chart = new google.visualization.LineChart(document.getElementById('chart_lines'));
         chart.draw(globalDataTable, chartOptions);
       }
-      
+
       function getDataAndDrawChart() {
           getDataTable();
           if (globalDataTable != null)
@@ -198,5 +178,13 @@ if ((beginTime != null && !beginTime.isEmpty()) || (endTime != null && !endTime.
       google.setOnLoadCallback(getDataAndDrawChart);
 
     </script>
- </html>
- 
+  </jsp:attribute>
+  <jsp:body>
+    <!--  There seems to be a bug with a chart_lines chart where it
+          doesn't properly handle a height specified as a percentage.
+          Therefore need to use pixels for the height. -->
+    <div id="chart_lines" style="width: 100%; height: 700px;"></div>
+    <div id="loading"></div>
+    <div id="errorMessage"></div>
+  </jsp:body>
+</t:layout>
