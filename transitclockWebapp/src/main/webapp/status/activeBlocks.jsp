@@ -11,7 +11,6 @@ pageContext.setAttribute("earlyMsec",   scheduleEarlySec * -1000);
 pageContext.setAttribute("lateMsec",    scheduleLateSec  * 1000);
 pageContext.setAttribute("scheduleEarlyMin", scheduleEarlySec / -60);
 pageContext.setAttribute("scheduleLateMin",  scheduleLateSec  / 60);
-pageContext.setAttribute("apiPrefix", "/api/v1/key/" + System.getProperty("transitclock.apikey") + "/agency/" + agencyId);
 %>
 <t:layout>
   <jsp:attribute name="title"><fmt:message key="div.acbiveblock" /></jsp:attribute>
@@ -19,8 +18,7 @@ pageContext.setAttribute("apiPrefix", "/api/v1/key/" + System.getProperty("trans
 <div data-controller="active-blocks"
      data-action="accordion:opened->active-blocks#routeOpened"
      data-active-blocks-early-msec-value="${earlyMsec}"
-     data-active-blocks-late-msec-value="${lateMsec}"
-     data-active-blocks-api-prefix-value="${apiPrefix}">
+     data-active-blocks-late-msec-value="${lateMsec}">
 
   <%-- Sticky summary header. Bleeds full-width within main by undoing the
        layout's p-8 padding via -mx-8/-mt-8, then re-applies px-8 itself. --%>
@@ -67,7 +65,6 @@ pageContext.setAttribute("apiPrefix", "/api/v1/key/" + System.getProperty("trans
        data-accordion-allow-multiple-value="true"
        data-active-blocks-target="accordion"
        class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200 overflow-hidden">
-    <%-- Route accordion items rendered here by active-blocks controller. --%>
   </div>
 
   <template data-active-blocks-target="routeTemplate">

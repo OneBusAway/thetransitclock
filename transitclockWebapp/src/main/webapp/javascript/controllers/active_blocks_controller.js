@@ -2,12 +2,18 @@ import { Controller } from "https://unpkg.com/@hotwired/stimulus@3.2.2/dist/stim
 
 const SUMMARY_REFRESH_MS = 60_000;
 
+const ADH_CLASSES = Object.freeze({
+  early:  ["text-amber-700",   "bg-amber-50"],
+  onTime: ["text-emerald-700", "bg-emerald-50"],
+  late:   ["text-red-700",     "bg-red-50"],
+});
+const ALL_ADH_CLASSES = [...new Set(Object.values(ADH_CLASSES).flat())];
+
 export default class extends Controller {
   static targets = ["summary", "accordion", "routeTemplate", "blockTemplate", "loadAll"];
   static values = {
     earlyMsec: Number,
     lateMsec: Number,
-    apiPrefix: String,
   };
 
   connect() {
@@ -20,7 +26,6 @@ export default class extends Controller {
     clearInterval(this.summaryTimer);
   }
 
-  // Stimulus action — invoked from data-action="accordion:opened->active-blocks#routeOpened".
   routeOpened(event) {
     const item = event.detail?.item;
     if (item) this.#fetchRoute(item);
@@ -30,9 +35,8 @@ export default class extends Controller {
     const button = this.hasLoadAllTarget ? this.loadAllTarget : null;
     if (button) button.disabled = true;
     try {
-      for (const item of this.accordionTarget.querySelectorAll("[data-accordion-target='item']")) {
-        await this.#fetchRoute(item);
-      }
+      const items = Array.from(this.accordionTarget.querySelectorAll("[data-accordion-target='item']"));
+      await Promise.all(items.map((item) => this.#fetchRoute(item)));
     } finally {
       if (button) button.disabled = false;
     }
@@ -40,7 +44,7 @@ export default class extends Controller {
 
   async #fetchRoutes() {
     try {
-      const res = await fetch(`${this.apiPrefixValue}/command/activeBlocksByRouteWithoutVehicles`);
+      const res = await fetch(`${window.apiUrlPrefix}/command/activeBlocksByRouteWithoutVehicles`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this.#renderRoutes(await res.json());
     } catch (err) {
@@ -54,7 +58,7 @@ export default class extends Controller {
       allowableLateSec: String(this.lateMsecValue / 1000),
     });
     try {
-      const res = await fetch(`${this.apiPrefixValue}/command/vehicleAdherenceSummary?${params}`);
+      const res = await fetch(`${window.apiUrlPrefix}/command/vehicleAdherenceSummary?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this.#renderSummary(await res.json());
     } catch (err) {
@@ -65,7 +69,7 @@ export default class extends Controller {
   async #fetchRoute(item) {
     const routeName = item.dataset.routeName;
     if (!routeName) return;
-    const url = `${this.apiPrefixValue}/command/activeBlockByRouteNameWithVehicles?r=${encodeURIComponent(routeName)}`;
+    const url = `${window.apiUrlPrefix}/command/activeBlockByRouteNameWithVehicles?r=${encodeURIComponent(routeName)}`;
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -83,15 +87,17 @@ export default class extends Controller {
     const pct = (n) => (blocks ? `${((100 * n) / blocks).toFixed(0)}%` : "—");
 
     this.#fill("total-blocks", blocks);
-    this.#fill("percent-assigned", blocks ? `${((100 * vehicleCount) / blocks).toFixed(0)}%` : "—");
     this.#fill("percent-late", pct(total.late ?? 0));
     this.#fill("percent-on-time", pct(total.ontime ?? 0));
     this.#fill("percent-early", pct(total.early ?? 0));
     this.#fill("as-of", new Date().toLocaleTimeString());
 
-    const assignedPct = blocks ? (100 * vehicleCount) / blocks : 100;
     const assignedEl = this.summaryTarget.querySelector("[data-field='percent-assigned']");
-    assignedEl?.classList.toggle("text-red-600", assignedPct < 90);
+    if (assignedEl) {
+      assignedEl.textContent = pct(vehicleCount);
+      const assignedFrac = blocks ? vehicleCount / blocks : 1;
+      assignedEl.classList.toggle("text-red-600", assignedFrac < 0.9);
+    }
   }
 
   #fill(field, value) {
@@ -132,27 +138,38 @@ export default class extends Controller {
     for (const block of route.block ?? []) {
       for (const v of block.vehicle ?? []) {
         if (v.scheduleBased) continue;
-        const adh = parseInt(v.schAdh, 10);
-        if (adh < -this.lateMsecValue) late++;
-        else if (adh > this.earlyMsecValue) early++;
+        const kind = this.#classifyAdh(parseInt(v.schAdh, 10));
+        if (kind === "early") early++;
+        else if (kind === "late") late++;
         else onTime++;
       }
     }
     const vehicleTotal = early + onTime + late;
     const blockCount = (route.block ?? []).length;
 
-    item.querySelector("[data-field='route-early']").textContent = early;
-    item.querySelector("[data-field='route-on-time']").textContent = onTime;
-    item.querySelector("[data-field='route-late']").textContent = late;
-    item.querySelector("[data-field='route-vehicles']").textContent = vehicleTotal;
-    item.querySelector("[data-field='route-blocks']").textContent = blockCount;
+    const earlyEl   = item.querySelector("[data-field='route-early']");
+    const onTimeEl  = item.querySelector("[data-field='route-on-time']");
+    const lateEl    = item.querySelector("[data-field='route-late']");
+    const vehEl     = item.querySelector("[data-field='route-vehicles']");
+    const blocksEl  = item.querySelector("[data-field='route-blocks']");
+
+    earlyEl.textContent  = early;
+    onTimeEl.textContent = onTime;
+    lateEl.textContent   = late;
+    vehEl.textContent    = vehicleTotal;
+    blocksEl.textContent = blockCount;
+
+    earlyEl.classList.toggle("text-amber-700", early > 0);
+    earlyEl.classList.toggle("bg-amber-50",    early > 0);
+    lateEl.classList.toggle("text-red-700",    late > 0);
+    lateEl.classList.toggle("bg-red-50",       late > 0);
+    const understaffed = vehicleTotal < blockCount;
+    vehEl.classList.toggle("text-red-700",     understaffed);
+    vehEl.classList.toggle("bg-red-50",        understaffed);
+
     const summary = item.querySelector("[data-vehicle-summary]");
     summary?.classList.remove("hidden");
     summary?.classList.add("flex");
-
-    this.#chip(item.querySelector("[data-field='route-early']"), early > 0, "amber");
-    this.#chip(item.querySelector("[data-field='route-late']"), late > 0, "red");
-    this.#chip(item.querySelector("[data-field='route-vehicles']"), vehicleTotal < blockCount, "red");
 
     const blockList = item.querySelector("[data-block-list]");
     blockList.replaceChildren();
@@ -161,12 +178,15 @@ export default class extends Controller {
     }
   }
 
-  #chip(el, on, color) {
-    if (!el) return;
-    const text = `text-${color}-700`;
-    const bg = `bg-${color}-50`;
-    el.classList.toggle(text, on);
-    el.classList.toggle(bg, on);
+  #classifyAdh(schAdh) {
+    if (schAdh < -this.lateMsecValue) return "late";
+    if (schAdh > this.earlyMsecValue) return "early";
+    return "onTime";
+  }
+
+  #applyAdhClasses(el, schAdh) {
+    el.classList.remove(...ALL_ADH_CLASSES);
+    el.classList.add(...ADH_CLASSES[this.#classifyAdh(schAdh)]);
   }
 
   #renderBlock(block) {
@@ -177,16 +197,14 @@ export default class extends Controller {
     row.querySelector("[data-field='block-start']").textContent = block.startTime ?? "";
     row.querySelector("[data-field='block-end']").textContent = block.endTime ?? "";
     row.querySelector("[data-field='block-service']").textContent = block.serviceId ?? "";
-
-    const tripId = block.trip?.shortName ?? block.trip?.id ?? "";
-    row.querySelector("[data-field='trip-id']").textContent = tripId;
+    row.querySelector("[data-field='trip-id']").textContent = block.trip?.shortName ?? block.trip?.id ?? "";
     row.querySelector("[data-field='trip-start']").textContent = block.trip?.startTime ?? "";
     row.querySelector("[data-field='trip-end']").textContent = block.trip?.endTime ?? "";
     row.querySelector("[data-field='trip-headsign']").textContent = block.trip?.headsign ?? "";
 
-    const vehicles = block.vehicle ?? [];
     const vehiclesEl = row.querySelector("[data-field='block-vehicles']");
     const adhEl = row.querySelector("[data-field='block-sch-adh']");
+    const vehicles = block.vehicle ?? [];
     if (vehicles.length === 0) {
       vehiclesEl.textContent = "—";
       adhEl.textContent = "—";
@@ -197,10 +215,7 @@ export default class extends Controller {
     vehiclesEl.textContent = vehicles.map((v) => v.id).join(", ");
     const v0 = vehicles[0];
     adhEl.textContent = v0.schAdhStr ?? "—";
-    if (v0.schAdh < -this.lateMsecValue) adhEl.classList.add("text-red-700", "bg-red-50");
-    else if (v0.schAdh > this.earlyMsecValue) adhEl.classList.add("text-amber-700", "bg-amber-50");
-    else adhEl.classList.add("text-emerald-700", "bg-emerald-50");
-
+    this.#applyAdhClasses(adhEl, v0.schAdh);
     return row;
   }
 }
