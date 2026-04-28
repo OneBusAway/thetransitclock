@@ -22,6 +22,12 @@
   of the runbook depends on. Don't put it back unless you've also
   removed every -Dtransitclock.db.dbName=... flag from your deployment.
 
+  HibernateUtils also appends reWriteBatchedInserts=true to the
+  constructed Postgres URL so the JDBC driver rewrites Hibernate batches
+  as multi-row INSERTs. If you override the URL inline you must add
+  ?reWriteBatchedInserts=true yourself, or batch saves degrade to one
+  INSERT per row over the wire.
+
   JVM properties used in place of inline settings:
       -Dtransitclock.db.dbType=postgresql
       -Dtransitclock.db.dbHost=localhost
@@ -48,9 +54,10 @@
         <property name="hibernate.c3p0.timeout">300</property>
         <property name="hibernate.c3p0.max_statements">50</property>
 
-        <!-- Batched writes — DataDbLogger pushes high-volume AVL/AD writes
-             through this. -->
-        <property name="hibernate.jdbc.batch_size">25</property>
+        <!-- Batched writes — DataDbLogger and DbWriter both push through
+             this. Should evenly divide transitclock.db.batchSize so each
+             DbWriter flush ships a whole number of JDBC batches. -->
+        <property name="hibernate.jdbc.batch_size">50</property>
         <property name="default_batch_fetch_size">100</property>
         <property name="hibernate.order_inserts">true</property>
         <property name="hibernate.order_updates">true</property>
