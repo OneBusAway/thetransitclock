@@ -197,7 +197,13 @@ public class DbConfig {
 			logger.error("Error reading configuration data from db for "
 					+ "configRev={}. NOTE: Exiting because could not read in "
 					+ "data!!!!", configRev, e);
-			
+			// Stderr fallback: if the logback chain is broken (e.g. an
+			// appender failed to instantiate at startup) the logger.error
+			// above can vanish, leaving the JVM to exit 255 with no
+			// explanation. See #24.
+			System.err.println("DbConfig.read failed for configRev=" + configRev
+					+ "; exiting. Cause:");
+			e.printStackTrace(System.err);
 			System.exit(-1);
 		} finally {
 			// Usually would always make sure session gets closed. But

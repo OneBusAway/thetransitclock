@@ -82,11 +82,15 @@ public class DbSetupConfig {
 		return socketTimeoutSec.getValue();
 	}
 	public static IntegerConfigValue socketTimeoutSec =
-			new IntegerConfigValue("transitclock.db.socketTimeoutSec", 
-					60,
-					"So can set low-level socket timeout for JDBC connections. "
-					+ "Useful for when a session dies during a request, such as "
-					+ "for when a db is rebooted. Set to 0 to have no timeout.");
+			new IntegerConfigValue("transitclock.db.socketTimeoutSec",
+					0,
+					"Low-level socket timeout (seconds) appended to the JDBC URL "
+					+ "as connectTimeout/socketTimeout. Default 0 disables the "
+					+ "timeout — the previous 60 s default would kill long but "
+					+ "legitimate operations like Hibernate's hbm2ddl=update "
+					+ "schema metadata sweep on a populated DB (see #24). "
+					+ "Set to a positive value if you need fast detection of "
+					+ "dead sessions (e.g. db reboots).");
 	
 	/**
 	 * So that have flexibility with where the hibernate config file is.
