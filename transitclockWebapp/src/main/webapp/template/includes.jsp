@@ -1,5 +1,14 @@
 <%-- This file contains includes that can be included with every file --%>
 
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<%-- Tailwind CSS via the Play CDN. Compiles utility classes in-browser at
+     load time — no build step. Fine for development and the current
+     internal-tool scale; switch to a built stylesheet if perf or offline
+     use becomes a concern. --%>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
 <%-- Load in JQuery --%>
 <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 
@@ -13,7 +22,6 @@
 <script src="<%= request.getContextPath() %>/javascript/transitime.js"></script>
 
 <script>
-
 // This needs to match the API key in the database
 //var apiKey = "f78a2e9a"
  var apiKey="<%=System.getProperty("transitclock.apikey")%>"
@@ -23,7 +31,8 @@ var apiUrlPrefix = apiUrlPrefixAllAgencies + "/agency/<%= request.getParameter("
 </script>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
-<c:set var="language" value="" scope="session" />
-<fmt:setLocale value="${not empty param.language ? param.language : not empty language ? language : pageContext.request.locale}" />
+<fmt:setLocale value="${pageContext.request.locale}" />
 <fmt:requestEncoding value = "UTF-8" />
-<fmt:setBundle basename="org.transitclock.i18n.text" />
+<%-- The fmt resource bundle is registered app-wide in WEB-INF/web.xml as
+     a jakarta.servlet.jsp.jstl.fmt.localizationContext context-param, so
+     <fmt:message> works without a page-scoped <fmt:setBundle>. --%>
