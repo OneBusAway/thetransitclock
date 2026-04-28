@@ -11,30 +11,27 @@
 <% jspContext.setAttribute("webAgencies", WebAgency.getCachedOrderedListOfWebAgencies()); %>
 <fmt:setLocale value="${pageContext.request.locale}" />
 
-<%-- Sidebar selection state, derived from the current request path and key
-     query params. *Active flags highlight an individual link; *Expanded
-     flags open the enclosing disclosure so the active sub-link is visible
-     without a click. --%>
-<c:set var="path"               value="${pageContext.request.servletPath}"/>
-<c:set var="showUnassigned"     value="${param.showUnassignedVehicles == 'true'}"/>
-<c:set var="mapForActive"       value="${path == '/maps/map.jsp' and not showUnassigned}"/>
-<c:set var="mapInclActive"      value="${path == '/maps/map.jsp' and showUnassigned}"/>
-<c:set var="schAdhMapActive"    value="${path == '/maps/schAdhMap.jsp'}"/>
-<c:set var="mapsExpanded"       value="${mapForActive or mapInclActive or schAdhMapActive}"/>
-<c:set var="reportsActive"      value="${path == '/reports/index.jsp'}"/>
-<c:set var="apiActive"          value="${path == '/reports/apiCalls/index.jsp'}"/>
-<c:set var="activeBlocksActive" value="${path == '/status/activeBlocks.jsp'}"/>
-<c:set var="serverStatusActive" value="${path == '/status/serverStatus.jsp'}"/>
-<c:set var="dbDiskSpaceActive"  value="${path == '/status/dbDiskSpace.jsp'}"/>
-<c:set var="statusExpanded"     value="${activeBlocksActive or serverStatusActive or dbDiskSpaceActive}"/>
-<c:set var="synopticActive"     value="${path == '/synoptic/index.jsp'}"/>
-<c:set var="holdingNorthActive" value="${path == '/holding/singlestopholding.html' and param.stop == '20097'}"/>
-<c:set var="holdingSouthActive" value="${path == '/holding/singlestopholding.html' and param.stop == '93296'}"/>
-<c:set var="extensionsExpanded" value="${holdingNorthActive or holdingSouthActive}"/>
-<c:set var="topActive"          value="bg-gray-100 text-gray-900 font-medium"/>
-<c:set var="topInactive"        value="text-gray-700 hover:bg-gray-100 hover:text-gray-900"/>
-<c:set var="subActive"          value="bg-gray-100 text-gray-900 font-medium"/>
-<c:set var="subInactive"        value="text-gray-600 hover:bg-gray-100 hover:text-gray-900"/>
+<%-- Sidebar selection state. The on* flags identify the current page from
+     the request path/query; the agency-scoped *Active flags are computed
+     inside the per-agency forEach below so only the active agency's group
+     highlights and expands. --%>
+<c:set var="path"           value="${pageContext.request.servletPath}"/>
+<c:set var="showUnassigned" value="${param.showUnassignedVehicles == 'true'}"/>
+<c:set var="onMapFor"       value="${path == '/maps/map.jsp' and not showUnassigned}"/>
+<c:set var="onMapIncl"      value="${path == '/maps/map.jsp' and showUnassigned}"/>
+<c:set var="onSchAdhMap"    value="${path == '/maps/schAdhMap.jsp'}"/>
+<c:set var="onReports"      value="${path == '/reports/index.jsp'}"/>
+<c:set var="onApi"          value="${path == '/reports/apiCalls/index.jsp'}"/>
+<c:set var="onActiveBlocks" value="${path == '/status/activeBlocks.jsp'}"/>
+<c:set var="onServerStatus" value="${path == '/status/serverStatus.jsp'}"/>
+<c:set var="onDbDiskSpace"  value="${path == '/status/dbDiskSpace.jsp'}"/>
+<c:set var="onSynoptic"     value="${path == '/synoptic/index.jsp'}"/>
+<c:set var="onHoldingNorth" value="${path == '/holding/singlestopholding.html' and param.stop == '20097'}"/>
+<c:set var="onHoldingSouth" value="${path == '/holding/singlestopholding.html' and param.stop == '93296'}"/>
+<c:set var="topActive"      value="bg-gray-100 text-gray-900 font-medium"/>
+<c:set var="topInactive"    value="text-gray-700 hover:bg-gray-100 hover:text-gray-900"/>
+<c:set var="subActive"      value="bg-gray-100 text-gray-900 font-medium"/>
+<c:set var="subInactive"    value="text-gray-600 hover:bg-gray-100 hover:text-gray-900"/>
 
 <!DOCTYPE html>
 <html class="h-full bg-white">
@@ -54,6 +51,24 @@
         <c:if test="${agency.active}">
           <c:set var="qs" value="?a=${agency.agencyId}"/>
           <c:set var="ctx" value="${pageContext.request.contextPath}"/>
+          <%-- Most pages identify their agency via ?a=...; the holding URLs
+               below use ?agency=... instead, so we check both. --%>
+          <c:set var="agencyMatch"        value="${param.a == agency.agencyId}"/>
+          <c:set var="holdingMatch"       value="${param.agency == agency.agencyId}"/>
+          <c:set var="mapForActive"       value="${onMapFor and agencyMatch}"/>
+          <c:set var="mapInclActive"      value="${onMapIncl and agencyMatch}"/>
+          <c:set var="schAdhMapActive"    value="${onSchAdhMap and agencyMatch}"/>
+          <c:set var="mapsExpanded"       value="${mapForActive or mapInclActive or schAdhMapActive}"/>
+          <c:set var="reportsActive"      value="${onReports and agencyMatch}"/>
+          <c:set var="apiActive"          value="${onApi and agencyMatch}"/>
+          <c:set var="activeBlocksActive" value="${onActiveBlocks and agencyMatch}"/>
+          <c:set var="serverStatusActive" value="${onServerStatus and agencyMatch}"/>
+          <c:set var="dbDiskSpaceActive"  value="${onDbDiskSpace and agencyMatch}"/>
+          <c:set var="statusExpanded"     value="${activeBlocksActive or serverStatusActive or dbDiskSpaceActive}"/>
+          <c:set var="synopticActive"     value="${onSynoptic and agencyMatch}"/>
+          <c:set var="holdingNorthActive" value="${onHoldingNorth and holdingMatch}"/>
+          <c:set var="holdingSouthActive" value="${onHoldingSouth and holdingMatch}"/>
+          <c:set var="extensionsExpanded" value="${holdingNorthActive or holdingSouthActive}"/>
           <div>
             <h3 class="px-2 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <c:out value="${agency.agencyName}"/>
