@@ -10,6 +10,32 @@
      renders for every page that uses <t:layout>. --%>
 <% jspContext.setAttribute("webAgencies", WebAgency.getCachedOrderedListOfWebAgencies()); %>
 <fmt:setLocale value="${pageContext.request.locale}" />
+
+<%-- Sidebar selection state, derived from the current request path and key
+     query params. *Active flags highlight an individual link; *Expanded
+     flags open the enclosing disclosure so the active sub-link is visible
+     without a click. --%>
+<c:set var="path"               value="${pageContext.request.servletPath}"/>
+<c:set var="showUnassigned"     value="${param.showUnassignedVehicles == 'true'}"/>
+<c:set var="mapForActive"       value="${path == '/maps/map.jsp' and not showUnassigned}"/>
+<c:set var="mapInclActive"      value="${path == '/maps/map.jsp' and showUnassigned}"/>
+<c:set var="schAdhMapActive"    value="${path == '/maps/schAdhMap.jsp'}"/>
+<c:set var="mapsExpanded"       value="${mapForActive or mapInclActive or schAdhMapActive}"/>
+<c:set var="reportsActive"      value="${path == '/reports/index.jsp'}"/>
+<c:set var="apiActive"          value="${path == '/reports/apiCalls/index.jsp'}"/>
+<c:set var="activeBlocksActive" value="${path == '/status/activeBlocks.jsp'}"/>
+<c:set var="serverStatusActive" value="${path == '/status/serverStatus.jsp'}"/>
+<c:set var="dbDiskSpaceActive"  value="${path == '/status/dbDiskSpace.jsp'}"/>
+<c:set var="statusExpanded"     value="${activeBlocksActive or schAdhMapActive or serverStatusActive or dbDiskSpaceActive}"/>
+<c:set var="synopticActive"     value="${path == '/synoptic/index.jsp'}"/>
+<c:set var="holdingNorthActive" value="${path == '/holding/singlestopholding.html' and param.stop == '20097'}"/>
+<c:set var="holdingSouthActive" value="${path == '/holding/singlestopholding.html' and param.stop == '93296'}"/>
+<c:set var="extensionsExpanded" value="${holdingNorthActive or holdingSouthActive}"/>
+<c:set var="topActive"          value="bg-gray-100 text-gray-900 font-medium"/>
+<c:set var="topInactive"        value="text-gray-700 hover:bg-gray-100 hover:text-gray-900"/>
+<c:set var="subActive"          value="bg-gray-100 text-gray-900 font-medium"/>
+<c:set var="subInactive"        value="text-gray-600 hover:bg-gray-100 hover:text-gray-900"/>
+
 <!DOCTYPE html>
 <html class="h-full bg-white">
 <head>
@@ -34,52 +60,52 @@
             </h3>
             <ul class="space-y-0.5">
               <li data-controller="disclosure">
-                <button type="button" aria-expanded="false"
+                <button type="button" aria-expanded="${mapsExpanded}"
                         data-action="click->disclosure#toggle"
                         class="w-full flex items-center justify-between px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900">
                   <span><fmt:message key="div.maps"/></span>
-                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform ${mapsExpanded ? 'rotate-90' : ''}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
                   </svg>
                 </button>
-                <ul data-disclosure-target="panel" class="hidden mt-1 ml-3 space-y-0.5">
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/maps/map.jsp${qs}&verbose=true"><fmt:message key="div.mapfor"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/maps/map.jsp${qs}&verbose=true&showUnassignedVehicles=true"><fmt:message key="div.mapincluding"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/maps/schAdhMap.jsp${qs}"><fmt:message key="div.ScheduleAdherenceMap"/></a></li>
+                <ul data-disclosure-target="panel" class="${mapsExpanded ? '' : 'hidden'} mt-1 ml-3 space-y-0.5">
+                  <li><a class="block px-2 py-1 text-sm rounded ${mapForActive ? subActive : subInactive}" <c:if test="${mapForActive}">aria-current="page"</c:if> href="${ctx}/maps/map.jsp${qs}&verbose=true"><fmt:message key="div.mapfor"/></a></li>
+                  <li><a class="block px-2 py-1 text-sm rounded ${mapInclActive ? subActive : subInactive}" <c:if test="${mapInclActive}">aria-current="page"</c:if> href="${ctx}/maps/map.jsp${qs}&verbose=true&showUnassignedVehicles=true"><fmt:message key="div.mapincluding"/></a></li>
+                  <li><a class="block px-2 py-1 text-sm rounded ${schAdhMapActive ? subActive : subInactive}" <c:if test="${schAdhMapActive}">aria-current="page"</c:if> href="${ctx}/maps/schAdhMap.jsp${qs}"><fmt:message key="div.ScheduleAdherenceMap"/></a></li>
                 </ul>
               </li>
-              <li><a class="block px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/reports/index.jsp${qs}"><fmt:message key="div.reports"/></a></li>
-              <li><a class="block px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/reports/apiCalls/index.jsp${qs}"><fmt:message key="div.api"/></a></li>
+              <li><a class="block px-2 py-1.5 text-sm rounded ${reportsActive ? topActive : topInactive}" <c:if test="${reportsActive}">aria-current="page"</c:if> href="${ctx}/reports/index.jsp${qs}"><fmt:message key="div.reports"/></a></li>
+              <li><a class="block px-2 py-1.5 text-sm rounded ${apiActive ? topActive : topInactive}" <c:if test="${apiActive}">aria-current="page"</c:if> href="${ctx}/reports/apiCalls/index.jsp${qs}"><fmt:message key="div.api"/></a></li>
               <li data-controller="disclosure">
-                <button type="button" aria-expanded="false"
+                <button type="button" aria-expanded="${statusExpanded}"
                         data-action="click->disclosure#toggle"
                         class="w-full flex items-center justify-between px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900">
                   <span><fmt:message key="div.status"/></span>
-                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform ${statusExpanded ? 'rotate-90' : ''}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
                   </svg>
                 </button>
-                <ul data-disclosure-target="panel" class="hidden mt-1 ml-3 space-y-0.5">
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/status/activeBlocks.jsp${qs}"><fmt:message key="div.acbiveblock"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/maps/schAdhMap.jsp${qs}"><fmt:message key="div.ScheduleAdherenceMap"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/status/serverStatus.jsp${qs}"><fmt:message key="div.ss"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/status/dbDiskSpace.jsp${qs}"><fmt:message key="div.ddsu"/></a></li>
+                <ul data-disclosure-target="panel" class="${statusExpanded ? '' : 'hidden'} mt-1 ml-3 space-y-0.5">
+                  <li><a class="block px-2 py-1 text-sm rounded ${activeBlocksActive ? subActive : subInactive}" <c:if test="${activeBlocksActive}">aria-current="page"</c:if> href="${ctx}/status/activeBlocks.jsp${qs}"><fmt:message key="div.acbiveblock"/></a></li>
+                  <li><a class="block px-2 py-1 text-sm rounded ${schAdhMapActive ? subActive : subInactive}" <c:if test="${schAdhMapActive}">aria-current="page"</c:if> href="${ctx}/maps/schAdhMap.jsp${qs}"><fmt:message key="div.ScheduleAdherenceMap"/></a></li>
+                  <li><a class="block px-2 py-1 text-sm rounded ${serverStatusActive ? subActive : subInactive}" <c:if test="${serverStatusActive}">aria-current="page"</c:if> href="${ctx}/status/serverStatus.jsp${qs}"><fmt:message key="div.ss"/></a></li>
+                  <li><a class="block px-2 py-1 text-sm rounded ${dbDiskSpaceActive ? subActive : subInactive}" <c:if test="${dbDiskSpaceActive}">aria-current="page"</c:if> href="${ctx}/status/dbDiskSpace.jsp${qs}"><fmt:message key="div.ddsu"/></a></li>
                 </ul>
               </li>
-              <li><a class="block px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/synoptic/index.jsp${qs}"><fmt:message key="div.synoptic"/></a></li>
+              <li><a class="block px-2 py-1.5 text-sm rounded ${synopticActive ? topActive : topInactive}" <c:if test="${synopticActive}">aria-current="page"</c:if> href="${ctx}/synoptic/index.jsp${qs}"><fmt:message key="div.synoptic"/></a></li>
               <%-- holding URLs are hardcoded for VIA (agency=1, route=100). --%>
               <li data-controller="disclosure">
-                <button type="button" aria-expanded="false"
+                <button type="button" aria-expanded="${extensionsExpanded}"
                         data-action="click->disclosure#toggle"
                         class="w-full flex items-center justify-between px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900">
                   <span><fmt:message key="div.extensions"/></span>
-                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform ${extensionsExpanded ? 'rotate-90' : ''}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
                   </svg>
                 </button>
-                <ul data-disclosure-target="panel" class="hidden mt-1 ml-3 space-y-0.5">
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/holding/singlestopholding.html?agency=1&route=100&stop=20097&agencyname=VIA&stopname=TEXAS%20MEDICAL%20CENTER&threshold=10000"><fmt:message key="div.htns"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm text-gray-600 rounded hover:bg-gray-100 hover:text-gray-900" href="${ctx}/holding/singlestopholding.html?agency=1&route=100&stop=93296&agencyname=VIA&stopname=CHESTNUT%20AT%20ELLIS%20ALLEY&threshold=10000"><fmt:message key="div.htss"/></a></li>
+                <ul data-disclosure-target="panel" class="${extensionsExpanded ? '' : 'hidden'} mt-1 ml-3 space-y-0.5">
+                  <li><a class="block px-2 py-1 text-sm rounded ${holdingNorthActive ? subActive : subInactive}" <c:if test="${holdingNorthActive}">aria-current="page"</c:if> href="${ctx}/holding/singlestopholding.html?agency=1&route=100&stop=20097&agencyname=VIA&stopname=TEXAS%20MEDICAL%20CENTER&threshold=10000"><fmt:message key="div.htns"/></a></li>
+                  <li><a class="block px-2 py-1 text-sm rounded ${holdingSouthActive ? subActive : subInactive}" <c:if test="${holdingSouthActive}">aria-current="page"</c:if> href="${ctx}/holding/singlestopholding.html?agency=1&route=100&stop=93296&agencyname=VIA&stopname=CHESTNUT%20AT%20ELLIS%20ALLEY&threshold=10000"><fmt:message key="div.htss"/></a></li>
                 </ul>
               </li>
             </ul>
