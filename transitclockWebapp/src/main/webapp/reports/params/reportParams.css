@@ -1,9 +1,16 @@
 /*
- * CSS styles for report parameter pages
+ * Legacy CSS for report parameter pages. Scoped to elements inside
+ * `.param` so it does not affect the redesigned Tailwind-based forms,
+ * which use a different markup pattern (no `.param` wrapper). Pages that
+ * still wrap fields in `<div class="param">` (e.g. /reports/apiCalls/*)
+ * continue to render in the original style.
  */
-label {width: 200px; float: left; text-align: right; margin-top: 4px; margin-right: 10px;}
-.param {margin-top: 10px;}
-.submitDiv{ margin-top: 40px; text-align: center; }
-#radioButtonsDiv {margin-top: 13px; text-align: center;}
-.note {font-size: small;}
-#allowableEarly, #allowableLate, #intervalPercentage1, #intervalPercentage2 { width: 3em; }
+.param > label { width: 200px; float: left; text-align: right; margin-top: 4px; margin-right: 10px; }
+.param { margin-top: 10px; }
+.submitDiv { margin-top: 40px; text-align: center; }
+#radioButtonsDiv { margin-top: 13px; text-align: center; }
+.note { font-size: small; }
+.param > #allowableEarly,
+.param > #allowableLate,
+.param > #intervalPercentage1,
+.param > #intervalPercentage2 { width: 3em; }
