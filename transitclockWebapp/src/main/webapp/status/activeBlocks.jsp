@@ -1,19 +1,20 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
 <%@ page import="org.transitclock.reports.ScheduleAdherenceController" %>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <%
 String agencyId = request.getParameter("a");
 if (agencyId == null || agencyId.isEmpty()) {
     response.getWriter().write("You must specify agency in query string (e.g. ?a=mbta)");
     return;
 }
+int scheduleEarlySec = ScheduleAdherenceController.getScheduleEarlySeconds();
+int scheduleLateSec  = ScheduleAdherenceController.getScheduleLateSeconds();
+pageContext.setAttribute("scheduleEarlySec", scheduleEarlySec);
+pageContext.setAttribute("scheduleLateSec", scheduleLateSec);
+pageContext.setAttribute("scheduleEarlyMin", scheduleEarlySec / -60);
+pageContext.setAttribute("scheduleLateMin", scheduleLateSec / 60);
 %>
-
-<html>
-<head>
-  <%@include file="/template/includes.jsp" %>
-
+<t:layout>
+  <jsp:attribute name="title"><fmt:message key="div.acbiveblock" /></jsp:attribute>
+  <jsp:attribute name="head">
 <style>
 #accordion {
   margin-left: 20px;
@@ -22,7 +23,7 @@ if (agencyId == null || agencyId.isEmpty()) {
 }
 
 .routeLabel, .routeValue {
-	float: right; 
+	float: right;
 	font-size: 18px;
 }
 
@@ -99,16 +100,16 @@ if (agencyId == null || agencyId.isEmpty()) {
 </style>
 
 <script>
-var ALLOWABLE_EARLY_MSEC = <%= ScheduleAdherenceController.getScheduleEarlySeconds() %> * -1000; 
-var ALLOWABLE_LATE_MSEC  = <%= ScheduleAdherenceController.getScheduleLateSeconds() %> * 1000;
+var ALLOWABLE_EARLY_MSEC = ${scheduleEarlySec} * -1000;
+var ALLOWABLE_LATE_MSEC  = ${scheduleLateSec} * 1000;
 
 // need to escape special character in jquery as . : are not interpreted correctly
-function jq( myid ) {	 
+function jq( myid ) {
     return myid.replace( /(:|\.|\[|\]|,)/g, "\\\\$1" );
 }
 
 //need to escape special character in jquery as . : are not interpreted correctly
-function jq( myid ) {	 
+function jq( myid ) {
     return myid.replace( /(:|\.|\[|\]|,)/g, "\\\\$1" );
 }
 
@@ -131,7 +132,7 @@ function removeUnneededBlockAndRouteElements(routes) {
 		if (!routeInAjaxData)
 			routesElements[i].remove();
 	}
-	
+
 	// Get rid of block elements that are not needed anymore
 	var blockElements = $("[id|='blockId']"); // Get all elements having id starting with blockId
 	for (var i=0; i<blockElements.length; ++i) {
@@ -184,43 +185,43 @@ function baseHandleAjaxData(routes, removeAll) {
 	var totalLate = 0;
 	var totalOnTime = 0;
 	var totalEarly = 0;
-	
+
 	// Now add a route element if it is in ajax data but element doesn't exist yet
 	for (var j=0; j<routes.routes.length; ++j) {
 		var routeData = routes.routes[j];
-				
+
 		// If route element doesn't yet exist for this route then create it
 		var routeElementId = "routeId-" + idForQuery(routeData.id);
 		var routeElement = $("#" + routeElementId);
 		if (routeElement.length == 0) {
-			// Note: the outer div with class='group' is needed so user can 
+			// Note: the outer div with class='group' is needed so user can
 			// reorder the routes
  			$("#accordion").append(
  					"<div class='group' id='" + routeElementId + "'>" +
- 					 " <h3>" + routeData.name + 
- 					 // Need to use span instead of div since accordion requires 
+ 					 " <h3>" + routeData.name +
+ 					 // Need to use span instead of div since accordion requires
  					 // using an h3 element and h3 can't have a div in it.
  					 // And the spans need to be created in reverse order since
  					 // using css float: right to get spans displayed on the right.
  				     "<span class='blocksummary' style='display:none'>" +
-                     "  <span class='routeValue' id='routeEarlyVehicles' title='Number of vehicles that are more than <%= ScheduleAdherenceController.getScheduleEarlySeconds()/-60 %> minute(s) early'></span>" +
- 				     "  <span class='routeLabel' id='routeEarlyVehiclesLabel' title='Number of vehicles that are more than <%= ScheduleAdherenceController.getScheduleEarlySeconds()/-60 %> minute(s) early'>"+'<fmt:message key="div.cearly" />' +":</span>" +
- 				     "  <span class='routeValue' id='routeOnTimeVehicles' title='Number of vehicles that are on time'></span>" + 
+                     "  <span class='routeValue' id='routeEarlyVehicles' title='Number of vehicles that are more than ${scheduleEarlyMin} minute(s) early'></span>" +
+ 				     "  <span class='routeLabel' id='routeEarlyVehiclesLabel' title='Number of vehicles that are more than ${scheduleEarlyMin} minute(s) early'>"+'<fmt:message key="div.cearly" />' +":</span>" +
+ 				     "  <span class='routeValue' id='routeOnTimeVehicles' title='Number of vehicles that are on time'></span>" +
  				     "  <span class='routeLabel' id='routeOnTimeVehiclesLabel' title='Number of vehicles that are on time'>"+'<fmt:message key="div.contime" />' +":</span>" +
- 				     "  <span class='routeValue' id='routeLateVehicles' title='Number of vehicles more that <%= ScheduleAdherenceController.getScheduleLateSeconds()/60 %> minutes late'></span>" + 
- 				     "  <span class='routeLabel' id='routeLateVehiclesLabel' title='Number of vehicles more that <%= ScheduleAdherenceController.getScheduleLateSeconds()/60 %> minutes late'>"+'<fmt:message key="div.clate" />' +":</span>" +
- 				     "  <span class='routeValue' id='routeVehicles' title='Number of vehicles assigned to blocks and predictable for the route'></span>" + 
+ 				     "  <span class='routeValue' id='routeLateVehicles' title='Number of vehicles more that ${scheduleLateMin} minutes late'></span>" +
+ 				     "  <span class='routeLabel' id='routeLateVehiclesLabel' title='Number of vehicles more that ${scheduleLateMin} minutes late'>"+'<fmt:message key="div.clate" />' +":</span>" +
+ 				     "  <span class='routeValue' id='routeVehicles' title='Number of vehicles assigned to blocks and predictable for the route'></span>" +
  				     "  <span class='routeLabel' id='routeVehiclesLabel' title='Number of vehicles assigned to blocks and predictable for the route'>"+'<fmt:message key="div.assigned" />' +"</span>" +
                      "</span>" +
- 				     "  <span class='routeValue' id='routeBlocks' title='Number of blocks currently active for the route'></span>" + 
+ 				     "  <span class='routeValue' id='routeBlocks' title='Number of blocks currently active for the route'></span>" +
  				     "  <span class='routeLabel' id='routeBlocksLabel' title='Number of blocks currently active for the route'>"+'<fmt:message key="div.dblock" />' +":</span>" +
 					 " </h3>" +
  					 " <div id='blocksDiv'><table id='blocksTable'></table></div>" +
- 					 "</div>");	
+ 					 "</div>");
  		}else{
             $("#" + routeElementId + " #routeBlocks").parent().children('.blocksummary').show();
         }
-		
+
 		// Update the route info by setting number of blocks
 		var blocksValueElement = $("#" + routeElementId + " #routeBlocks");
 		var numberOfActiveBlocks = routeData.block.length;
@@ -257,14 +258,14 @@ function baseHandleAjaxData(routes, removeAll) {
 			vehiclesValueElement.addClass("problemColor");
 		else
 			vehiclesValueElement.removeClass("problemColor");
-		
+
 		var vehiclesLateValueElement = $("#" + routeElementId + " #routeLateVehicles");
 		vehiclesLateValueElement.text(vehiclesLate);
 		if (vehiclesLate > 0)
 			vehiclesLateValueElement.addClass("lateColor");
 		else
 			vehiclesLateValueElement.removeClass("lateColor");
-		
+
 		var vehiclesOnTimeValueElement = $("#" + routeElementId + " #routeOnTimeVehicles");
 		vehiclesOnTimeValueElement.text(vehiclesOnTime);
 
@@ -280,7 +281,7 @@ function baseHandleAjaxData(routes, removeAll) {
 		for (var i=0; i<routeData.block.length; ++i) {
 			// Update total for summary
 			++totalNumberBlocks;
-			
+
 			// If block element doesn't yet exist then create it
 			var blockData = routeData.block[i];
 			var blockElementId = "blockId-" + idForQuery(blockData.id);
@@ -289,40 +290,40 @@ function baseHandleAjaxData(routes, removeAll) {
 				blocksTable.append(
 						"<tr id='" + blockElementId + "'>" +
 						" <td class='blockLabel'>"+'<fmt:message key="div.dblock" />' +":</td><td id='block'></td>" +
-						" <td class='blockLabel'>"+'<fmt:message key="div.Start" />' +"</td><td id='blockStart'></td>" + 
-						" <td class='blockLabel'>"+'<fmt:message key="div.End" />' +"</td><td id='blockEnd'></td>" + 
+						" <td class='blockLabel'>"+'<fmt:message key="div.Start" />' +"</td><td id='blockStart'></td>" +
+						" <td class='blockLabel'>"+'<fmt:message key="div.End" />' +"</td><td id='blockEnd'></td>" +
 						" <td class='blockLabel'>"+'<fmt:message key="div.Service" />' +"</td><td id='blockService'></td>" +
 						"</tr>" +
 						"<tr id='" + blockElementId + "'>" +
-						" <td class='blockLabel'>"+'<fmt:message key="div.dtrip" />' +":</td><td id='trip'></td>" + 
-						" <td class='blockLabel'>"+'<fmt:message key="div.Start" />' +"</td><td id='tripStart'></td>" + 
-						" <td class='blockLabel'>"+'<fmt:message key="div.End" />' +"</td><td id='tripEnd'></td>" + 
-						" <td class='blockLabel'>"+'<fmt:message key="div.Headsign" />' +":</td><td id='tripHeadsign'></td>" + 
+						" <td class='blockLabel'>"+'<fmt:message key="div.dtrip" />' +":</td><td id='trip'></td>" +
+						" <td class='blockLabel'>"+'<fmt:message key="div.Start" />' +"</td><td id='tripStart'></td>" +
+						" <td class='blockLabel'>"+'<fmt:message key="div.End" />' +"</td><td id='tripEnd'></td>" +
+						" <td class='blockLabel'>"+'<fmt:message key="div.Headsign" />' +":</td><td id='tripHeadsign'></td>" +
 						"</tr>" +
 						"<tr id='" + blockElementId + "'>" +
 						" <td class='blockLabel'>"+'<fmt:message key="div.Vehicle" />' +":</td><td id='vehiclesForBlock'></td>" +
 						" <td class='blockLabel'>"+'<fmt:message key="div.Adh" />' +"</td><td id='vehicleSchedAdh'></td>" +
 						"</tr>");
 			}
-			/* this is to escape . and :  characters */			
+			/* this is to escape . and :  characters */
 			routeElementId=jq(routeElementId);
 			blockElementId=jq(blockElementId);
-			
-			// Update the information for the block 
-			
-			/* this is to escape . and :  characters */			
+
+			// Update the information for the block
+
+			/* this is to escape . and :  characters */
 			routeElementId=jq(routeElementId);
 			blockElementId=jq(blockElementId);
-			
+
 			var blockValueElement = $("#" + routeElementId + " #" + blockElementId + " #block");
 			blockValueElement.text(blockData.id);
-			
+
 			var blockStartValueElement = $("#" + routeElementId + " #" + blockElementId + " #blockStart");
 			blockStartValueElement.text(blockData.startTime);
-			
+
 			var blockEndValueElement = $("#" + routeElementId + " #" + blockElementId + " #blockEnd");
 			blockEndValueElement.text(blockData.endTime);
-			
+
 			var blockServiceValueElement = $("#" + routeElementId + " #" + blockElementId + " #blockService");
 			blockServiceValueElement.text(blockData.serviceId);
 			if (blockData.serviceId.length > 10) {
@@ -330,21 +331,21 @@ function baseHandleAjaxData(routes, removeAll) {
 			} else {
 				blockServiceValueElement.removeClass("blockValueSmallerFont");
 			}
-			
+
 			var tripValueElement = $("#" + routeElementId + " #" + blockElementId + " #trip");
-			var tripId = blockData.trip.shortName != null ? 
+			var tripId = blockData.trip.shortName != null ?
 					blockData.trip.shortName : blockData.trip.id;
 			tripValueElement.text(tripId);
-			
+
 			var tripStartValueElement = $("#" + routeElementId + " #" + blockElementId + " #tripStart");
 			tripStartValueElement.text(blockData.trip.startTime);
 
 			var tripEndValueElement = $("#" + routeElementId + " #" + blockElementId + " #tripEnd");
 			tripEndValueElement.text(blockData.trip.endTime);
-			
+
 			var tripHeadsignValueElement = $("#" + routeElementId + " #" + blockElementId + " #tripHeadsign");
 			tripHeadsignValueElement.text(blockData.trip.headsign);
-			
+
 			var vehiclesValueElement = $("#" + routeElementId + " #" + blockElementId + " #vehiclesForBlock");
 			var vehiclesValue = "none";
 			var vehicleAssigned = false;
@@ -353,19 +354,19 @@ function baseHandleAjaxData(routes, removeAll) {
 				vehiclesValue = "";
 				for (var v=0; v<blockData.vehicle.length; ++v) {
 					++totalVehicles;
-					
+
 					var vehicleData = blockData.vehicle[v];
 					if (v > 0)
 						vehiclesValue += ", ";
 					vehiclesValue += vehicleData.id;
-					
+
 					vehicleAssigned = true;
 					if (vehicleData.scheduleBased)
 						scheduleBasedVehicle = true;
 				}
-			}		
+			}
 			vehiclesValueElement.text(vehiclesValue);
-			
+
 			if (vehiclesValue.length > 10) {
 				vehiclesValueElement.addClass("blockValueSmallerFont");
 			} else {
@@ -394,47 +395,47 @@ function baseHandleAjaxData(routes, removeAll) {
 			}
 			vehiclesSchedAdhElement.text(schAdhStr);
 		} // Done with each block for the route
-	} // Done with each route	
-	
+	} // Done with each route
+
 	// Since route widgets might have changed need to call refresh
-	$( "#accordion" ).accordion("refresh");	
+	$( "#accordion" ).accordion("refresh");
 }
 
 
 function updateFooter(total) {
 	// Update the summary at bottom of page
-	
+
 	$("#totalBlocksValue").text(total.blocks);
-	
-	var totalVehicles = total.late + total.ontime + total.early; 
+
+	var totalVehicles = total.late + total.ontime + total.early;
 
 	var percentageVehicles = 100.0 * totalVehicles / total.blocks;
 	$("#percentWithVehiclesValue").text(percentageVehicles.toFixed(0) + "%");
 	if (percentageVehicles < 90.0) {
 		$("#percentWithVehiclesValue").addClass("problemColor");
 	} else {
-		$("#percentWithVehiclesValue").removeClass("problemColor");		
+		$("#percentWithVehiclesValue").removeClass("problemColor");
 	}
-	
+
 	var percentageLate = 100.0 * total.late / total.blocks;
 	$("#percentLateValue").text(percentageLate.toFixed(0) + "%");
 	if (percentageLate > 10.0) {
 		$("#percentLateValue").addClass("lateColor");
 	} else {
-		$("#percentLateValue").removeClass("lateColor");		
+		$("#percentLateValue").removeClass("lateColor");
 	}
-	
+
 	var percentageOnTime = 100.0 * total.ontime / total.blocks;
 	$("#percentOnTimeValue").text(percentageOnTime.toFixed(0) + "%");
-	
+
 	var percentageEarly = 100.0 * total.early / total.blocks;
 	$("#percentEarlyValue").text(percentageEarly.toFixed(0) + "%");
 	if (percentageEarly > 10.0) {
 		$("#percentLateValue").addClass("earlyColor");
 	} else {
-		$("#percentLateValue").removeClass("earlyColor");		
+		$("#percentLateValue").removeClass("earlyColor");
 	}
-	
+
 	$("#asOfValue").text(new Date().toLocaleTimeString())
 }
 
@@ -448,7 +449,7 @@ function getSummaryData() {
 			console.log("Could not access /command/vehicleAdherenceSummary");
 		});
 }
-	
+
 
 
 /*
@@ -468,9 +469,9 @@ function getAndProcessData() {
 // When loadAllData button is pressed, we should load in sequence all route data.
 // Wait for a request to finish before sending the next one.
 function initializeLoadAllData(routes) {
-	
+
 	var routeNames = routes.routes.map(function(d) { return d.name })
-	
+
 	function getDataForRoute(i) {
 		$.getJSON(apiUrlPrefix + "/command/activeBlockByRouteNameWithVehicles?r=" + encodeURI(routeNames[i]), updateAjaxData)
         	.fail(function() {
@@ -481,7 +482,7 @@ function initializeLoadAllData(routes) {
         			getDataForRoute(i + 1);
         	})
 	}
-	
+
 	$("#loadAllData").click(function() {
 		getDataForRoute(0);
 	})
@@ -495,13 +496,13 @@ $(function() {
 			collapsible: true,     // So can hide details for all routes
 			active: false,         // Don't have any panels open at startup
 			animate: 200,
-			heightStyle: "content", // So each blocks info element can be different size 
+			heightStyle: "content", // So each blocks info element can be different size
 			header: "> div > h3", // So can be sortable
             beforeActivate: function(event, ui) {
                 var headerId = $(ui.newHeader).attr('id');
                 if(headerId){
                 	// route name is header title without summary
-                	var routeName = $('#'+headerId).clone().find('*').remove().end().text();                	
+                	var routeName = $('#'+headerId).clone().find('*').remove().end().text();
                     $.getJSON(apiUrlPrefix + "/command/activeBlockByRouteNameWithVehicles?r=" + encodeURI(routeName), updateAjaxData)
                             .fail(function() {
                                 console.log( "Could not access /command/activeBlockByRouteNameWithVehicles" );
@@ -519,13 +520,13 @@ $(function() {
 			$( this ).accordion( "refresh" );
 			}
 		});
-	
+
 	// Start getting the active blocks data and processing it.
 // 	Update every 2 minutes.
 	getAndProcessData();
 	// do not update automatically -- until performance issues solved
 // 	setInterval(getAndProcessData, 120000);
-	
+
 	// update summary every minute
 	getSummaryData()
 	setInterval(getSummaryData, 60000);
@@ -533,13 +534,8 @@ $(function() {
 
 
 </script>
-
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title><fmt:message key="div.acbiveblock" /></title>
-</head>
-<body>
-<%@include file="/template/header.jsp" %>
-
+  </jsp:attribute>
+  <jsp:body>
 <div id="title"><fmt:message key="div.acbiveblock" /></div>
 <div id="menu">
 	<button id="loadAllData"><fmt:message key="div.LoadAllData" /></button>
@@ -550,14 +546,14 @@ $(function() {
   <span id="totalBlocksValue" title="Total number of blocks"></span>
   <span id="percentWithVehiclesLabel" title="Percentage of blocks that have an assigned and predictable vehicle"><fmt:message key="div.assigned" /></span>
   <span id="percentWithVehiclesValue" title="Percentage of blocks that have an assigned and predictable vehicle"></span>
-  <span id="percentLateLabel" title="Percentage of blocks where vehicle is more than <%= ScheduleAdherenceController.getScheduleLateSeconds()/60 %> minutes late"><fmt:message key="div.clate" />:</span>
-  <span id="percentLateValue" title="Percentage of blocks where vehicle is more than <%= ScheduleAdherenceController.getScheduleLateSeconds()/60 %> minutes late"></span>
+  <span id="percentLateLabel" title="Percentage of blocks where vehicle is more than ${scheduleLateMin} minutes late"><fmt:message key="div.clate" />:</span>
+  <span id="percentLateValue" title="Percentage of blocks where vehicle is more than ${scheduleLateMin} minutes late"></span>
   <span id="percentOnTimeLabel" title="Percentage of blocks where vehicle is on time"><fmt:message key="div.contime" />:</span>
   <span id="percentOnTimeValue" title="Percentage of blocks where vehicle is on time"></span>
-  <span id="percentEarlyLabel" title="Percentage of blocks where vehicle is more than <%= ScheduleAdherenceController.getScheduleEarlySeconds()/-60 %> minute(s) early"><fmt:message key="div.cearly" />:</span>
-  <span id="percentEarlyValue" title="Percentage of blocks where vehicle is more than <%= ScheduleAdherenceController.getScheduleEarlySeconds()/-60 %> minute(s) early"></span>
+  <span id="percentEarlyLabel" title="Percentage of blocks where vehicle is more than ${scheduleEarlyMin} minute(s) early"><fmt:message key="div.cearly" />:</span>
+  <span id="percentEarlyValue" title="Percentage of blocks where vehicle is more than ${scheduleEarlyMin} minute(s) early"></span>
   <span id="asOfLabel" title="Time that summary information was last updated"><fmt:message key="div.AsOf" /></span>
   <span id="asOfValue" title="Time that summary information was last updated"></span>
 </div>
-</body>
-</html>
+  </jsp:body>
+</t:layout>

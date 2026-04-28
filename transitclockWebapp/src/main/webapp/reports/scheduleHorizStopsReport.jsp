@@ -1,19 +1,16 @@
 <%-- Displays the schedule for a route--%>
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
 <%@ page import="org.transitclock.utils.web.WebUtils" %>
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <%
 String agencyId = request.getParameter("a");
 if (agencyId == null || agencyId.isEmpty()) {
     response.getWriter().write("You must specify agency in query string (e.g. ?a=mbta)");
     return;
 }
+pageContext.setAttribute("ajaxDataString", WebUtils.getAjaxDataString(request));
 %>
-<html>
-<head>
-  <%@include file="/template/includes.jsp" %>
-    
+<t:layout>
+  <jsp:attribute name="title"><fmt:message key="div.scgedulareport" /></jsp:attribute>
+  <jsp:attribute name="head">
   <style>
   #scheduleTitle {
   	font-size: x-large;
@@ -26,33 +23,33 @@ if (agencyId == null || agencyId.isEmpty()) {
 	font-size: 8pt;
     text-align: center;
   }
-    
+
   #headerCell {
   	font-weight: bold;
   	background-color: #F2F5F7;
   }
-  
+
   </style>
-  
+
   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-  
+
   <script type="text/javascript">
       function dataReadCallback(jsonData) {
 	      // Set the title now that have the route name from the API
           $('#title').html('<fmt:message key="div.scfor" /> ' + jsonData.routeName);
-	      
+
 	      // Go through all service classes and directions for route
     	  for (var i=0; i<jsonData.schedule.length; ++i) {
     		  var schedule = jsonData.schedule[i];
-    		  
+
     		  // Create title for schedule
-    		  $('body').append("<div id='scheduleTitle'>" 
-                      + '<fmt:message key="div.ddirection" /> ' + schedule.directionId 
+    		  $('body').append("<div id='scheduleTitle'>"
+                      + '<fmt:message key="div.ddirection" /> ' + schedule.directionId
     				  + ", Service: " + schedule.serviceName
     				  + "</div>");
 
     		  var table = $("<table id='dataTable'></table>").appendTo('body')[0];
-    		  
+
     		  // Create the columns for the header. First column is stop name. And then there
     		  // is one column per trip.
     		  var headerRow = table.insertRow(0);
@@ -81,35 +78,32 @@ if (agencyId == null || agencyId.isEmpty()) {
                   var headerCell = row.insertCell(0);
                   headerCell.id = 'headerCell';
                   headerCell.innerHTML = html;
-        		  
+
         		  // Add the times for the stop to the row
-                  for (var stopIdx=0; stopIdx<timesForTrip.time.length; ++stopIdx) {    				  
+                  for (var stopIdx=0; stopIdx<timesForTrip.time.length; ++stopIdx) {
                       var time = timesForTrip.time[stopIdx];
                       row.insertCell(stopIdx+1).innerHTML = time.timeStr ? time.timeStr : '';
                   }
-    		  }    		  
+    		  }
     	  }
       }
-      
+
       $( document ).ready(function() {
     	  $.ajax({
     	      	// The page being requested
     		  	url: apiUrlPrefix + "/command/scheduleHorizStops",
     	      	// Pass in query string parameters to page being requested
-    	      	data: {<%= WebUtils.getAjaxDataString(request) %>},
+    	      	data: {${ajaxDataString}},
     	    	// Needed so that parameters passed properly to page being requested
     	    	traditional: true,
     	        dataType:"json",
 				success: dataReadCallback
     	  });
       });
-            
-  </script>
 
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title><fmt:message key="div.scgedulareport" /></title>
-</head>
-<body>
-<%@include file="/template/header.jsp" %>
+  </script>
+  </jsp:attribute>
+  <jsp:body>
 <div id="title"></div>
-</body>
+  </jsp:body>
+</t:layout>

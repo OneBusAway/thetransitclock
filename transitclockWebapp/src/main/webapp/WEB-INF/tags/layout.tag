@@ -3,6 +3,9 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ attribute name="title" required="false" %>
 <%@ attribute name="head"  fragment="true" required="false" %>
+<%-- bare="true" skips the default p-8 padding wrapper around the body — for
+     map and other full-bleed pages that need to fill the main pane. --%>
+<%@ attribute name="bare"  required="false" type="java.lang.Boolean" %>
 <%-- Fetch agencies in the layout's own pageContext so the sidebar
      renders for every page that uses <t:layout>. --%>
 <% jspContext.setAttribute("webAgencies", WebAgency.getCachedOrderedListOfWebAgencies()); %>
@@ -86,9 +89,10 @@
     </nav>
   </aside>
   <main class="flex-1 overflow-y-auto">
-    <div class="p-8">
-      <jsp:doBody/>
-    </div>
+    <c:choose>
+      <c:when test="${bare}"><jsp:doBody/></c:when>
+      <c:otherwise><div class="p-8"><jsp:doBody/></div></c:otherwise>
+    </c:choose>
   </main>
 </div>
 </body>
