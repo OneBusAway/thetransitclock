@@ -21,6 +21,11 @@
 <link rel="stylesheet" href="<%= request.getContextPath() %>/css/general.css">
 <script src="<%= request.getContextPath() %>/javascript/transitime.js"></script>
 
+<%-- Stimulus.js application entry point. ESM module, so it loads
+     asynchronously after parse — fine because controllers attach on connect
+     once the DOM is ready. Add new controllers in javascript/application.js. --%>
+<script type="module" src="<%= request.getContextPath() %>/javascript/application.js"></script>
+
 <script>
 // This needs to match the API key in the database
 //var apiKey = "f78a2e9a"
