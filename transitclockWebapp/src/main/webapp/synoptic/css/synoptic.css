@@ -1,235 +1,243 @@
+#synoptic {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 14px;
+	overflow-x: scroll;
+	overflow-y: hidden;
+	background: #fff;
+}
 
-.tooltip-left{
+/* macOS overlay scrollbars auto-hide, so we paint our own. */
+#synopticScrollbar {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 14px;
+	background: #f3f4f6;
+	border-top: 1px solid #e5e7eb;
+	cursor: pointer;
+	overflow: hidden;
+	display: none;
+}
+
+#synopticScrollThumb {
+	position: absolute;
+	top: 2px;
+	bottom: 2px;
+	left: 0;
+	min-width: 40px;
+	background: #9ca3af;
+	border-radius: 5px;
+	cursor: grab;
+	transition: background 0.15s;
+}
+
+#synopticScrollThumb:hover {
+	background: #6b7280;
+}
+
+#synopticScrollThumb.dragging {
+	background: #4b5563;
+	cursor: grabbing;
+	transition: none;
+}
+
+#synoptic::-webkit-scrollbar {
+	height: 0;
+	width: 0;
+}
+#synoptic {
+	scrollbar-width: none;
+}
+
+.tooltip-right,
+.tooltip-left,
+.tooltip-bottom,
+.tooltip-bottom-overflow-left,
+.tooltip-bottom-overflow-right {
 	visibility: hidden;
-    min-width: 180px;
-    max-width: 300px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
-    opacity: 0;
-  	transition: opacity 0.5s;
-   
+	opacity: 0;
+	position: absolute;
+	min-width: 200px;
+	max-width: 320px;
+	padding: 10px 12px;
+	background: #1f2937;
+	color: #f9fafb;
+	border-radius: 6px;
+	box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 4px 10px -3px rgba(0, 0, 0, 0.15);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 12px;
+	line-height: 1.45;
+	pointer-events: none;
+	transition: opacity 0.15s ease;
+	z-index: 20;
 }
-.tooltip-left::after{
+
+.tooltip-right::after,
+.tooltip-left::after,
+.tooltip-bottom::after,
+.tooltip-bottom-overflow-left::after,
+.tooltip-bottom-overflow-right::after {
 	content: "";
-    position: absolute;
-    top: 10px;
-    left: 100%; /* To the left of the tooltip */
-    border-width: 5px;
-    border-style: solid;
-    border-color: transparent  transparent  transparent #555;
+	position: absolute;
+	border: 6px solid transparent;
 }
 
-
-.tooltip-bottom{
-	visibility: hidden;
-    min-width: 180px;
-    max-width: 300px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: relative;
-    opacity: 0;
-  	transition: opacity 0.5s;
-   
+.tooltip-right::after {
+	top: 12px;
+	right: 100%;
+	border-right-color: #1f2937;
 }
 
-.tooltip-bottom-overflow-left{
-	visibility: hidden;
-    min-width: 180px;
-    max-width: 300px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: relative;
-    opacity: 0;
-  	transition: opacity 0.5s;
-   
-}
-.tooltip-bottom-overflow-right{
-	visibility: hidden;
-    min-width: 180px;
-    max-width: 300px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: relative;
-    opacity: 0;
-  	transition: opacity 0.5s;
-   
-}
-.tooltip-bottom::after{
-	content: "";
-    position: absolute;
-    left: 50%;
-    bottom: 100%; /* To the left of the tooltip */
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color:  transparent   transparent  #555 transparent;
+.tooltip-left::after {
+	top: 12px;
+	left: 100%;
+	border-left-color: #1f2937;
 }
 
-.tooltip-bottom-overflow-right::after{
-	content: "";
-    position: absolute;
-    left: 90%;
-    bottom: 100%; /* To the left of the tooltip */
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color:  transparent   transparent  #555 transparent;
+.tooltip-bottom::after {
+	left: 50%;
+	bottom: 100%;
+	margin-left: -6px;
+	border-bottom-color: #1f2937;
 }
 
-
-.tooltip-bottom-overflow-left::after{
-	content: "";
-    position: absolute;
-    left: 10%;
-    bottom: 100%; /* To the left of the tooltip */
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color:  transparent   transparent  #555 transparent;
-}
-.tooltip-right{
-	visibility: visible;
-     min-width: 180px;
-    max-width: 300px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
-    opacity: 0;
-  	transition: opacity 0.5s;
-  
-   
+.tooltip-bottom-overflow-left::after {
+	left: 14%;
+	bottom: 100%;
+	margin-left: -6px;
+	border-bottom-color: #1f2937;
 }
 
-.tooltip-right::after{
-	content: " ";
-    position: absolute;
-    top: 10px;
-    right: 100%; /* To the left of the tooltip */
-    border-width: 5px;
-    border-style: solid;
-    border-color: transparent #555 transparent transparent;
+.tooltip-bottom-overflow-right::after {
+	right: 14%;
+	bottom: 100%;
+	margin-right: -6px;
+	border-bottom-color: #1f2937;
 }
 
-
-
-.tooltip-right .table{
+.synopticInfo {
+	width: 100%;
+	border-collapse: collapse;
+	color: #f9fafb;
 	text-align: left;
-    width: 100%;
-    background-color: #555;
-    color: #fff;
-    font-size:10px;
-    padding-left:3px;
-    padding-right:3px;
-    margin: 0 auto;
-}
-	
-.tooltipTable {
-	text-align: left;
-     width: 100%;
-    background-color: #555;
-    color: #fff;
-    font-size:10px;
-    padding-left:3px;
-    padding-right:3px;
-    margin: 0 auto;
-}
-	
-.tooltip-left .table{
-	text-align: left;
-      width: 100%;
-    background-color: #555;
-    color: #fff;
-    font-size:10px;
-    padding-left:3px;
-    padding-right:3px;
-    margin: 0 auto;
-}
-	
-.tooltip-bottom .table{
-	text-align: left;
-     width: 100%;
-    background-color: #555;
-    color: #fff;
-    font-size:8px;
-   
-    margin: 0 auto;
-}
-.synopticTitle
-{
-	 background-color: #555;
-	 color: #fff;
-	 font-size:10px;
-	 position: absolute;
-	 top:0;
-	 left:0;
-	 visibility: visible;
-	 width:100%
 }
 
-.menu {
-	visibility: visible;
-    width: 180px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
+.synopticInfo caption {
+	caption-side: top;
+	padding-bottom: 6px;
+	margin-bottom: 6px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+	font-weight: 600;
+	font-size: 13px;
+	text-align: left;
 }
 
+.synopticInfo th,
+.synopticInfo td {
+	padding: 2px 0;
+	font-weight: normal;
+	vertical-align: top;
+}
+
+.synopticInfo th {
+	color: #9ca3af;
+	padding-right: 10px;
+	white-space: nowrap;
+}
+
+.synopticInfo td {
+	color: #f9fafb;
+}
+
+.synopticPredictions__title {
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 8px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.synopticPredictions__headsign {
+	color: #d1d5db;
+	font-size: 12px;
+	margin-top: 8px;
+	margin-bottom: 4px;
+}
+
+.synopticPredictions__headsign:first-of-type {
+	margin-top: 0;
+}
+
+.synopticPredictions__table {
+	width: 100%;
+	border-collapse: collapse;
+	color: #f9fafb;
+	font-size: 12px;
+	text-align: left;
+}
+
+.synopticPredictions__table th {
+	color: #9ca3af;
+	font-weight: 600;
+	padding: 4px 8px 4px 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.synopticPredictions__table td {
+	padding: 3px 8px 3px 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.synopticPredictions__table tr:last-child td {
+	border-bottom: 0;
+}
+
+.synopticPredictions__table .num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	padding-right: 0;
+}
+
+.synopticPredictions__empty {
+	color: #9ca3af;
+	font-style: italic;
+	padding: 4px 0;
+}
+
+/* Sinoptico creates the context menu up front, so default to hidden —
+ * otherwise the empty menu paints a dark stripe before any right-click. */
+.menu,
 .menu-content {
-	visibility: visible;
-	width: 180px;
-   
-    position: absolute;
-    background-color: #555;
-  /*  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);*/
-    
+	visibility: hidden;
+	width: 160px;
+	padding: 4px 0;
+	background: #1f2937;
+	color: #f9fafb;
+	border-radius: 6px;
+	box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+	position: absolute;
+	z-index: 25;
 }
 
 .menu-content a {
-    color: black;
-    padding: 3px 3px;
-    text-decoration: none;
-    font-size: 8px;
-    color: #fff;
-    display: block;
-}
-
-.menu-content a:hover {background-color: #777}
-
-.menu .menu-content {
-    
-}
-/*
-.menu-options {
-	list-style: none;
-	padding: 10px 0;
-}
-
-.menu-item {
-	font-weight: 500;
-	font-size: 14px;
-	padding: 10px 40px 10px 20px;
+	display: block;
+	padding: 6px 12px;
+	color: #f9fafb;
+	font-size: 12px;
+	text-decoration: none;
 	cursor: pointer;
 }
 
-.menu-item:hover {
-	background: rgba(0, 0, 0, 0.2);
-}*/
+.menu-content a:hover {
+	background: #374151;
+}
+
+/* Legacy in-canvas route name banner — hidden because the page header
+ * already shows the title and route. */
+.synopticTitle {
+	display: none;
+}
