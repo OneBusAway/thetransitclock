@@ -7,7 +7,7 @@ pageContext.setAttribute("mapTileUrl", WebConfigParams.getMapTileUrl());
 pageContext.setAttribute("mapTileCopyright", WebConfigParams.getMapTileCopyright());
 %>
 <t:layout bare="true">
-  <jsp:attribute name="title"><fmt:message key="div.schedule" /></jsp:attribute>
+  <jsp:attribute name="title"><fmt:message key="div.heatmap" /></jsp:attribute>
   <jsp:attribute name="head">
   <!-- So that get proper sized map on iOS mobile device -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -19,8 +19,11 @@ pageContext.setAttribute("mapTileCopyright", WebConfigParams.getMapTileCopyright
   <script src="heatmap/leaflet-heatmap.js"></script>
 
 <style>
-html, body, #map {
-	height: 100%; width: 100%; padding: 0px; margin: 0px;
+html, body {
+	margin: 0; padding: 0;
+}
+#map {
+	height: 100%; width: 100%;
 }
 </style>
 
@@ -180,6 +183,11 @@ $( document ).ready(function() {
 </script>
   </jsp:attribute>
   <jsp:body>
-<div id="map"></div>
+<t:mapPage>
+  <jsp:attribute name="title"><fmt:message key="div.heatmap" /></jsp:attribute>
+  <jsp:body>
+    <div id="map"></div>
+  </jsp:body>
+</t:mapPage>
   </jsp:body>
 </t:layout>

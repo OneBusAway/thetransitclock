@@ -14,8 +14,11 @@ pageContext.setAttribute("mapTileCopyright", WebConfigParams.getMapTileCopyright
   <script src="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
 
 <style>
-html, body, #map {
-	height: 100%; width: 100%; padding: 0px; margin: 0px;
+html, body {
+	margin: 0; padding: 0;
+}
+#map {
+	height: 100%; width: 100%;
 }
 </style>
 
@@ -249,6 +252,11 @@ $( document ).ready(function() {
 </script>
   </jsp:attribute>
   <jsp:body>
-<div id="map"></div>
+<t:mapPage>
+  <jsp:attribute name="title"><fmt:message key="div.ScheduleAdherenceMap" /></jsp:attribute>
+  <jsp:body>
+    <div id="map"></div>
+  </jsp:body>
+</t:mapPage>
   </jsp:body>
 </t:layout>

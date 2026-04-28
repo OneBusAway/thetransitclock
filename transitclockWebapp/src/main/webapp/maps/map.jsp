@@ -39,11 +39,6 @@ pageContext.setAttribute("isMbta", agencyParam != null && agencyParam.startsWith
   <script src="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.0/js/select2.min.js"></script>
 
   <style>
-    /* Override the body style from the includes.jsp/general.css files */
-    body {
-	  margin: 0px;
-    }
-
     /* Set width of route selector. For smaller displays use smaller width */
     #routes {
       width: 400px;
@@ -58,23 +53,20 @@ pageContext.setAttribute("isMbta", agencyParam != null && agencyParam.startsWith
   </style>
   </jsp:attribute>
   <jsp:body>
-  <div id="map"></div>
-  <!-- To center successfully in all situations tried to use a div within a div.
-       The title text is set in css so that it is easily configurable -->
-  <div id="titleContainer">
-    <div id="mapTitle"></div>
-  </div>
-
-  <!--  Wanted to center the routes selector horizontally but couldn't get
-        it to work. Got problems with the map not fitting page properly
-        when tried to use fancy position absolute and relative css.
-        Also, found that only way to set width of route selector is
-        to set the css width here. Yes, strange! -->
-  <div id="routesContainer">
-    <div id="routesDiv">
-      <select id="routes"></select>
-    </div>
-  </div>
+  <t:mapPage>
+    <jsp:attribute name="title"><fmt:message key="div.transitimemaps" /></jsp:attribute>
+    <jsp:attribute name="actions">
+      <div id="routesDiv" class="ml-auto">
+        <select id="routes"></select>
+      </div>
+    </jsp:attribute>
+    <jsp:body>
+      <div id="map"></div>
+      <div id="titleContainer">
+        <div id="mapTitle"></div>
+      </div>
+    </jsp:body>
+  </t:mapPage>
 
 <script>
 
@@ -985,8 +977,8 @@ if (!getRouteQueryStrParam()) {
 	// Read in vehicle locations now (and every few seconds)
 	updateVehiclesUsingApiData();
 
-	// Make route selector visible. Haven't tested this!
-	$("#routesDiv").css({"visibility":"hidden"});
+	// Hide the route selector — route is fixed via query string.
+	$("#routesDiv").hide();
 }
 
 /**
