@@ -6,7 +6,7 @@
 <c:set var="path" value="${pageContext.request.servletPath}"/>
 <c:set var="active"   value="bg-indigo-50 text-indigo-700 font-medium"/>
 <c:set var="inactive" value="text-gray-700 hover:bg-gray-100 hover:text-gray-900"/>
-<aside class="hidden lg:flex lg:flex-col w-72 shrink-0 border-r border-gray-200 bg-gray-50">
+<aside class="hidden md:flex md:flex-col w-64 lg:w-72 shrink-0 border-r border-gray-200 bg-gray-50">
   <div class="px-5 py-4 border-b border-gray-200">
     <h2 class="text-base font-semibold text-gray-900">Reports</h2>
   </div>
