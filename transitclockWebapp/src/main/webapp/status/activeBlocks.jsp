@@ -65,6 +65,7 @@ pageContext.setAttribute("scheduleLateMin",  scheduleLateSec  / 60);
        data-accordion-allow-multiple-value="true"
        data-active-blocks-target="accordion"
        class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200 overflow-hidden">
+    <t:loading/>
   </div>
 
   <template data-active-blocks-target="routeTemplate">

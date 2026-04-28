@@ -106,6 +106,7 @@ export default class extends Controller {
   #renderRoutes(data) {
     const routes = data.routes ?? [];
     const accordion = this.accordionTarget;
+    accordion.querySelectorAll(":scope > :not([data-route-id])").forEach((el) => el.remove());
     const existing = new Map();
     accordion.querySelectorAll("[data-route-id]").forEach((el) => existing.set(el.dataset.routeId, el));
     const seen = new Set();
