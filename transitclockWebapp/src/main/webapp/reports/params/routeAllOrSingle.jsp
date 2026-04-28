@@ -36,7 +36,7 @@ $.getJSON(apiUrlPrefix + "/command/routes",
 </script>
 
 <div id="routesDiv">
-  <label for="route" class="block text-sm font-medium text-gray-900 mb-1"><fmt:message key="div.route"/></label>
+  <label for="route" class="block text-sm font-medium text-neutral-700 mb-1"><fmt:message key="div.route"/></label>
   <select id="route" name="r" style="width: 100%; max-width: 28rem;"
     title="Select which route you want data for. Note: selecting all routes indeed reads in data for all routes which means it could be somewhat slow."></select>
 </div>

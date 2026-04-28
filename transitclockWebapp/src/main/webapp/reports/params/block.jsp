@@ -31,7 +31,7 @@ $.getJSON(apiUrlPrefix + "/command/blockIds",
 </script>
 
 <div id="blocksDiv">
-  <label for="block" class="block text-sm font-medium text-gray-900 mb-1"><fmt:message key="div.dblock"/>:</label>
+  <label for="block" class="block text-sm font-medium text-neutral-700 mb-1"><fmt:message key="div.dblock"/>:</label>
   <select id="block" name="b" style="width: 100%; max-width: 22rem;"
     title="Select which block you want data for."></select>
 </div>

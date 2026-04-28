@@ -31,7 +31,7 @@ $.getJSON(apiUrlPrefix + "/command/routes",
 </script>
 
 <div id="routesDiv">
-  <label for="route" class="block text-sm font-medium text-gray-900 mb-1"><fmt:message key="div.route"/></label>
+  <label for="route" class="block text-sm font-medium text-neutral-700 mb-1"><fmt:message key="div.route"/></label>
   <select id="route" name="r" style="width: 100%; max-width: 28rem;"
     title="For when you want to optionally display information about a route."></select>
 </div>
