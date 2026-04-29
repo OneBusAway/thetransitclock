@@ -29,8 +29,6 @@
 <c:set var="onServerStatus" value="${path == '/status/serverStatus.jsp'}"/>
 <c:set var="onDbDiskSpace"  value="${path == '/status/dbDiskSpace.jsp'}"/>
 <c:set var="onSynoptic"     value="${path == '/synoptic/index.jsp'}"/>
-<c:set var="onHoldingNorth" value="${path == '/holding/singlestopholding.html' and param.stop == '20097'}"/>
-<c:set var="onHoldingSouth" value="${path == '/holding/singlestopholding.html' and param.stop == '93296'}"/>
 <c:set var="topActive"      value="bg-gray-100 text-gray-900 font-medium"/>
 <c:set var="topInactive"    value="text-gray-700 hover:bg-gray-100 hover:text-gray-900"/>
 <c:set var="subActive"      value="bg-gray-100 text-gray-900 font-medium"/>
@@ -54,10 +52,7 @@
         <c:if test="${agency.active}">
           <c:set var="qs" value="?a=${agency.agencyId}"/>
           <c:set var="ctx" value="${pageContext.request.contextPath}"/>
-          <%-- Most pages identify their agency via ?a=...; the holding URLs
-               below use ?agency=... instead, so we check both. --%>
           <c:set var="agencyMatch"        value="${param.a == agency.agencyId}"/>
-          <c:set var="holdingMatch"       value="${param.agency == agency.agencyId}"/>
           <c:set var="mapForActive"       value="${onMapFor and agencyMatch}"/>
           <c:set var="mapInclActive"      value="${onMapIncl and agencyMatch}"/>
           <c:set var="schAdhMapActive"    value="${onSchAdhMap and agencyMatch}"/>
@@ -69,9 +64,6 @@
           <c:set var="dbDiskSpaceActive"  value="${onDbDiskSpace and agencyMatch}"/>
           <c:set var="statusExpanded"     value="${activeBlocksActive or serverStatusActive or dbDiskSpaceActive}"/>
           <c:set var="synopticActive"     value="${onSynoptic and agencyMatch}"/>
-          <c:set var="holdingNorthActive" value="${onHoldingNorth and holdingMatch}"/>
-          <c:set var="holdingSouthActive" value="${onHoldingSouth and holdingMatch}"/>
-          <c:set var="extensionsExpanded" value="${holdingNorthActive or holdingSouthActive}"/>
           <div>
             <h3 class="px-2 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <c:out value="${agency.agencyName}"/>
@@ -110,21 +102,6 @@
                 </ul>
               </li>
               <li><a class="block px-2 py-1.5 text-sm rounded ${synopticActive ? topActive : topInactive}" <c:if test="${synopticActive}">aria-current="page"</c:if> href="${ctx}/synoptic/index.jsp${qs}"><fmt:message key="div.synoptic"/></a></li>
-              <%-- holding URLs are hardcoded for VIA (agency=1, route=100). --%>
-              <li data-controller="disclosure">
-                <button type="button" aria-expanded="${extensionsExpanded}"
-                        data-action="click->disclosure#toggle"
-                        class="w-full flex items-center justify-between px-2 py-1.5 text-sm text-gray-700 rounded hover:bg-gray-100 hover:text-gray-900">
-                  <span><fmt:message key="div.extensions"/></span>
-                  <svg data-disclosure-target="chevron" class="w-3 h-3 text-gray-400 transition-transform ${extensionsExpanded ? 'rotate-90' : ''}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
-                  </svg>
-                </button>
-                <ul data-disclosure-target="panel" class="${extensionsExpanded ? '' : 'hidden'} mt-1 ml-3 space-y-0.5">
-                  <li><a class="block px-2 py-1 text-sm rounded ${holdingNorthActive ? subActive : subInactive}" <c:if test="${holdingNorthActive}">aria-current="page"</c:if> href="${ctx}/holding/singlestopholding.html?agency=1&route=100&stop=20097&agencyname=VIA&stopname=TEXAS%20MEDICAL%20CENTER&threshold=10000"><fmt:message key="div.htns"/></a></li>
-                  <li><a class="block px-2 py-1 text-sm rounded ${holdingSouthActive ? subActive : subInactive}" <c:if test="${holdingSouthActive}">aria-current="page"</c:if> href="${ctx}/holding/singlestopholding.html?agency=1&route=100&stop=93296&agencyname=VIA&stopname=CHESTNUT%20AT%20ELLIS%20ALLEY&threshold=10000"><fmt:message key="div.htss"/></a></li>
-                </ul>
-              </li>
             </ul>
           </div>
         </c:if>
