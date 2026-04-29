@@ -2,56 +2,6 @@
 /*
  * This file contains general CSS config for TheTransitClock pages
  */
-body {
-	font-family: sans-serif;
-	font-size: large;
-	margin: 0px 0px 10px 0px;
-}
-
-#mainDiv {
-	margin-left: auto;
-	margin-right: auto;
-	width: 700px;
-}
-
-#title {
-	margin-top: 40px;
-	margin-bottom: 2px;
-	font-weight: normal;
-	font-size: xx-large;
-	text-align: center;
-}
-
-#subtitle {
-	text-align: center;
-	font-size: x-large;
-}
-
-/* For list of choices to be centered in page, e.g. list of reports
- */
-.choicesList {
-	width: 350px;
-	margin-left: auto;
-	margin-right: auto;
-	line-height: 125%;
-	margin-top: 5px;
-}
-
-.ui-tooltip {
-	/* Change background color of tooltips a bit and use a reasonable font size */
-	background: #faf7f1;
-	font-size: small;
-	padding: 4px;
-}
-
-/* Pre-Tailwind input chrome. Scoped to .param so it doesn't bleed onto
-   .form-control or partials that have already migrated to Tailwind
-   (jsonXmlFormat.jsp, submitApiCall.jsp). /reports/apiCalls/* pages
-   render hybrid until they're fully ported. */
-.param > input, .param > select {
-	background-color: #f8f8f8;
-	font-size: large;
-}
 
 .form-control {
 	display: block;
@@ -86,39 +36,5 @@ select.form-control:not([multiple]) {
 	background-repeat: no-repeat;
 	background-size: 1.25em 1.25em;
 	padding-right: 2.5rem;
-}
-
-.earlyColor {
-	background: #f2b7cd;
-	border-radius: 4px; 
-}
-
-.lateColor {
-	background: #fbfd97;
-	border-radius: 4px; 
-}
-
-.problemColor {
-	background: #f2b7cd;
-	border-radius: 4px;
-}
-
-/* For tables showing data in reports */
-#dataTable {
-	margin-left: auto;
- 	margin-right: auto;
-}
-
-#dataTable, #dataTable th, #dataTable td {
- border: 1px solid #BBB;
- border-collapse: collapse;
-}
-
-#dataTable th, #dataTable td {
-    padding: 2px 10px;
-}
-
-#dataTable th, #dataTable thead {
-  background: #ddd;
 }
 
