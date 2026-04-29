@@ -113,6 +113,53 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-war-plugin</artifactId>
 				<version>3.3.1</version>
+				<configuration>
+					<webResources>
+						<resource>
+							<directory>${project.build.directory}/frontend-dist</directory>
+							<targetPath>dist</targetPath>
+						</resource>
+					</webResources>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.github.eirslett</groupId>
+				<artifactId>frontend-maven-plugin</artifactId>
+				<version>1.15.1</version>
+				<configuration>
+					<nodeVersion>v22.12.0</nodeVersion>
+					<!-- Lives outside target/ so `mvn clean` doesn't redownload
+					     the ~30 MB Node tarball on every full rebuild. -->
+					<installDirectory>${user.home}/.m2/node</installDirectory>
+				</configuration>
+				<executions>
+					<execution>
+						<id>install-node-and-npm</id>
+						<goals><goal>install-node-and-npm</goal></goals>
+						<phase>generate-resources</phase>
+					</execution>
+					<execution>
+						<id>npm-ci</id>
+						<goals><goal>npm</goal></goals>
+						<phase>generate-resources</phase>
+						<configuration><arguments>ci</arguments></configuration>
+					</execution>
+					<execution>
+						<id>vite-build</id>
+						<goals><goal>npm</goal></goals>
+						<phase>generate-resources</phase>
+						<configuration><arguments>run build</arguments></configuration>
+					</execution>
+					<execution>
+						<id>vitest</id>
+						<goals><goal>npm</goal></goals>
+						<phase>test</phase>
+						<configuration>
+							<arguments>run test:ci</arguments>
+							<skip>${skipTests}</skip>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

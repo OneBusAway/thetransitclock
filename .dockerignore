@@ -1,6 +1,10 @@
 # Local Maven build outputs — re-generated inside the builder stage.
 **/target/
 
+# Local npm installs — frontend-maven-plugin runs `npm ci` inside the
+# builder stage, so any host-side install would just bloat the build context.
+**/node_modules/
+
 # Per-deployment runtime config + logs + GTFS payload + Postgres bind data.
 # Mounted into containers at runtime via volumes, not baked into the image.
 .deploy/

@@ -24,6 +24,9 @@ __pycache__/
 .playwright-mcp/
 map-fixed.png
 
+# Frontend npm installs (transitclockWebapp).
+node_modules/
+
 # Top-level docker-stack secrets (DB password, API key). .env.example is
 # committed as a template; .env is per-deployment.
 /.env

@@ -21,6 +21,8 @@ Built from the repository root as a Maven multi-module project.
 
 There is no lint step configured in the build.
 
+The webapp module has a frontend toolchain (Vite + Vitest) wired into Maven via `frontend-maven-plugin`. `mvn package` on `transitclockWebapp` automatically downloads a pinned Node, runs `npm ci`, and runs `vite build` — its output (`target/frontend-dist/`) is folded into the WAR at `/dist`. `mvn verify` also runs Vitest. `-DskipTests` skips Vitest (the Vite build still runs because the WAR depends on its output).
+
 ## Code coverage
 
 JaCoCo 0.8.12 is wired at the root `pom.xml`. It inherits into any module that declares `<parent>`, which today means `transitclock`, `transitclockBarefootClient`, and `transitclockTraccarClient`. `transitclockApi` and `transitclockWebapp` don't declare `<parent>`, so they currently produce no coverage data.
@@ -83,6 +85,7 @@ GTFS data in the DB is versioned by `configRev` and travel-time data by `travelT
 - Bring tomcat up with the override: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d tomcat`. The override deletes `web.war` from the image at startup so it doesn't fight the bind mount.
 - The override only affects `tomcat`; `core`, `db`, and `tools` keep their normal behavior.
 - Java class changes (anything under `transitclockWebapp/src/main/java`, `transitclockApi`, or core) still require `mvn -pl transitclockWebapp -am package -DskipTests` followed by `docker compose -f docker-compose.yml -f docker-compose.dev.yml restart tomcat`. Only the JSP/CSS/JS/HTML/image loop is fast.
+- For Tailwind / Vite-bundled assets, run `cd transitclockWebapp && npm run dev` in a second terminal — Vite watches `frontend/` and writes to `target/frontend-dist/`, which the dev override bind-mounts into Tomcat at `/dist`. Browser refresh shows the change.
 - To return to the production-style baked-WAR flow, drop the `-f docker-compose.dev.yml` flag.
 
 ## Conventions to be aware of
