@@ -121,7 +121,8 @@ public class SystemCpuMonitor extends MonitorBase {
 					+ ".",
 					cpuLoad);
 
-			addStat("CPU load", StringUtils.percentFormat(cpuLoad));
+			// JMX returns a negative value when CPU load cannot be sampled.
+			addStat("CPU load", cpuLoad >= 0.0 ? StringUtils.percentFormat(cpuLoad) : "N/A");
 			addStat("Limit", StringUtils.percentFormat(cpuThreshold.getValue()));
 						
 			// Determine the threshold for triggering. If already triggered

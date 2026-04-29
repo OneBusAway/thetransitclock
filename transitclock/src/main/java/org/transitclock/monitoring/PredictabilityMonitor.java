@@ -29,10 +29,6 @@ import org.transitclock.db.structs.Block;
 import org.transitclock.utils.EmailSender;
 import org.transitclock.utils.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 /**
  * Monitors how many vehicles are predictable compared to how many active blocks
  * there currently are.
