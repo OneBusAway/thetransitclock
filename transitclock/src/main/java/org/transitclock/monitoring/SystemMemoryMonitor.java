@@ -139,6 +139,10 @@ public class SystemMemoryMonitor extends MonitorBase {
 				+ ".",
 				freePhysicalMemory);
 
+		addStat("Free", StringUtils.memoryFormat(freePhysicalMemory));
+		addStat("Minimum", StringUtils.memoryFormat(
+				availableFreePhysicalMemoryThreshold.getValue()));
+
 		// Determine the threshold for triggering. If already triggered
 		// then raise the threshold by availableFreePhysicalMemoryThresholdGap
 		// in order to prevent lots of e-mail being sent out if the value

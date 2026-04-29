@@ -73,17 +73,27 @@ public class DatabaseQueueMonitor extends MonitorBase {
 			return false;
 		
 		DataDbLogger dbLogger = core.getDbLogger();
-		
-		setMessage("Database queue fraction=" 
-				+ StringUtils.twoDigitFormat(dbLogger.queueLevel())
-				+ " while max allowed fraction=" 
-				+ StringUtils.twoDigitFormat(maxQueueFraction.getValue()) 
-				+ ", and items in queue=" + dbLogger.queueSize()
-				+ ".",
-				dbLogger.queueLevel());
 
-        cloudwatchService.saveMetric("PredictionDatabaseQueuePercentageLevel", dbLogger.queueLevel(), 1, CloudwatchService.MetricType.AVERAGE, CloudwatchService.ReportingIntervalTimeUnit.MINUTE, false);
-		
+		// Snapshot once: queueLevel/queueSize change under load and we want
+		// the message, stats, CloudWatch metric, and threshold check to
+		// agree on a single observation.
+		double queueLevel = dbLogger.queueLevel();
+		int queueSize = dbLogger.queueSize();
+
+		setMessage("Database queue fraction="
+				+ StringUtils.twoDigitFormat(queueLevel)
+				+ " while max allowed fraction="
+				+ StringUtils.twoDigitFormat(maxQueueFraction.getValue())
+				+ ", and items in queue=" + queueSize
+				+ ".",
+				queueLevel);
+
+		addStat("Queue level", StringUtils.percentFormat(queueLevel));
+		addStat("Max allowed", StringUtils.percentFormat(maxQueueFraction.getValue()));
+		addStat("Items queued", String.valueOf(queueSize));
+
+        cloudwatchService.saveMetric("PredictionDatabaseQueuePercentageLevel", queueLevel, 1, CloudwatchService.MetricType.AVERAGE, CloudwatchService.ReportingIntervalTimeUnit.MINUTE, false);
+
 		// Determine the threshold for triggering. If already triggered
 		// then lower the threshold by maxQueueFractionGap in order
 		// to prevent lots of e-mail being sent out if the value is
@@ -91,8 +101,8 @@ public class DatabaseQueueMonitor extends MonitorBase {
 		double threshold = maxQueueFraction.getValue();
 		if (wasTriggered())
 			threshold -= maxQueueFractionGap.getValue();
-		
-		return dbLogger.queueLevel() > threshold; 
+
+		return queueLevel > threshold;
 	}
 
 	/* (non-Javadoc)

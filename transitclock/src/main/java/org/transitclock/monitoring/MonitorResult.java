@@ -1,6 +1,6 @@
 /*
  * This file is part of Transitime.org
- * 
+ *
  * Transitime.org is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (GPL) as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -18,6 +18,9 @@
 package org.transitclock.monitoring;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Contains status for an individual monitor. To be passed via IPC to client.
@@ -29,19 +32,30 @@ public class MonitorResult implements Serializable {
 
 	private final String type;
 	private final String message;
+	// Never null; empty when the monitor doesn't expose structured stats.
+	private final Map<String, String> stats;
 
+	// serialVersionUID intentionally unchanged when 'stats' was added so that
+	// a webapp on the new class can still deserialize streams from an older
+	// Core that lacks the field. Default deserialization leaves 'stats' null
+	// in that case (constructor is bypassed); readResolve() restores the
+	// "never null" invariant.
 	private static final long serialVersionUID = 8865389000445125279L;
 
 	/********************** Member Functions **************************/
 
-	public MonitorResult(String type, String message) {
+	public MonitorResult(String type, String message, Map<String, String> stats) {
 		this.type = type;
 		this.message = message;
+		this.stats = stats == null
+				? Collections.<String, String>emptyMap()
+				: Collections.unmodifiableMap(new LinkedHashMap<>(stats));
 	}
-	
+
 	@Override
 	public String toString() {
-		return "MonitorResult [type=" + type + ", message=" + message + "]";
+		return "MonitorResult [type=" + type + ", message=" + message
+				+ ", stats=" + stats + "]";
 	}
 
 	public String getType() {
@@ -50,6 +64,14 @@ public class MonitorResult implements Serializable {
 
 	public String getMessage() {
 		return message;
+	}
+
+	public Map<String, String> getStats() {
+		return stats;
+	}
+
+	private Object readResolve() {
+		return stats == null ? new MonitorResult(type, message, null) : this;
 	}
 
 }

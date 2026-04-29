@@ -116,6 +116,13 @@ public class StringUtils {
 	}
 
 	/**
+	 * Formats a 0..1 fraction as a 2-decimal percentage, e.g. 0.4231 -> "42.31%".
+	 */
+	public static String percentFormat(double fraction) {
+		return twoDigitFormat(fraction * 100) + "%";
+	}
+
+	/**
 	 * For formatting double to 3 decimal places.
 	 * 
 	 * @param arg

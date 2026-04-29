@@ -73,12 +73,15 @@ public class SystemDiskSpaceMonitor extends MonitorBase {
 		long usableSpace = new File("/").getUsableSpace();
 		
 		// Provide message explaining situation
-		setMessage("Usable disk space is " 
-				+ StringUtils.memoryFormat(usableSpace) 
-				+ " while the minimum limit is " 
+		setMessage("Usable disk space is "
+				+ StringUtils.memoryFormat(usableSpace)
+				+ " while the minimum limit is "
 				+ StringUtils.memoryFormat(usableDiskSpaceThreshold.getValue())
 				+ ".",
 				usableSpace);
+
+		addStat("Usable", StringUtils.memoryFormat(usableSpace));
+		addStat("Minimum", StringUtils.memoryFormat(usableDiskSpaceThreshold.getValue()));
 		
 		// Determine the threshold for triggering. If already triggered
 		// then raise the threshold by usableDiskSpaceThresholdGap in order
