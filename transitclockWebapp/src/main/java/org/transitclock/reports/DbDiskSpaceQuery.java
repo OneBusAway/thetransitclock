@@ -56,7 +56,7 @@ public final class DbDiskSpaceQuery {
     private DbDiskSpaceQuery() {}
 
     public static String getTotalsJson(String agencyId) throws SQLException {
-        return ChartGenericJsonQuery.getJsonString(agencyId, TOTALS_SQL, null, null);
+        return ChartGenericJsonQuery.getJsonString(agencyId, TOTALS_SQL);
     }
 
     public static String getDetailsJson(String agencyId) throws SQLException {

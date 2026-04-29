@@ -9,6 +9,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import java.sql.SQLException;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.transitclock.db.webstructs.ApiKeyManager;
@@ -28,6 +29,32 @@ public class DbDiskSpaceResource {
 
     private static final Logger logger = LoggerFactory.getLogger(DbDiskSpaceResource.class);
 
+    @FunctionalInterface
+    interface AgencyQuery {
+        String run(String agencyId) throws SQLException;
+    }
+
+    private final AgencyQuery totalsFn;
+    private final AgencyQuery detailsFn;
+    private final Predicate<String> apiKeyValidator;
+
+    public DbDiskSpaceResource() {
+        this(DbDiskSpaceQuery::getTotalsJson,
+             DbDiskSpaceQuery::getDetailsJson,
+             k -> ApiKeyManager.getInstance().isKeyValid(k));
+    }
+
+    // Package-private for unit tests: lets DbDiskSpaceResourceTest hand in
+    // fakes without depending on Mockito's thread-local static mocking,
+    // which JerseyTest's Grizzly worker threads don't see.
+    DbDiskSpaceResource(AgencyQuery totalsFn,
+                        AgencyQuery detailsFn,
+                        Predicate<String> apiKeyValidator) {
+        this.totalsFn = totalsFn;
+        this.detailsFn = detailsFn;
+        this.apiKeyValidator = apiKeyValidator;
+    }
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response get(@QueryParam("a") String agencyId,
@@ -38,8 +65,8 @@ public class DbDiskSpaceResource {
         }
 
         try {
-            String totals = DbDiskSpaceQuery.getTotalsJson(agencyId);
-            String details = DbDiskSpaceQuery.getDetailsJson(agencyId);
+            String totals = totalsFn.run(agencyId);
+            String details = detailsFn.run(agencyId);
             // Both query results are already valid JSON (or null); concatenate
             // raw to avoid a parse/re-serialize round-trip.
             String body = "{\"totals\":" + (totals != null ? totals : "null")
@@ -54,8 +81,8 @@ public class DbDiskSpaceResource {
         }
     }
 
-    private static void requireValidKey(String key) {
-        if (key == null || key.isEmpty() || !ApiKeyManager.getInstance().isKeyValid(key)) {
+    private void requireValidKey(String key) {
+        if (key == null || key.isEmpty() || !apiKeyValidator.test(key)) {
             throw error(Status.UNAUTHORIZED, "Missing or invalid API key (query param 'k')");
         }
     }
