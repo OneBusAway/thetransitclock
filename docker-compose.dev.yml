@@ -4,8 +4,14 @@
 # no docker rebuild, no compose restart.
 #
 # Usage:
-#   # one-time: populate target/web/WEB-INF/{lib,classes} for the JSPs
+#   # one-time: populate target/web/WEB-INF/{lib,classes} for the JSPs and
+#   # target/frontend-dist/ for the Vite-built Tailwind bundle.
 #   mvn -pl transitclockWebapp -am package -DskipTests
+#
+#   # for fast Tailwind / frontend iteration, run Vite in watch mode in a
+#   # second terminal — output goes to target/frontend-dist/, which the
+#   # bind mount below picks up:
+#   cd transitclockWebapp && npm run dev
 #
 #   # bring up tomcat with the override
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d tomcat
@@ -27,6 +33,7 @@ services:
       - ./transitclockWebapp/src/main/webapp:/usr/local/tomcat/webapps/web
       - ./transitclockWebapp/target/web/WEB-INF/lib:/usr/local/tomcat/webapps/web/WEB-INF/lib:ro
       - ./transitclockWebapp/target/web/WEB-INF/classes:/usr/local/tomcat/webapps/web/WEB-INF/classes:ro
+      - ./transitclockWebapp/target/frontend-dist:/usr/local/tomcat/webapps/web/dist:ro
     command:
       - |
         if [ -z "${TRANSITCLOCK_APIKEY:-}" ]; then

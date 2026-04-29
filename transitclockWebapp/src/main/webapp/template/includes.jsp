@@ -3,11 +3,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<%-- Tailwind CSS via the Play CDN. Compiles utility classes in-browser at
-     load time — no build step. Fine for development and the current
-     internal-tool scale; switch to a built stylesheet if perf or offline
-     use becomes a concern. --%>
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<%-- Tailwind CSS, compiled by Vite (see transitclockWebapp/vite.config.js).
+     Build output lands in target/frontend-dist/ and is copied into the WAR
+     at /dist by maven-war-plugin's webResources. --%>
+<link rel="stylesheet" href="<%= request.getContextPath() %>/dist/tailwind.css" />
 
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <script src="<%= request.getContextPath() %>/jquery-ui/jquery-ui.js"></script>

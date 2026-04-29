@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@source "../src/main/webapp/**/*.jsp";
+@source "../src/main/webapp/**/*.tag";
+@source "../src/main/webapp/**/*.html";
+@source "../src/main/webapp/**/*.js";
+@source "../frontend/**/*.js";
