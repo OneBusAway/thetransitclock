@@ -74,13 +74,17 @@ public class DatabaseQueueMonitor extends MonitorBase {
 		
 		DataDbLogger dbLogger = core.getDbLogger();
 		
-		setMessage("Database queue fraction=" 
+		setMessage("Database queue fraction="
 				+ StringUtils.twoDigitFormat(dbLogger.queueLevel())
-				+ " while max allowed fraction=" 
-				+ StringUtils.twoDigitFormat(maxQueueFraction.getValue()) 
+				+ " while max allowed fraction="
+				+ StringUtils.twoDigitFormat(maxQueueFraction.getValue())
 				+ ", and items in queue=" + dbLogger.queueSize()
 				+ ".",
 				dbLogger.queueLevel());
+
+		addStat("Queue level", StringUtils.percentFormat(dbLogger.queueLevel()));
+		addStat("Max allowed", StringUtils.percentFormat(maxQueueFraction.getValue()));
+		addStat("Items queued", String.valueOf(dbLogger.queueSize()));
 
         cloudwatchService.saveMetric("PredictionDatabaseQueuePercentageLevel", dbLogger.queueLevel(), 1, CloudwatchService.MetricType.AVERAGE, CloudwatchService.ReportingIntervalTimeUnit.MINUTE, false);
 		

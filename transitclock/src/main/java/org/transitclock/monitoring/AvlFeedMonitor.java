@@ -92,12 +92,15 @@ public class AvlFeedMonitor extends MonitorBase {
 		logger.debug("When monitoring AVL feed last AVL report={}",
 				AvlProcessor.getInstance().getLastAvlReport());
 		
-		setMessage("Last valid AVL report was " 
-				+ ageOfAvlReport / Time.MS_PER_SEC
-				+ " secs old while allowable age is " 
+		long ageSecs = ageOfAvlReport / Time.MS_PER_SEC;
+		setMessage("Last valid AVL report was "
+				+ ageSecs
+				+ " secs old while allowable age is "
 				+ allowableNoAvlSecs.getValue()	+ " secs as specified by "
 				+ "parameter " + allowableNoAvlSecs.getID() + " .",
-				ageOfAvlReport / Time.MS_PER_SEC);
+				ageSecs);
+		addStat("Last report", ageSecs + " sec ago");
+		addStat("Allowable age", allowableNoAvlSecs.getValue() + " sec");
 		
 		if (ageOfAvlReport > 
 				allowableNoAvlSecs.getValue() * Time.MS_PER_SEC) {
@@ -131,6 +134,7 @@ public class AvlFeedMonitor extends MonitorBase {
 		if (activeBlocks.size() == 0) {
 			setAcceptableEvenIfTriggeredMessage("No currently active blocks "
 					+ "so AVL feed considered to be OK.");
+			addStat("Note", "No active blocks - AVL gap is OK");
 			return true;
 		}
 		return false;

@@ -17,7 +17,10 @@
 
 package org.transitclock.monitoring;
 
+import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,12 +51,17 @@ public abstract class MonitorBase {
 	// Message to be logged when monitor is triggered. Set by subclass.
 	private String message;
 	
-	// To be set when monitor is triggered but it is actually ok. Example is 
+	// To be set when monitor is triggered but it is actually ok. Example is
 	// when not getting AVL data but it is OK since there are no active blocks.
 	private String acceptableEvenIfTriggeredMessage;
-	
+
 	// A value for the monitor that can be logged into database.
 	private double value;
+
+	// Single-threaded contract: written during triggered() by the
+	// MonitoringModule thread, read by RMI threads only after checkAll()
+	// returns. LinkedHashMap so UI rendering order is stable.
+	private final LinkedHashMap<String, String> stats = new LinkedHashMap<>();
 	
 	private static StringConfigValue emailRecipients =
 			new StringConfigValue(
@@ -94,6 +102,8 @@ public abstract class MonitorBase {
 	 * @return True if monitor currently triggered
 	 */
 	public boolean checkAndNotify() {
+		stats.clear();
+
 		// Call parent method to determine if the monitor is now triggered,
 		// indicating that there is a problem
 		boolean isTriggered = triggered();
@@ -231,6 +241,16 @@ public abstract class MonitorBase {
 			return message;
 		else
 			return message + " " + acceptableEvenIfTriggeredMessage;
+	}
+
+	/** Records a labeled metric for the current run, preserving insertion order. */
+	protected void addStat(String label, String value) {
+		stats.put(label, value);
+	}
+
+	/** @return Read-only stats from the latest triggered() invocation. */
+	public Map<String, String> getStats() {
+		return Collections.unmodifiableMap(stats);
 	}
 	
 	/**

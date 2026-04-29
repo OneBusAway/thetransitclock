@@ -117,8 +117,9 @@ public class AgencyMonitor {
 		// For all the monitors return the results
 		List<MonitorResult> monitorResults = new ArrayList<MonitorResult>();
 		for (MonitorBase monitor : monitors) {
-			MonitorResult monitorResult = 
-					new MonitorResult(monitor.type(), monitor.getMessage());
+			MonitorResult monitorResult =
+					new MonitorResult(monitor.type(), monitor.getMessage(),
+							monitor.getStats());
 			monitorResults.add(monitorResult);
 		}
 		return monitorResults;

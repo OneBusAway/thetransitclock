@@ -101,6 +101,8 @@ public class PredictabilityMonitor extends MonitorBase {
 		if (activeBlocks.size() == 0) {
 			setMessage("No currently active blocks so predictability "
 					+ "considered to be OK.");
+			addStat("Active blocks", "0");
+			addStat("Note", "No active blocks - predictability OK");
             cloudwatchService.saveMetric("PredictionPredictablePercentageOfBlocks", 1d, 1, CloudwatchService.MetricType.AVERAGE, CloudwatchService.ReportingIntervalTimeUnit.MINUTE, false);
 			return 1.0;
 		}
@@ -155,7 +157,13 @@ public class PredictabilityMonitor extends MonitorBase {
 		
 
 		setMessage(message, fraction);
-		
+
+		addStat("Predictable", StringUtils.percentFormat(fraction));
+		addStat("Minimum allowed", StringUtils.percentFormat(minPredictableBlocks.getValue()));
+		addStat("Active blocks", String.valueOf(activeBlocks.size()));
+		addStat("Predictable vehicles",
+				predictableVehicleCount + " (min " + minimumPredictableVehicles.getValue() + ")");
+
 		// Return fraction of blocks that have a predictable vehicle
 		return fraction;
 	}

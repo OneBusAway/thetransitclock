@@ -114,12 +114,15 @@ public class SystemCpuMonitor extends MonitorBase {
 				cpuLoad = (cpuLoad + secondReading) / 2.0;
 			}
 				
-			setMessage("CPU load is " 
-					+ StringUtils.twoDigitFormat(cpuLoad) 
-					+ " while limit is " 
-					+ StringUtils.twoDigitFormat(cpuThreshold.getValue()) 
+			setMessage("CPU load is "
+					+ StringUtils.twoDigitFormat(cpuLoad)
+					+ " while limit is "
+					+ StringUtils.twoDigitFormat(cpuThreshold.getValue())
 					+ ".",
 					cpuLoad);
+
+			addStat("CPU load", StringUtils.percentFormat(cpuLoad));
+			addStat("Limit", StringUtils.percentFormat(cpuThreshold.getValue()));
 						
 			// Determine the threshold for triggering. If already triggered
 			// then lower the threshold by cpuThresholdGap in order

@@ -20,6 +20,8 @@ package org.transitclock.monitoring;
 import java.util.List;
 
 import org.hibernate.HibernateException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.transitclock.db.structs.DbTest;
 import org.transitclock.utils.EmailSender;
 
@@ -30,6 +32,8 @@ import org.transitclock.utils.EmailSender;
  *
  */
 public class DatabaseMonitor extends MonitorBase {
+
+	private static final Logger logger = LoggerFactory.getLogger(DatabaseMonitor.class);
 
 	/********************** Member Functions **************************/
 
@@ -51,10 +55,11 @@ public class DatabaseMonitor extends MonitorBase {
 		try {
 			// Clear out old data from db
 			DbTest.deleteAll(agencyId);
-			
+
 			// See if can write an object to database
 			if (!DbTest.write(agencyId, 999)) {
 				setMessage("Could not write DbTest object to database.");
+				addStat("Status", "Write failed");
 				return true;
 			}
 
@@ -62,15 +67,21 @@ public class DatabaseMonitor extends MonitorBase {
 			List<DbTest> dbTests = DbTest.readAll(agencyId);
 			if (dbTests.size() == 0) {
 				setMessage("Could not read DbTest objects from database.");
+				addStat("Status", "Read failed");
 				return true;
 			}
 		} catch (HibernateException e) {
-			setMessage("Problem accessing database. " + e.getMessage());
+			String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+			logger.error("DatabaseMonitor triggered: {}", detail, e);
+			setMessage("Problem accessing database. " + detail);
+			addStat("Status", "Error");
+			addStat("Detail", detail);
 			return true;
 		}
 
 		// Everything OK
 		setMessage("Successfully read and wrote to database.");
+		addStat("Status", "OK");
 		return false;
 	}
 
