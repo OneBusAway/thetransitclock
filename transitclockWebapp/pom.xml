@@ -11,6 +11,9 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Keep in sync with transitclockApi: jakarta-namespace Jersey
+		     line implementing Jakarta REST 3.1 / Jakarta EE 10. -->
+		<jersey.version>3.1.7</jersey.version>
 	</properties>
 
 	<!-- See root pom.xml: pins JAXB 2.x build-POM transitives to working
@@ -87,12 +90,66 @@
 			<groupId>TheTransitClock</groupId>
 			<artifactId>transitclockCore</artifactId>
 			<version>3.0.0-SNAPSHOT</version>
+			<!-- Strip the pre-Jakarta Jersey 2.11 (2014) jars that
+			     transitclockTraccarClient drags in. The webapp doesn't
+			     invoke Traccar's HTTP client, but jersey-media-json-jackson
+			     2.11 ships a META-INF/services entry registering
+			     org.glassfish.jersey.jackson.internal.DefaultJacksonJaxbJsonProvider,
+			     which Jersey 3.1's WebApiApplication picks up at servlet
+			     init. Instantiating that 2.x provider against the 2.8.9
+			     jackson chain blows up on a missing JacksonFeature class,
+			     killing the entire JAX-RS context. Excluding here keeps
+			     Core's own build/runtime untouched (exclusions are
+			     per-consumer). -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.glassfish.jersey.core</groupId>
+					<artifactId>jersey-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish.jersey.media</groupId>
+					<artifactId>jersey-media-json-jackson</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish.jersey.media</groupId>
+					<artifactId>jersey-media-multipart</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.web</groupId>
 			<artifactId>jakarta.servlet.jsp.jstl</artifactId>
 			<version>3.0.1</version>
 		</dependency>
+
+		<!-- JAX-RS for the webapp-internal JSON layer served at /api/*.
+		     Distinct from transitclockApi's /v1/* surface: this layer is
+		     for endpoints that talk to the DB directly rather than to
+		     Core via RMI (e.g. db-disk-space). -->
+		<dependency>
+			<groupId>jakarta.ws.rs</groupId>
+			<artifactId>jakarta.ws.rs-api</artifactId>
+			<version>3.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.containers</groupId>
+			<artifactId>jersey-container-servlet</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.inject</groupId>
+			<artifactId>jersey-hk2</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+		<!-- Intentionally NOT pulling in a JSON-binding provider
+		     (jersey-media-json-jackson / jersey-media-moxy). Jersey 3.1.7's
+		     jersey-media-json-jackson forces jackson-databind to 2.17.x while
+		     transitclockCore's transitive Jackson chain stays at 2.8.9, which
+		     breaks Hibernate's JacksonIntegration static init at runtime.
+		     Endpoints that need to vend JSON should return a pre-serialized
+		     String wrapped in Response.ok(...).type(APPLICATION_JSON), the
+		     way DbDiskSpaceResource does. Revisit if/when an endpoint needs
+		     POJO marshalling and the core Jackson chain is unified. -->
 
 	</dependencies>
 	<build>

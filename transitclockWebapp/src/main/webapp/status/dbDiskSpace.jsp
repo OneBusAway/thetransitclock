@@ -1,4 +1,4 @@
-<%@ page import="org.transitclock.reports.ChartGenericJsonQuery" %>
+<%@ page import="org.transitclock.reports.DbDiskSpaceQuery" %>
 <%
 String agencyId = request.getParameter("a");
 if (agencyId == null || agencyId.isEmpty()) {
@@ -6,50 +6,8 @@ if (agencyId == null || agencyId.isEmpty()) {
     return;
 }
 
-// This query is rather complicated. Want the values in order but also
-// want total at end. Using two queries and a union to do this but
-// need to also use an ordering column so that the total will always
-// be at the end. And then need to do a select on the whole result
-// to get rid of the ordering column and to provde human readable
-// column titles like "Table Size".
-String sql =
-        "SELECT relname AS \"Table Name\", "
-            + "     total_size AS \"Total Size\", "
-            + "     total_bytes AS \"Total Bytes\" "
-            + " FROM "
-            + "((SELECT relname , "
-            + "        pg_size_pretty(pg_total_relation_size(C.oid)) AS total_size, "
-            + "        pg_total_relation_size(C.oid) AS total_bytes, "
-            + "        1 AS ordering"
-            + "   FROM pg_class C "
-            + "   LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) "
-            + "  WHERE nspname NOT IN ('pg_catalog', 'information_schema') "
-            + "    AND C.relkind <> 'i' "
-            + "    AND nspname !~ '^pg_toast' "
-            + ") "
-            + "UNION "
-            + "SELECT 'Total:', "
-            + "       pg_size_pretty(SUM(pg_relation_size(C.oid))), "
-            + "       SUM(pg_relation_size(C.oid)), "
-            + "       2 as ordering "
-            + "  FROM pg_class C "
-            + "  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) "
-            + " WHERE nspname NOT IN ('pg_catalog', 'information_schema') "
-            + ") AS needed_alias_name "
-            + "ORDER BY ordering, \"Total Bytes\" DESC";
-
-String sql2 =
-        "SELECT relname AS \"Table Name\", "
-            + "pg_size_pretty(pg_total_relation_size(C.oid)) AS \"Total Size\", "
-            + "pg_total_relation_size(C.oid) AS \"Total Bytes\" "
-            + "FROM pg_class C "
-            + "LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) "
-            + "WHERE nspname NOT IN ('pg_catalog', 'information_schema') "
-            + "    AND nspname !~ '^pg_toast' "
-            + "ORDER BY pg_total_relation_size(C.oid) DESC";
-
-pageContext.setAttribute("jsonData1", ChartGenericJsonQuery.getJsonString(agencyId, sql, null, null));
-pageContext.setAttribute("jsonData2", ChartGenericJsonQuery.getJsonString(agencyId, sql2));
+pageContext.setAttribute("jsonData1", DbDiskSpaceQuery.getTotalsJson(agencyId));
+pageContext.setAttribute("jsonData2", DbDiskSpaceQuery.getDetailsJson(agencyId));
 %>
 <t:layout>
   <jsp:attribute name="title"><fmt:message key="div.ddsu" /></jsp:attribute>
