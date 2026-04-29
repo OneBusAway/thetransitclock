@@ -50,45 +50,8 @@ pageContext.setAttribute("currentYear",      java.time.Year.now().getValue());
 
   <%-- Bleeds out of the layout's p-8 padding via -mx-8 so the bar spans
        the full main width and stays flush at the scroll-container edge. --%>
-  <div data-active-blocks-target="summary"
-       class="sticky top-0 z-10 -mx-8 mb-5 px-8 pt-3 pb-3 bg-canvas/90 backdrop-blur">
-    <div class="flex items-stretch bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.blocks"/></div>
-        <div class="flex items-baseline gap-1.5 mt-0.5">
-          <span data-field="total-blocks" class="text-[22px] font-bold tabular-nums text-gray-900">—</span>
-          <span class="text-xs text-gray-500 font-medium">total</span>
-        </div>
-      </div>
-      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.assigned"/></div>
-        <div class="flex items-baseline gap-1.5 mt-0.5">
-          <span data-field="percent-assigned" class="text-[22px] font-bold tabular-nums text-brand-accent">—</span>
-          <span data-field="assigned-detail" class="text-xs text-gray-500 font-medium tabular-nums"></span>
-        </div>
-      </div>
-      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.contime"/></div>
-        <div class="flex items-baseline gap-1.5 mt-0.5">
-          <span data-field="percent-on-time" class="text-[22px] font-bold tabular-nums text-status-on-time-ink">—</span>
-          <span data-field="on-time-count" class="text-xs text-gray-500 font-medium tabular-nums"></span>
-        </div>
-      </div>
-      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200" title="Vehicle is more than ${scheduleLateMin} min late">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.clate"/></div>
-        <div class="flex items-baseline gap-1.5 mt-0.5">
-          <span data-field="percent-late" class="text-[22px] font-bold tabular-nums text-status-late">—</span>
-          <span data-field="late-count" class="text-xs text-gray-500 font-medium tabular-nums"></span>
-        </div>
-      </div>
-      <div class="flex-1 min-w-0 px-4 py-3" title="Vehicle is more than ${scheduleEarlyMin} min early">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.cearly"/></div>
-        <div class="flex items-baseline gap-1.5 mt-0.5">
-          <span data-field="percent-early" class="text-[22px] font-bold tabular-nums text-status-early">—</span>
-          <span data-field="early-count" class="text-xs text-gray-500 font-medium tabular-nums"></span>
-        </div>
-      </div>
-    </div>
+  <div class="sticky top-0 z-10 -mx-8 mb-5 px-8 pt-3 pb-3 bg-canvas/90 backdrop-blur">
+    <t:activeBlocksSummary/>
   </div>
 
   <div data-controller="accordion"

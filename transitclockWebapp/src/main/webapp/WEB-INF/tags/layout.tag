@@ -33,6 +33,7 @@
 <%-- Any /reports/* page (except the API calls section) keeps the
      Reports nav highlighted so subpages don't appear unrooted. --%>
 <c:set var="onReports"      value="${fn:startsWith(path, '/reports/') and not onApi}"/>
+<c:set var="onDashboard"     value="${path == '/dashboard/index.jsp'}"/>
 <c:set var="onActiveBlocks" value="${path == '/status/activeBlocks.jsp'}"/>
 <c:set var="onServerStatus" value="${path == '/status/serverStatus.jsp'}"/>
 <c:set var="onDbDiskSpace"  value="${path == '/status/dbDiskSpace.jsp'}"/>
@@ -97,6 +98,7 @@
           <c:set var="mapsExpanded"       value="${mapForActive or mapInclActive or schAdhMapActive}"/>
           <c:set var="reportsActive"      value="${onReports and agencyMatch}"/>
           <c:set var="apiActive"          value="${onApi and agencyMatch}"/>
+          <c:set var="dashboardActive"    value="${onDashboard and agencyMatch}"/>
           <c:set var="activeBlocksActive" value="${onActiveBlocks and agencyMatch}"/>
           <c:set var="serverStatusActive" value="${onServerStatus and agencyMatch}"/>
           <c:set var="dbDiskSpaceActive"  value="${onDbDiskSpace and agencyMatch}"/>
@@ -105,6 +107,13 @@
           <div>
             <h3 class="px-2.5 mb-2 text-[11px] font-bold tracking-[0.08em] uppercase text-gray-500"><c:out value="${agency.agencyName}"/></h3>
             <ul class="space-y-0.5">
+              <li>
+                <a class="${navBase} ${dashboardActive ? navActive : navInactive}" <c:if test="${dashboardActive}">aria-current="page"</c:if> href="${ctx}/dashboard/index.jsp${qs}">
+                  <c:if test="${dashboardActive}"><span class="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-sm bg-brand-accent"></span></c:if>
+                  <svg class="size-4 ${dashboardActive ? iconActive : iconIdle}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                  <fmt:message key="div.dashboard"/>
+                </a>
+              </li>
               <li data-controller="disclosure">
                 <button type="button" aria-expanded="${mapsExpanded}"
                         data-action="click->disclosure#toggle"

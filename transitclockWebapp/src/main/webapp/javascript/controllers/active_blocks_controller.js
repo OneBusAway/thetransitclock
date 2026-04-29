@@ -23,7 +23,9 @@ export default class extends Controller {
   };
 
   connect() {
-    this.#fetchRoutes();
+    // The dashboard mounts this controller for the summary strip only; the
+    // accordion/template targets only exist on the full Active Blocks page.
+    if (this.hasAccordionTarget && this.hasRouteTemplateTarget) this.#fetchRoutes();
     this.#fetchSummary();
     this.summaryTimer = setInterval(() => this.#fetchSummary(), SUMMARY_REFRESH_MS);
   }
