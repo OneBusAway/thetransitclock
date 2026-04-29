@@ -75,18 +75,15 @@ a:hover {
 	padding: 4px;
 }
 
-/* Legacy input styling for pages that still use the .param wrapper
-   (e.g. /reports/apiCalls/*). The redesigned report forms opt out of
-   this and use the .form-control rules below. */
+/* Pre-Tailwind input chrome. Scoped to .param so it doesn't bleed onto
+   .form-control or partials that have already migrated to Tailwind
+   (jsonXmlFormat.jsp, submitApiCall.jsp). /reports/apiCalls/* pages
+   render hybrid until they're fully ported. */
 .param > input, .param > select {
 	background-color: #f8f8f8;
 	font-size: large;
 }
 
-/*
- * Railsblocks-style form controls. Opt-in via .form-control class so
- * legacy pages (using bare <input>/<select>) are unaffected.
- */
 .form-control {
 	display: block;
 	border: 0;
@@ -112,7 +109,6 @@ a:hover {
 	background-color: #f5f5f5;
 }
 
-/* Single (non-multiple) <select>: custom dropdown chevron, more right padding. */
 select.form-control:not([multiple]) {
 	appearance: none;
 	-webkit-appearance: none;

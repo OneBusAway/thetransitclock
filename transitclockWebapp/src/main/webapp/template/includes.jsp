@@ -14,20 +14,16 @@
 <link rel="stylesheet" href="<%= request.getContextPath() %>/jquery-ui/jquery-ui.css">
 
 <%-- Cache buster: tied to general.css mtime so edits propagate without
-     forcing users to hard-refresh. Computed each request — cheap on a
-     local file. getRealPath returns null for packed WARs, in which
-     case the buster falls back to webapp init time. --%>
+     forcing users to hard-refresh. getRealPath returns null for packed
+     WARs, where the buster degrades to ?v=0 (still cacheable; busts
+     only on redeploys that exploded the WAR). --%>
 <%
-String __cssPath = application.getRealPath("/css/general.css");
-long __cssVer = 0L;
-if (__cssPath != null) {
-  java.io.File __cssFile = new java.io.File(__cssPath);
-  if (__cssFile.exists()) __cssVer = __cssFile.lastModified();
-}
+String cssPath = application.getRealPath("/css/general.css");
+long cssVer = cssPath != null ? new java.io.File(cssPath).lastModified() : 0L;
 %>
+<link rel="stylesheet" href="<%= request.getContextPath() %>/css/general.css?v=<%= cssVer %>">
 
 <%-- Load transitime.js after jQuery so it can override jQuery defaults. --%>
-<link rel="stylesheet" href="<%= request.getContextPath() %>/css/general.css?v=<%= __cssVer %>">
 <script src="<%= request.getContextPath() %>/javascript/transitime.js"></script>
 
 <%-- Stimulus.js application entry point. ESM module, so it loads
