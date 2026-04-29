@@ -5,3 +5,20 @@
 @source "../src/main/webapp/**/*.html";
 @source "../src/main/webapp/**/*.js";
 @source "../frontend/**/*.js";
+
+/* OneBusAway brand tokens. Source of truth: the OneBusAway design
+   package (separate repo) at project/assets/colors_and_type.css
+   (#78aa36 brand, #486621 accent). The status palette mirrors what
+   Wayfinder's ArrivalDeparture component uses (red = early, green =
+   on time, violet = late, blue = scheduled-only). */
+@theme {
+  --color-brand: #78aa36;
+  --color-brand-accent: #486621;
+  --color-brand-tint: #f0f5e6;
+  --color-canvas: #f5f6f3;
+  --color-status-on-time: #22c55e;
+  --color-status-on-time-ink: #15803d;
+  --color-status-early: #ef4444;
+  --color-status-late: #7c3aed;
+  --color-status-scheduled: #3b82f6;
+}

@@ -1,3 +1,4 @@
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="org.transitclock.reports.ScheduleAdherenceController" %>
 <%
 String agencyId = request.getParameter("a");
@@ -11,6 +12,7 @@ pageContext.setAttribute("earlyMsec",   scheduleEarlySec * -1000);
 pageContext.setAttribute("lateMsec",    scheduleLateSec  * 1000);
 pageContext.setAttribute("scheduleEarlyMin", scheduleEarlySec / -60);
 pageContext.setAttribute("scheduleLateMin",  scheduleLateSec  / 60);
+pageContext.setAttribute("currentYear",      java.time.Year.now().getValue());
 %>
 <t:layout>
   <jsp:attribute name="title"><fmt:message key="div.acbiveblock" /></jsp:attribute>
@@ -20,91 +22,123 @@ pageContext.setAttribute("scheduleLateMin",  scheduleLateSec  / 60);
      data-active-blocks-early-msec-value="${earlyMsec}"
      data-active-blocks-late-msec-value="${lateMsec}">
 
-  <%-- Sticky summary header. Bleeds full-width within main by undoing the
-       layout's p-8 padding via -mx-8/-mt-8, then re-applies px-8 itself. --%>
-  <div data-active-blocks-target="summary"
-       class="sticky top-0 z-10 -mx-8 -mt-8 mb-6 px-8 py-4 bg-white/95 backdrop-blur border-b border-gray-200">
-    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-      <h1 class="mr-auto text-lg font-semibold text-gray-900"><fmt:message key="div.acbiveblock" /></h1>
-      <dl class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        <div class="flex items-baseline gap-1.5" title="Total number of blocks">
-          <dt class="text-gray-500"><fmt:message key="div.blocks" /></dt>
-          <dd data-field="total-blocks" class="font-mono text-gray-900">—</dd>
-        </div>
-        <div class="flex items-baseline gap-1.5" title="Percentage of blocks that have an assigned and predictable vehicle">
-          <dt class="text-gray-500"><fmt:message key="div.assigned" /></dt>
-          <dd data-field="percent-assigned" class="font-mono text-gray-900">—</dd>
-        </div>
-        <div class="flex items-baseline gap-1.5" title="Percentage of blocks where vehicle is more than ${scheduleLateMin} minutes late">
-          <dt class="text-gray-500"><fmt:message key="div.clate" />:</dt>
-          <dd data-field="percent-late" class="font-mono text-gray-900">—</dd>
-        </div>
-        <div class="flex items-baseline gap-1.5" title="Percentage of blocks where vehicle is on time">
-          <dt class="text-gray-500"><fmt:message key="div.contime" />:</dt>
-          <dd data-field="percent-on-time" class="font-mono text-gray-900">—</dd>
-        </div>
-        <div class="flex items-baseline gap-1.5" title="Percentage of blocks where vehicle is more than ${scheduleEarlyMin} minute(s) early">
-          <dt class="text-gray-500"><fmt:message key="div.cearly" />:</dt>
-          <dd data-field="percent-early" class="font-mono text-gray-900">—</dd>
-        </div>
-        <div class="flex items-baseline gap-1.5" title="Time that summary information was last updated">
-          <dt class="text-gray-500"><fmt:message key="div.AsOf" /></dt>
-          <dd data-field="as-of" class="font-mono text-gray-900">—</dd>
-        </div>
-      </dl>
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-4">
+    <div>
+      <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+        <fmt:message key="div.status"/>
+        <svg class="size-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        <span class="text-gray-700"><fmt:message key="div.acbiveblock"/></span>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900 m-0"><fmt:message key="div.acbiveblock"/></h1>
+      <p class="mt-1 text-sm text-gray-500 m-0">Real-time status of vehicle assignments across the fleet.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-gray-500 inline-flex items-center gap-1.5">
+        <svg class="size-3 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <fmt:message key="div.AsOf"/>
+        <span data-active-blocks-target="asOf" class="font-semibold text-gray-700 tabular-nums">—</span>
+      </span>
       <button type="button"
               data-action="click->active-blocks#loadAll"
               data-active-blocks-target="loadAll"
-              class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-        <fmt:message key="div.LoadAllData" />
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border-0 bg-brand-accent text-white text-sm font-semibold shadow-sm hover:bg-brand disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16"/></svg>
+        <fmt:message key="div.LoadAllData"/>
       </button>
+    </div>
+  </div>
+
+  <%-- Bleeds out of the layout's p-8 padding via -mx-8 so the bar spans
+       the full main width and stays flush at the scroll-container edge. --%>
+  <div data-active-blocks-target="summary"
+       class="sticky top-0 z-10 -mx-8 mb-5 px-8 pt-3 pb-3 bg-canvas/90 backdrop-blur">
+    <div class="flex items-stretch bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.blocks"/></div>
+        <div class="flex items-baseline gap-1.5 mt-0.5">
+          <span data-field="total-blocks" class="text-[22px] font-bold tabular-nums text-gray-900">—</span>
+          <span class="text-xs text-gray-500 font-medium">total</span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.assigned"/></div>
+        <div class="flex items-baseline gap-1.5 mt-0.5">
+          <span data-field="percent-assigned" class="text-[22px] font-bold tabular-nums text-brand-accent">—</span>
+          <span data-field="assigned-detail" class="text-xs text-gray-500 font-medium tabular-nums"></span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.contime"/></div>
+        <div class="flex items-baseline gap-1.5 mt-0.5">
+          <span data-field="percent-on-time" class="text-[22px] font-bold tabular-nums text-status-on-time-ink">—</span>
+          <span data-field="on-time-count" class="text-xs text-gray-500 font-medium tabular-nums"></span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0 px-4 py-3 border-r border-gray-200" title="Vehicle is more than ${scheduleLateMin} min late">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.clate"/></div>
+        <div class="flex items-baseline gap-1.5 mt-0.5">
+          <span data-field="percent-late" class="text-[22px] font-bold tabular-nums text-status-late">—</span>
+          <span data-field="late-count" class="text-xs text-gray-500 font-medium tabular-nums"></span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0 px-4 py-3" title="Vehicle is more than ${scheduleEarlyMin} min early">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.cearly"/></div>
+        <div class="flex items-baseline gap-1.5 mt-0.5">
+          <span data-field="percent-early" class="text-[22px] font-bold tabular-nums text-status-early">—</span>
+          <span data-field="early-count" class="text-xs text-gray-500 font-medium tabular-nums"></span>
+        </div>
+      </div>
     </div>
   </div>
 
   <div data-controller="accordion"
        data-accordion-allow-multiple-value="true"
        data-active-blocks-target="accordion"
-       class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200 overflow-hidden">
+       class="space-y-2">
     <t:loading/>
   </div>
 
+  <%-- Block list inside the body hydrates lazily on first accordion open
+       via the `accordion:opened` event wired up at the controller root. --%>
   <template data-active-blocks-target="routeTemplate">
-    <div data-accordion-target="item" data-state="closed" class="group">
+    <div data-accordion-target="item" data-state="closed" class="group bg-white border border-gray-200 rounded-lg overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <h3 class="m-0">
         <button type="button"
                 data-accordion-target="trigger"
                 data-action="click->accordion#toggle"
                 aria-expanded="false"
                 data-state="closed"
-                class="w-full flex items-center justify-between gap-4 px-4 py-3 text-left hover:bg-gray-50">
-          <span class="flex items-center gap-3 min-w-0">
-            <span data-field="route-name" class="text-sm font-semibold text-gray-900 truncate"></span>
+                class="w-full grid grid-cols-[4px_auto_1fr_auto_auto] items-center gap-3.5 pl-0 pr-3 py-2.5 text-left bg-white hover:bg-[#fafbf8]">
+          <span data-field="route-stripe" class="block w-1 h-8 rounded-r-sm bg-gray-200"></span>
+          <span data-field="route-tag" class="inline-flex items-center justify-center min-w-[44px] px-2 py-0.5 rounded bg-brand-accent text-white text-xs font-bold tracking-tight ml-2">—</span>
+          <span class="flex items-baseline gap-2.5 min-w-0">
+            <span data-field="route-name" class="text-[15px] font-semibold text-gray-900 truncate"></span>
+            <span class="text-xs text-gray-500 whitespace-nowrap">
+              <span data-field="route-blocks" class="tabular-nums">0</span>
+              <span data-field="route-blocks-noun"><fmt:message key="div.dblock"/></span>
+            </span>
           </span>
-          <span class="flex items-center gap-3">
-            <span data-vehicle-summary class="hidden items-center gap-2 text-xs">
-              <span class="flex items-baseline gap-1">
-                <span class="text-gray-500"><fmt:message key="div.cearly" /></span>
-                <span data-field="route-early" class="px-1.5 py-0.5 rounded font-mono text-gray-900">0</span>
-              </span>
-              <span class="flex items-baseline gap-1">
-                <span class="text-gray-500"><fmt:message key="div.contime" /></span>
-                <span data-field="route-on-time" class="px-1.5 py-0.5 rounded font-mono text-gray-900">0</span>
-              </span>
-              <span class="flex items-baseline gap-1">
-                <span class="text-gray-500"><fmt:message key="div.clate" /></span>
-                <span data-field="route-late" class="px-1.5 py-0.5 rounded font-mono text-gray-900">0</span>
-              </span>
-              <span class="flex items-baseline gap-1">
-                <span class="text-gray-500"><fmt:message key="div.assigned" /></span>
-                <span data-field="route-vehicles" class="px-1.5 py-0.5 rounded font-mono text-gray-900">0</span>
-              </span>
+          <span data-vehicle-summary class="hidden items-center gap-3.5 text-xs">
+            <span data-field="route-early-pair" class="hidden items-center gap-1">
+              <span class="text-gray-500"><fmt:message key="div.cearly"/></span>
+              <span data-field="route-early" class="font-bold text-status-early tabular-nums">0</span>
             </span>
-            <span class="flex items-baseline gap-1 text-xs">
-              <span class="text-gray-500"><fmt:message key="div.dblock" /></span>
-              <span data-field="route-blocks" class="px-1.5 py-0.5 rounded font-mono text-gray-900">0</span>
+            <span data-field="route-on-time-pair" class="hidden items-center gap-1">
+              <span class="text-gray-500"><fmt:message key="div.contime"/></span>
+              <span data-field="route-on-time" class="font-bold text-status-on-time-ink tabular-nums">0</span>
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="size-4 shrink-0 text-gray-400 transition-transform duration-200 group-data-[state=open]:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+            <span data-field="route-late-pair" class="hidden items-center gap-1">
+              <span class="text-gray-500"><fmt:message key="div.clate"/></span>
+              <span data-field="route-late" class="font-bold text-status-late tabular-nums">0</span>
+            </span>
+          </span>
+          <span class="flex items-center gap-3 pr-1">
+            <span class="text-xs text-gray-500 font-medium hidden sm:inline-flex items-baseline gap-1">
+              <fmt:message key="div.assigned"/>
+              <span class="text-gray-900 font-bold tabular-nums"><span data-field="route-vehicles">0</span>/<span data-field="route-blocks-denom">0</span></span>
+            </span>
+            <svg class="size-4 shrink-0 text-gray-400 transition-transform duration-200 group-data-[state=open]:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m9 6 6 6-6 6"/>
             </svg>
           </span>
         </button>
@@ -115,8 +149,8 @@ pageContext.setAttribute("scheduleLateMin",  scheduleLateSec  / 60);
            role="region"
            class="grid transition-[grid-template-rows] duration-300 ease-in-out data-[state=open]:grid-rows-[1fr] data-[state=closed]:grid-rows-[0fr]">
         <div class="overflow-hidden min-h-0">
-          <div data-state="closed" class="px-4 py-3 space-y-2 bg-gray-50/50 transition-opacity duration-200 opacity-0 data-[state=open]:opacity-100">
-            <div data-block-list class="space-y-2"></div>
+          <div data-state="closed" class="bg-[#fafbf8] border-t border-gray-200 transition-opacity duration-200 opacity-0 data-[state=open]:opacity-100">
+            <div data-block-list></div>
           </div>
         </div>
       </div>
@@ -124,49 +158,48 @@ pageContext.setAttribute("scheduleLateMin",  scheduleLateSec  / 60);
   </template>
 
   <template data-active-blocks-target="blockTemplate">
-    <div class="bg-white border border-gray-200 rounded-md px-3 py-2 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1.5 text-xs">
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.dblock" />:</dt>
-        <dd data-field="block-id" class="font-mono text-gray-900"></dd>
+    <div class="grid grid-cols-2 md:grid-cols-[0.9fr_1.4fr_1.6fr_1fr_1.6fr] gap-x-4 gap-y-2 px-4 py-3 border-t border-gray-100 bg-white text-[13px]">
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.dblock"/></div>
+        <div data-field="block-id" class="font-semibold font-mono text-gray-900"></div>
+        <div class="text-xs text-gray-500 mt-0.5"><fmt:message key="div.dtrip"/> <span data-field="trip-id" class="font-mono"></span></div>
       </div>
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.Start" /></dt>
-        <dd data-field="block-start" class="font-mono text-gray-900"></dd>
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.Vehicle"/></div>
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <svg class="size-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="14" rx="2"/><path d="M4 11h16M7 18v2M17 18v2M9 15h.01M15 15h.01"/></svg>
+          <span data-field="block-vehicles" class="font-semibold font-mono text-gray-900"></span>
+        </div>
+        <div class="text-xs text-gray-500 mt-0.5"><fmt:message key="div.Service"/> <span data-field="block-service" class="font-mono"></span></div>
       </div>
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.End" /></dt>
-        <dd data-field="block-end" class="font-mono text-gray-900"></dd>
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.Schedule"/></div>
+        <div class="flex items-center gap-1.5 mt-0.5 font-mono text-[12.5px] text-gray-900">
+          <span data-field="block-start"></span>
+          <span class="text-gray-400">&rarr;</span>
+          <span data-field="block-end"></span>
+        </div>
+        <div class="text-xs text-gray-500 mt-0.5">
+          <fmt:message key="div.dtrip"/> <span data-field="trip-start" class="font-mono"></span>
+          <span class="text-gray-400">&rarr;</span>
+          <span data-field="trip-end" class="font-mono"></span>
+        </div>
       </div>
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.Service" /></dt>
-        <dd data-field="block-service" class="font-mono text-gray-900 truncate"></dd>
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.Adh"/></div>
+        <div class="mt-1"><span data-field="block-sch-adh" class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded font-mono text-xs font-semibold"></span></div>
       </div>
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.dtrip" />:</dt>
-        <dd data-field="trip-id" class="font-mono text-gray-900"></dd>
-      </div>
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.Start" /></dt>
-        <dd data-field="trip-start" class="font-mono text-gray-900"></dd>
-      </div>
-      <div class="flex items-baseline gap-1.5">
-        <dt class="text-gray-500"><fmt:message key="div.End" /></dt>
-        <dd data-field="trip-end" class="font-mono text-gray-900"></dd>
-      </div>
-      <div class="flex items-baseline gap-1.5 col-span-2 md:col-span-1">
-        <dt class="text-gray-500"><fmt:message key="div.Headsign" />:</dt>
-        <dd data-field="trip-headsign" class="text-gray-900 truncate"></dd>
-      </div>
-      <div class="flex items-baseline gap-1.5 col-span-2">
-        <dt class="text-gray-500"><fmt:message key="div.Vehicle" />:</dt>
-        <dd data-field="block-vehicles" class="font-mono text-gray-900"></dd>
-      </div>
-      <div class="flex items-baseline gap-1.5 col-span-2">
-        <dt class="text-gray-500"><fmt:message key="div.Adh" /></dt>
-        <dd data-field="block-sch-adh" class="px-1.5 py-0.5 rounded font-mono"></dd>
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-500"><fmt:message key="div.Headsign"/></div>
+        <div data-field="trip-headsign" class="text-gray-900 font-medium mt-0.5 truncate"></div>
       </div>
     </div>
   </template>
+
+  <footer class="mt-8 pt-4 border-t border-gray-200 flex justify-between text-xs text-gray-500">
+    <span>OneBusAway &middot; The Transit Clock</span>
+    <span>OTSF &copy; ${currentYear}</span>
+  </footer>
 </div>
   </jsp:body>
 </t:layout>
