@@ -30,13 +30,18 @@ public final class DbDiskSpaceQuery {
                     + "    AND nspname !~ '^pg_toast' "
                     + ") "
                     + "UNION "
+                    // Total row must use the same size function (pg_total_relation_size:
+                    // main + indexes + TOAST) and the same WHERE filters as the per-row
+                    // inner SELECT, otherwise it under- or double-counts.
                     + "SELECT 'Total:', "
-                    + "       pg_size_pretty(SUM(pg_relation_size(C.oid))), "
-                    + "       SUM(pg_relation_size(C.oid)), "
+                    + "       pg_size_pretty(SUM(pg_total_relation_size(C.oid))), "
+                    + "       SUM(pg_total_relation_size(C.oid)), "
                     + "       2 as ordering "
                     + "  FROM pg_class C "
                     + "  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) "
                     + " WHERE nspname NOT IN ('pg_catalog', 'information_schema') "
+                    + "   AND C.relkind <> 'i' "
+                    + "   AND nspname !~ '^pg_toast' "
                     + ") AS needed_alias_name "
                     + "ORDER BY ordering, \"Total Bytes\" DESC";
 

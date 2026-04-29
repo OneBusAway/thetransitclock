@@ -41,11 +41,11 @@ public class DbDiskSpaceQueryTest {
                     // Security-relevant: dropping this filter would expose
                     // pg_catalog and information_schema tables to API clients.
                     "nspname NOT IN ('pg_catalog', 'information_schema')",
-                    // Per-row uses pg_total_relation_size; the totals row uses
-                    // pg_relation_size — different functions, swapping is a
-                    // plausible silent regression.
+                    // Per-row and total must use the SAME size function
+                    // (pg_total_relation_size = main + indexes + TOAST) so
+                    // the Total: row matches the sum of the visible rows.
                     "pg_total_relation_size(C.oid)",
-                    "SUM(pg_relation_size(C.oid))");
+                    "SUM(pg_total_relation_size(C.oid))");
         }
     }
 
