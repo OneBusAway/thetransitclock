@@ -44,9 +44,6 @@ public class DbDiskSpaceResource {
              k -> ApiKeyManager.getInstance().isKeyValid(k));
     }
 
-    // Package-private for unit tests: lets DbDiskSpaceResourceTest hand in
-    // fakes without depending on Mockito's thread-local static mocking,
-    // which JerseyTest's Grizzly worker threads don't see.
     DbDiskSpaceResource(AgencyQuery totalsFn,
                         AgencyQuery detailsFn,
                         Predicate<String> apiKeyValidator) {

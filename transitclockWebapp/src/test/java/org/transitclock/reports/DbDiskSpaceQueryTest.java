@@ -32,11 +32,20 @@ public class DbDiskSpaceQueryTest {
             ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
             chart.verify(() -> ChartGenericJsonQuery.getJsonString(eq(AGENCY), sql.capture()));
             String captured = sql.getValue();
-            assertThat(captured).contains("UNION");
-            assertThat(captured).contains("'Total:'");
-            assertThat(captured).contains("nspname !~ '^pg_toast'");
-            assertThat(captured).contains("C.relkind <> 'i'");
-            assertThat(captured).contains("ORDER BY ordering");
+            assertThat(captured).contains(
+                    "UNION",
+                    "'Total:'",
+                    "nspname !~ '^pg_toast'",
+                    "C.relkind <> 'i'",
+                    "ORDER BY ordering",
+                    // Security-relevant: dropping this filter would expose
+                    // pg_catalog and information_schema tables to API clients.
+                    "nspname NOT IN ('pg_catalog', 'information_schema')",
+                    // Per-row uses pg_total_relation_size; the totals row uses
+                    // pg_relation_size — different functions, swapping is a
+                    // plausible silent regression.
+                    "pg_total_relation_size(C.oid)",
+                    "SUM(pg_relation_size(C.oid))");
         }
     }
 
@@ -53,7 +62,10 @@ public class DbDiskSpaceQueryTest {
             chart.verify(() -> ChartGenericJsonQuery.getJsonString(eq(AGENCY), sql.capture()));
             String captured = sql.getValue();
             assertThat(captured).doesNotContain("UNION");
-            assertThat(captured).contains("nspname !~ '^pg_toast'");
+            assertThat(captured).contains(
+                    "nspname !~ '^pg_toast'",
+                    "nspname NOT IN ('pg_catalog', 'information_schema')",
+                    "pg_total_relation_size(C.oid)");
             // No relkind filter — details view keeps indexes as their own rows.
             assertThat(captured).doesNotContain("relkind");
         }
