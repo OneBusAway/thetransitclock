@@ -353,13 +353,6 @@ function routeConfigCallback(routeDetail, status)
  					//setRouteQueryStrParam("r=" + selectedRouteId);
  					//updateVehiclesUsingApiData();
 
- 		 			// Disable tooltips. For some reason get an unwanted
- 		 			// tooltip consisting of the current select once a selection
- 		 			// has been made. It is really distracting. So have to do
- 		 			// this convoluted thing after every selection in order to
- 		 			// make sure this annoying tooltip doesn't popup.
- 		 			$( "#select2-routes-container" ).tooltip({ content: 'foo' });
- 		 			$( "#select2-routes-container" ).tooltip("option", "disabled", true);
 				});
 
 

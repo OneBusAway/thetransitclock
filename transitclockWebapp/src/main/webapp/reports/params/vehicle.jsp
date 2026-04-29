@@ -17,13 +17,6 @@ $.getJSON(apiUrlPrefix + "/command/vehicleIds",
  			});
 
 	 		$("#vehicle option:first").attr("value", "");
-
- 			// select2 v4's generated container doesn't carry the original
- 			// title attribute, so wire jQuery UI tooltips onto the
- 			// generated #select2-vehicle-container and dismiss on change.
-	 		var configuredTitle = $( "#vehicle" ).attr("title");
-	 		$( "#select2-vehicle-container" ).tooltip({ content: configuredTitle });
- 		 	$("#vehicle").on("change", function(e) { $("#select2-vehicle-container").tooltip("close") });
  	});
 
 </script>

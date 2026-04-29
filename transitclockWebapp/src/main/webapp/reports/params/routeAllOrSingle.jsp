@@ -21,16 +21,7 @@ $.getJSON(apiUrlPrefix + "/command/routes",
 	 		}
 
  			$("#route").select2({
- 				data : selectorData})
- 			.on("select2:select", function(e) {
- 				var configuredTitle = $( "#route" ).attr("title");
- 			 	$( "#select2-route-container" ).tooltip({ content: configuredTitle,
- 			 			position: { my: "left+10 center", at: "right center" } });
- 			});
-
-	 		var configuredTitle = $( "#route" ).attr("title");
-	 		$( "#select2-route-container" ).tooltip({ content: configuredTitle,
-	 				position: { my: "left+10 center", at: "right center" } });
+ 				data : selectorData});
  	});
 
 </script>
