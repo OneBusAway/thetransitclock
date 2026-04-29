@@ -19,7 +19,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.transitclock.db.structs.Headway;
 import org.transitclock.db.structs.HoldingTime;
-import org.transitclock.db.structs.MeasuredArrivalTime;
 import org.transitclock.db.structs.PredictionForStopPath;
 import org.transitclock.db.webstructs.ApiKey;
 import org.transitclock.pipelinetests.CoreHarness;
@@ -28,7 +27,7 @@ import org.transitclock.pipelinetests.CoreHarness;
  * Save → flush → fresh-session-read for a representative subset of
  * runtime-writable {@code @Entity} classes:
  * {@code ApiKey}, {@code Headway}, {@code HoldingTime},
- * {@code PredictionForStopPath}, {@code MeasuredArrivalTime}.
+ * {@code PredictionForStopPath}.
  * Catches Hibernate-6 type-mapping regressions
  * (boolean / temporal / integer column types) on entities the existing
  * pipeline tests don't already touch.
@@ -148,28 +147,5 @@ public class EntityRoundTripTest {
 		assertThat(loaded.getStopPathIndex()).isEqualTo(0);
 		assertThat(loaded.getAlgorithm()).isEqualTo("PHA");
 		assertThat(loaded.getPredictionTime()).isEqualTo(60.0);
-	}
-
-	@Test
-	public void measuredArrivalTimeRoundTrip() {
-		MeasuredArrivalTime toSave = new MeasuredArrivalTime(
-				new Date(), "stop-mat", "route-1", "rsn-1", "head", "dir");
-
-		inSessionWithCommit(s -> {
-			s.save(toSave);
-			return null;
-		});
-
-		// MeasuredArrivalTime has no public getters (it's written by the
-		// website via raw SQL). Pin the round-trip by row count alone.
-		List<MeasuredArrivalTime> rows = inSession(s ->
-				s.createQuery(
-						"from MeasuredArrivalTime where stopId = :stopId",
-						MeasuredArrivalTime.class)
-						.setParameter("stopId", "stop-mat")
-						.getResultList());
-
-		assertThat(rows).hasSize(1);
-		assertThat(rows.get(0)).isNotNull();
 	}
 }

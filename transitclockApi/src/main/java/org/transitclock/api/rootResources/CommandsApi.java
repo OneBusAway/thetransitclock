@@ -25,7 +25,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Date;
 import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -44,9 +43,7 @@ import org.json.JSONObject;
 import org.transitclock.api.data.ApiCommandAck;
 import org.transitclock.api.utils.StandardParameters;
 import org.transitclock.api.utils.WebUtils;
-import org.transitclock.db.GenericQuery;
 import org.transitclock.db.structs.AvlReport;
-import org.transitclock.db.structs.MeasuredArrivalTime;
 import org.transitclock.db.structs.AvlReport.AssignmentType;
 import org.transitclock.ipc.data.IpcAvl;
 import org.transitclock.ipc.data.IpcTrip;
@@ -288,55 +285,9 @@ public class CommandsApi {
 				
 		ApiCommandAck ack = new ApiCommandAck(true, "Vehicle reset");
 		
-		return stdParameters.createResponse(ack);		
+		return stdParameters.createResponse(ack);
 	}
 
-	/**
-	 * Reads in information from request and stores arrival information into db.
-	 * 
-	 * @param stdParameters
-	 * @param routeId
-	 * @param stopId
-	 * @return
-	 * @throws WebApplicationException
-	 */
-	@Path("/command/pushMeasuredArrivalTime")
-	@GET
-	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-	@Operation(summary="Reads in information from request and stores arrival information into db",
-	description="For storing a measured arrival time so that can see if measured arrival time via GPS is accurate.",tags= {"command"})
-	public Response pushAvlData(
-			@BeanParam StandardParameters stdParameters,
-			@Parameter(description="Route id",required=true) @QueryParam(value = "r") String routeId,
-			@Parameter(description="Route short name.",required=true) @QueryParam(value = "rShortName") String routeShortName,
-			@Parameter(description="Route stop id.",required=true) @QueryParam(value = "s") String stopId,
-			@Parameter(description="Direcction id.",required=true) @QueryParam(value = "d") String directionId,
-			@Parameter(description="headsign.",required=true) @QueryParam(value = "headsign") String headsign)
-			throws WebApplicationException {
-		// Make sure request is valid
-		stdParameters.validate();
-
-		try {
-			// Store the arrival time in the db
-			String agencyId = stdParameters.getAgencyId();
-			
-			MeasuredArrivalTime time =
-					new MeasuredArrivalTime(new Date(), stopId, routeId,
-							routeShortName, directionId, headsign);
-			String sql = time.getUpdateSql();
-			GenericQuery query = new GenericQuery(agencyId);
-			query.doUpdate(sql);
-			
-			// Create the acknowledgment and return it as JSON or XML
-			ApiCommandAck ack =
-					new ApiCommandAck(true, "MeasuredArrivalTime processed");
-			return stdParameters.createResponse(ack);
-		} catch (Exception e) {
-			// If problem getting data then return a Bad Request
-			throw WebUtils.badRequestException(e);
-		}
-	}
-// WORK IN PROGRESS	
 	@Path("/command/cancelTrip/{tripId}")
 	@GET //SHOULD BE POST,IT IS AN UPDATE
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
