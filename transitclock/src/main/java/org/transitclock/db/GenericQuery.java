@@ -23,7 +23,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -190,27 +189,6 @@ public class GenericQuery {
 
 	}
 
-	/**
-	 * Executes an INSERT, UPDATE, or DELETE statement. 
-	 * 
-	 * @param sql The SQL to be executed
-	 * @throws SQLException
-	 */
-	public void doUpdate(String sql) throws SQLException {
-		Statement statement = null;
-
-		try {
-			statement = connection.createStatement();
-			statement.executeUpdate(sql);
-		} catch (SQLException e) {
-			throw e;
-		} finally {
-			if (statement != null)
-				statement.close();
-		}
-		
-	}
-	
 	/**
 	 * Returns number of rows read in.
 	 * 

@@ -33,7 +33,6 @@ import org.transitclock.db.structs.Frequency;
 import org.transitclock.db.structs.Headway;
 import org.transitclock.db.structs.HoldingTime;
 import org.transitclock.db.structs.Match;
-import org.transitclock.db.structs.MeasuredArrivalTime;
 import org.transitclock.db.structs.MonitoringEvent;
 import org.transitclock.db.structs.Prediction;
 import org.transitclock.db.structs.PredictionAccuracy;
@@ -89,7 +88,6 @@ public class AnnotatedClassesList {
 		FareRule.class,
 		Frequency.class,
 		Match.class,
-		MeasuredArrivalTime.class,
 		MonitoringEvent.class,
 		PredictionAccuracy.class,
 		Route.class,
