@@ -2,15 +2,21 @@ import { Controller } from "https://unpkg.com/@hotwired/stimulus@3.2.2/dist/stim
 
 const SUMMARY_REFRESH_MS = 60_000;
 
-const ADH_CLASSES = Object.freeze({
-  early:  ["text-amber-700",   "bg-amber-50"],
-  onTime: ["text-emerald-700", "bg-emerald-50"],
-  late:   ["text-red-700",     "bg-red-50"],
+// Source of truth: OneBusAway design package (separate repo) at
+// project/assets/colors_and_type.css — red = early, green = on time,
+// violet = late.
+const STATUS_STYLES = Object.freeze({
+  early:  { text: "text-status-early",       bg: "bg-status-early/10",   solid: "bg-status-early"   },
+  onTime: { text: "text-status-on-time-ink", bg: "bg-status-on-time/10", solid: "bg-status-on-time" },
+  late:   { text: "text-status-late",        bg: "bg-status-late/10",    solid: "bg-status-late"    },
 });
-const ALL_ADH_CLASSES = [...new Set(Object.values(ADH_CLASSES).flat())];
+const ALL_ADH_CLASSES = Object.values(STATUS_STYLES).flatMap((s) => [s.text, s.bg]);
+const ALL_STRIPE_CLASSES = [...Object.values(STATUS_STYLES).map((s) => s.solid), "bg-gray-200"];
+
+const blocksLabel = (n) => `${n} ${n === 1 ? "block" : "blocks"}`;
 
 export default class extends Controller {
-  static targets = ["summary", "accordion", "routeTemplate", "blockTemplate", "loadAll"];
+  static targets = ["summary", "asOf", "accordion", "routeTemplate", "blockTemplate", "loadAll"];
   static values = {
     earlyMsec: Number,
     lateMsec: Number,
@@ -81,20 +87,31 @@ export default class extends Controller {
 
   #renderSummary(total) {
     const blocks = total.blocks ?? 0;
-    const vehicleCount = (total.late ?? 0) + (total.ontime ?? 0) + (total.early ?? 0);
+    const late = total.late ?? 0;
+    const onTime = total.ontime ?? 0;
+    const early = total.early ?? 0;
+    const assigned = late + onTime + early;
     const pct = (n) => (blocks ? `${((100 * n) / blocks).toFixed(0)}%` : "—");
 
     this.#fill("total-blocks", blocks);
-    this.#fill("percent-late", pct(total.late ?? 0));
-    this.#fill("percent-on-time", pct(total.ontime ?? 0));
-    this.#fill("percent-early", pct(total.early ?? 0));
-    this.#fill("as-of", new Date().toLocaleTimeString());
+    this.#fill("percent-late", pct(late));
+    this.#fill("percent-on-time", pct(onTime));
+    this.#fill("percent-early", pct(early));
+    this.#fill("late-count", late ? blocksLabel(late) : "");
+    this.#fill("on-time-count", onTime ? blocksLabel(onTime) : "");
+    this.#fill("early-count", early ? blocksLabel(early) : "");
+    this.#fill("assigned-detail", blocks ? `${assigned}/${blocks}` : "");
+
+    if (this.hasAsOfTarget) this.asOfTarget.textContent = new Date().toLocaleTimeString();
 
     const assignedEl = this.summaryTarget.querySelector("[data-field='percent-assigned']");
     if (assignedEl) {
-      assignedEl.textContent = pct(vehicleCount);
-      const assignedFrac = blocks ? vehicleCount / blocks : 1;
-      assignedEl.classList.toggle("text-red-600", assignedFrac < 0.9);
+      assignedEl.textContent = pct(assigned);
+      const assignedFrac = blocks ? assigned / blocks : 1;
+      // Drop the brand-accent color and switch to red when assignment is
+      // unhealthy, so the at-a-glance signal still reads correctly.
+      assignedEl.classList.toggle("text-brand-accent", assignedFrac >= 0.9);
+      assignedEl.classList.toggle("text-status-early", assignedFrac < 0.9);
     }
   }
 
@@ -121,8 +138,12 @@ export default class extends Controller {
         item.dataset.routeName = route.name;
         accordion.appendChild(item);
       }
+      const blockCount = route.block?.length ?? 0;
+      item.querySelector("[data-field='route-tag']").textContent = route.id;
       item.querySelector("[data-field='route-name']").textContent = route.name;
-      item.querySelector("[data-field='route-blocks']").textContent = route.block?.length ?? 0;
+      item.querySelector("[data-field='route-blocks']").textContent = blockCount;
+      item.querySelector("[data-field='route-blocks-noun']").textContent = blockCount === 1 ? "block" : "blocks";
+      item.querySelector("[data-field='route-blocks-denom']").textContent = blockCount;
     }
 
     for (const [id, el] of existing) {
@@ -146,29 +167,36 @@ export default class extends Controller {
     const vehicleTotal = early + onTime + late;
     const blockCount = (route.block ?? []).length;
 
-    const earlyEl   = item.querySelector("[data-field='route-early']");
-    const onTimeEl  = item.querySelector("[data-field='route-on-time']");
-    const lateEl    = item.querySelector("[data-field='route-late']");
-    const vehEl     = item.querySelector("[data-field='route-vehicles']");
-    const blocksEl  = item.querySelector("[data-field='route-blocks']");
+    item.querySelector("[data-field='route-early']").textContent = early;
+    item.querySelector("[data-field='route-on-time']").textContent = onTime;
+    item.querySelector("[data-field='route-late']").textContent = late;
+    item.querySelector("[data-field='route-blocks']").textContent = blockCount;
+    item.querySelector("[data-field='route-blocks-denom']").textContent = blockCount;
+    item.querySelector("[data-field='route-blocks-noun']").textContent = blockCount === 1 ? "block" : "blocks";
 
-    earlyEl.textContent  = early;
-    onTimeEl.textContent = onTime;
-    lateEl.textContent   = late;
-    vehEl.textContent    = vehicleTotal;
-    blocksEl.textContent = blockCount;
+    // Vehicle count below block count means the route is short-staffed;
+    // surface that as red regardless of the per-vehicle adherence colors.
+    const vehEl = item.querySelector("[data-field='route-vehicles']");
+    vehEl.textContent = vehicleTotal;
+    vehEl.classList.toggle("text-status-early", vehicleTotal < blockCount);
 
-    earlyEl.classList.toggle("text-amber-700", early > 0);
-    earlyEl.classList.toggle("bg-amber-50",    early > 0);
-    lateEl.classList.toggle("text-red-700",    late > 0);
-    lateEl.classList.toggle("bg-red-50",       late > 0);
-    const understaffed = vehicleTotal < blockCount;
-    vehEl.classList.toggle("text-red-700",     understaffed);
-    vehEl.classList.toggle("bg-red-50",        understaffed);
+    this.#toggleVisible(item, "route-early-pair", early > 0);
+    this.#toggleVisible(item, "route-on-time-pair", onTime > 0);
+    this.#toggleVisible(item, "route-late-pair", late > 0);
 
     const summary = item.querySelector("[data-vehicle-summary]");
     summary?.classList.remove("hidden");
     summary?.classList.add("flex");
+
+    // Stripe priority is late > early > on-time, falling back to neutral
+    // gray when no vehicles report yet — otherwise every unloaded card
+    // would mis-signal "all on time".
+    const stripe = item.querySelector("[data-field='route-stripe']");
+    if (stripe) {
+      stripe.classList.remove(...ALL_STRIPE_CLASSES);
+      const kind = late > 0 ? "late" : early > 0 ? "early" : onTime > 0 ? "onTime" : null;
+      stripe.classList.add(kind ? STATUS_STYLES[kind].solid : "bg-gray-200");
+    }
 
     const blockList = item.querySelector("[data-block-list]");
     blockList.replaceChildren();
@@ -177,15 +205,23 @@ export default class extends Controller {
     }
   }
 
+  #toggleVisible(item, field, visible) {
+    const el = item.querySelector(`[data-field='${field}']`);
+    if (!el) return;
+    el.classList.toggle("hidden", !visible);
+    el.classList.toggle("inline-flex", visible);
+  }
+
   #classifyAdh(schAdh) {
     if (schAdh < -this.lateMsecValue) return "late";
     if (schAdh > this.earlyMsecValue) return "early";
     return "onTime";
   }
 
-  #applyAdhClasses(el, schAdh) {
+  #applyAdhClasses(el, kind) {
     el.classList.remove(...ALL_ADH_CLASSES);
-    el.classList.add(...ADH_CLASSES[this.#classifyAdh(schAdh)]);
+    const style = STATUS_STYLES[kind];
+    el.classList.add(style.text, style.bg);
   }
 
   #renderBlock(block) {
@@ -213,8 +249,13 @@ export default class extends Controller {
 
     vehiclesEl.textContent = vehicles.map((v) => v.id).join(", ");
     const v0 = vehicles[0];
-    adhEl.textContent = v0.schAdhStr ?? "—";
-    this.#applyAdhClasses(adhEl, v0.schAdh);
+    const kind = this.#classifyAdh(parseInt(v0.schAdh, 10));
+    adhEl.replaceChildren();
+    const dot = document.createElement("span");
+    dot.className = `inline-block size-2 rounded-full ${STATUS_STYLES[kind].solid}`;
+    adhEl.appendChild(dot);
+    adhEl.appendChild(document.createTextNode(v0.schAdhStr ?? "—"));
+    this.#applyAdhClasses(adhEl, kind);
     return row;
   }
 }
