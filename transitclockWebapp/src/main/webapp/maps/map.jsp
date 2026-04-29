@@ -932,14 +932,6 @@ if (!getRouteQueryStrParam()) {
  					// Read in vehicle locations now
  					setRouteQueryStrParam("r=" + selectedRouteId);
  					updateVehiclesUsingApiData();
-
- 		 			// Disable tooltips. For some reason get an unwanted
- 		 			// tooltip consisting of the current select once a selection
- 		 			// has been made. It is really distracting. So have to do
- 		 			// this convoluted thing after every selection in order to
- 		 			// make sure this annoying tooltip doesn't popup.
- 		 			$( "#select2-routes-container" ).tooltip({ content: 'foo' });
- 		 			$( "#select2-routes-container" ).tooltip("option", "disabled", true);
 				});
 
 	 		// If showing unassigned vehicles then start getting vehicle
@@ -996,7 +988,7 @@ setInterval(hideThingsIfStale, 300);
  * Fade out the Transitime.org title
  */
 setTimeout(function () {
-	$('#mapTitle').hide('fade', 1000);
+	$('#mapTitle').fadeOut(1000);
  }, 1000);
 
 </script>

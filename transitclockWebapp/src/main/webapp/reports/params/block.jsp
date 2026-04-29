@@ -13,19 +13,7 @@ $.getJSON(apiUrlPrefix + "/command/blockIds",
 
  			$("#block").select2({
  				placeholder: "Select Block",
- 				data : selectorData})
- 			// select2's generated container doesn't carry the original
- 			// title attribute, so the jQuery UI tooltip is wired up
- 			// manually and re-applied after each selection.
- 			.on("select2:select", function(e) {
- 				var configuredTitle = $( "#block" ).attr("title");
- 				$( "#select2-block-container" ).tooltip({ content: configuredTitle,
- 						position: { my: "left+10 center", at: "right center" } });
- 			});
-
-	 		var configuredTitle = $( "#block" ).attr("title");
-	 		$( "#select2-block-container" ).tooltip({ content: configuredTitle,
-	 				position: { my: "left+10 center", at: "right center" } });
+ 				data : selectorData});
  	});
 
 </script>

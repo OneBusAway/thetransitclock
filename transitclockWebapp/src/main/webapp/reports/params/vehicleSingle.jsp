@@ -15,12 +15,6 @@ $.getJSON(apiUrlPrefix + "/command/vehicleIds",
  			$("#vehicle").select2({
  				placeholder: "Select Vehicle",
  				data : selectorData});
-
- 			// See vehicle.jsp for why the tooltip is wired onto the
- 			// select2-generated container rather than the hidden <input>.
-	 		var configuredTitle = $( "#vehicle" ).attr("title");
-	 		$( "#select2-vehicle-container" ).tooltip({ content: configuredTitle });
- 		 	$("#vehicle").on("change", function(e) { $("#select2-vehicle-container").tooltip("close") });
  	});
 
 </script>

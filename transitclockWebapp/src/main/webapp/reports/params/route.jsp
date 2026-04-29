@@ -16,13 +16,6 @@ $.getJSON(apiUrlPrefix + "/command/routes",
  			$("#route").select2({
  				placeholder: "All Routes",
  				data : selectorData});
-
- 			// select2 v4 wraps the original input in #select2-route-container;
- 			// re-wire the tooltip there since the generated container loses
- 			// the title attribute.
-	 		var configuredTitle = $( "#route" ).attr("title");
-	 		$( "#select2-route-container" ).tooltip({ content: configuredTitle });
- 		 	$("#route").on("change", function(e) { $("#select2-route-container").tooltip("close") });
  	});
 
 </script>
