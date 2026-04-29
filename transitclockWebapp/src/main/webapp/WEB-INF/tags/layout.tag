@@ -1,6 +1,7 @@
 <%@ tag pageEncoding="UTF-8" import="org.transitclock.db.webstructs.WebAgency" %>
 <%@ taglib prefix="c"   uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn"  uri="jakarta.tags.functions" %>
 <%@ attribute name="title" required="false" %>
 <%@ attribute name="head"  fragment="true" required="false" %>
 <%-- bare="true" skips the default p-8 padding wrapper around the body — for
@@ -20,8 +21,10 @@
 <c:set var="onMapFor"       value="${path == '/maps/map.jsp' and not showUnassigned}"/>
 <c:set var="onMapIncl"      value="${path == '/maps/map.jsp' and showUnassigned}"/>
 <c:set var="onSchAdhMap"    value="${path == '/maps/schAdhMap.jsp'}"/>
-<c:set var="onReports"      value="${path == '/reports/index.jsp'}"/>
-<c:set var="onApi"          value="${path == '/reports/apiCalls/index.jsp'}"/>
+<c:set var="onApi"          value="${fn:startsWith(path, '/reports/apiCalls/')}"/>
+<%-- Any /reports/* page (except the API calls section) keeps the
+     Reports nav highlighted so subpages don't appear unrooted. --%>
+<c:set var="onReports"      value="${fn:startsWith(path, '/reports/') and not onApi}"/>
 <c:set var="onActiveBlocks" value="${path == '/status/activeBlocks.jsp'}"/>
 <c:set var="onServerStatus" value="${path == '/status/serverStatus.jsp'}"/>
 <c:set var="onDbDiskSpace"  value="${path == '/status/dbDiskSpace.jsp'}"/>
