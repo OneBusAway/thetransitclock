@@ -22,7 +22,6 @@ pageContext.setAttribute("ctx", request.getContextPath());
   <script src="${pageContext.request.contextPath}/maps/javascript/leafletRotatedMarker.js"></script>
   <script src="${pageContext.request.contextPath}/maps/javascript/mapUiOptions.js"></script>
 
-  <script src="${pageContext.request.contextPath}/javascript/jquery-dateFormat.min.js"></script>
 <script src="${pageContext.request.contextPath}/synoptic/javascript/synoptic.js"></script>
 
   <link rel="stylesheet" href="${pageContext.request.contextPath}/maps/css/mapUi.css" />
@@ -53,8 +52,7 @@ pageContext.setAttribute("ctx", request.getContextPath());
 		var timezoneDiffMinutes = localTimezoneOffset - agencyTimezoneOffset;
 
 		var offsetDate = new Date(parseInt(time)*1000 + timezoneDiffMinutes*60*1000);
-		// Use jquery-dateFormat javascript library
-		return $.format.date(offsetDate, 'HH:mm:ss');
+		return offsetDate.toTimeString().slice(0, 8);
 	}
 
 

@@ -26,7 +26,6 @@ pageContext.setAttribute("isMbta", agencyParam != null && agencyParam.startsWith
   <script src="//cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
   <script src="javascript/leafletRotatedMarker.js"></script>
   <script src="javascript/mapUiOptions.js"></script>
-  <script src="${pageContext.request.contextPath}/javascript/jquery-dateFormat.min.js"></script>
 
   <%-- MBTA wants some color customization. Load in options file if mbta --%>
   <c:if test="${isMbta}">
@@ -82,8 +81,7 @@ function dateFormat(time) {
 	var timezoneDiffMinutes = localTimezoneOffset - agencyTimezoneOffset;
 
 	var offsetDate = new Date(parseInt(time)*1000 + timezoneDiffMinutes*60*1000);
-	// Use jquery-dateFormat javascript library
-	return $.format.date(offsetDate, 'HH:mm:ss');
+	return offsetDate.toTimeString().slice(0, 8);
 }
 
 /**
