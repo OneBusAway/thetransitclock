@@ -1,4 +1,4 @@
-<t:layout>
+<t:apiCallLayout>
   <jsp:attribute name="title"><fmt:message key="div.SpecifyParameters" /></jsp:attribute>
   <jsp:attribute name="head">
     <link href="../params/reportParams.css" rel="stylesheet"/>
@@ -27,4 +27,4 @@
 
 </div>
   </jsp:body>
-</t:layout>
+</t:apiCallLayout>
