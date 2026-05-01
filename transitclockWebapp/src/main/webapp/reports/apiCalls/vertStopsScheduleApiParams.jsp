@@ -1,4 +1,4 @@
-<t:layout>
+<t:apiCallLayout>
   <jsp:attribute name="title">
     <fmt:message key="div.SpecifyParameters" />
   </jsp:attribute>
@@ -34,4 +34,4 @@
     <%-- Create submit button --%>
     <jsp:include page="../params/submitApiCall.jsp" />
   </jsp:body>
-</t:layout>
+</t:apiCallLayout>

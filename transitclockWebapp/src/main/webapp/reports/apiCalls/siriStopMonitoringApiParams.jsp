@@ -1,4 +1,4 @@
-<t:layout>
+<t:apiCallLayout>
   <jsp:attribute name="title"><fmt:message key="div.SpecifyParameters" /></jsp:attribute>
   <jsp:attribute name="head">
     <!-- Load in Select2 files so can create fancy route selector -->
@@ -49,4 +49,4 @@
    <jsp:include page="../params/submitApiCall.jsp" />
 </div>
   </jsp:body>
-</t:layout>
+</t:apiCallLayout>
