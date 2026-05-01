@@ -7,7 +7,7 @@
   <div class="px-5 py-4 border-b border-gray-200">
     <h2 class="text-base font-semibold text-gray-900">${title}</h2>
   </div>
-  <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+  <nav aria-label="${title}" class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
     <jsp:doBody/>
   </nav>
 </aside>
